@@ -678,6 +678,26 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 
 // ── Dynamic form state ────────────────────────
 let _fMembros=[], _fEnderecos=[];
+const _cidadesCache={};
+
+async function _getCidades(uf){
+  if(!uf) return [];
+  if(_cidadesCache[uf]) return _cidadesCache[uf];
+  try{
+    const r=await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`);
+    const data=await r.json();
+    const nomes=data.map(m=>m.nome).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+    _cidadesCache[uf]=nomes;
+    return nomes;
+  }catch(e){return [];}
+}
+
+async function _onEstadoMudou(uf, datalistId){
+  const dl=document.getElementById(datalistId);
+  if(!dl) return;
+  const cidades=await _getCidades(uf);
+  dl.innerHTML=cidades.map(c=>`<option value="${c}"></option>`).join('');
+}
 
 const CARGOS_DIRETORIA=[
   ['presidente','Presidente'],['vice_presidente','Vice-Presidente'],
@@ -774,17 +794,19 @@ function _renderEnderecos(){
         <input class="form-control form-control-sm" value="${esc(e.logradouro||'')}" placeholder="Rua, número, bairro"
           oninput="_fEnderecos[${i}].logradouro=this.value">
       </div>
-      <div class="col-md-2">
-        <label class="form-label small mb-1">Cidade</label>
-        <input class="form-control form-control-sm" value="${esc(e.cidade||'')}"
-          oninput="_fEnderecos[${i}].cidade=this.value">
-      </div>
       <div class="col-md-1">
         <label class="form-label small mb-1">UF</label>
-        <select class="form-select form-select-sm" onchange="_fEnderecos[${i}].estado=this.value">
+        <select class="form-select form-select-sm"
+          onchange="_fEnderecos[${i}].estado=this.value;App._onEstadoMudou(this.value,'dl-cidades-end-${i}')">
           <option value=""></option>
           ${ESTADOS.map(([s])=>`<option value="${s}"${e.estado===s?' selected':''}>${s}</option>`).join('')}
         </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1">Cidade</label>
+        <input class="form-control form-control-sm" value="${esc(e.cidade||'')}" list="dl-cidades-end-${i}"
+          autocomplete="off" oninput="_fEnderecos[${i}].cidade=this.value">
+        <datalist id="dl-cidades-end-${i}"></datalist>
       </div>
       <div class="col-auto">
         <button type="button" class="btn btn-sm btn-outline-danger" title="Remover"
@@ -1186,13 +1208,18 @@ async function renderClubeForm(id=null) {
             <label class="form-label">Endereço</label>
             <input name="endereco" class="form-control" value="${esc(v.endereco||'')}" placeholder="Rua, número, bairro">
           </div>
-          <div class="col-md-6">
-            <label class="form-label">Cidade</label>
-            <input name="cidade" class="form-control" value="${esc(v.cidade||'')}" placeholder="Cidade">
-          </div>
-          <div class="col-md-6">
+          <div class="col-md-4">
             <label class="form-label">Estado</label>
-            <select name="estado" class="form-select">${statesOpts(v.estado||'')}</select>
+            <select name="estado" id="inp-estado" class="form-select"
+              onchange="App._onEstadoMudou(this.value,'dl-cidades-principal')">
+              ${statesOpts(v.estado||'')}
+            </select>
+          </div>
+          <div class="col-md-8">
+            <label class="form-label">Cidade</label>
+            <input name="cidade" id="inp-cidade" class="form-control" list="dl-cidades-principal"
+              value="${esc(v.cidade||'')}" placeholder="Selecione o estado e digite a cidade" autocomplete="off">
+            <datalist id="dl-cidades-principal"></datalist>
           </div>
         </div>
         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -1285,6 +1312,9 @@ async function renderClubeForm(id=null) {
   maskFone(document.getElementById('inp-fone'));
   _renderMembros();
   _renderEnderecos();
+  // Popula datalists de cidades
+  if(v.estado) _onEstadoMudou(v.estado,'dl-cidades-principal');
+  _fEnderecos.forEach((e,i)=>{ if(e.estado) _onEstadoMudou(e.estado,`dl-cidades-end-${i}`); });
 }
 
 async function saveClube(e,id) {
@@ -3898,7 +3928,7 @@ return{
   // Clipping
   _clBuscar,_clFiltrar,_clSetViz,_clMarcarLida,_clMarcarTodasLidas,_clDeletar,_clLimpar,
   // Form dynamic sections
-  _addMembro,_addEndereco,
+  _addMembro,_addEndereco,_onEstadoMudou,
   // Detail view actions
   _uploadDoc,_cancelDoc,_deleteDoc,
   _showAssocForm,_editAssoc,_saveAssoc,_deleteAssoc,
