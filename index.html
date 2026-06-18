@@ -1106,6 +1106,26 @@ async function renderClubeForm(id=null) {
     <div class="card shadow-sm mb-4">
       <div class="card-header"><i class="bi bi-building-fill me-2"></i>Informações do Clube</div>
       <div class="card-body"><div class="row g-3">
+        <div class="col-12">
+          <div class="d-flex align-items-center gap-3 p-3 rounded" style="background:#f8f9fb;border:1px solid #e8ebf0">
+            <div id="logo-preview-wrap" style="width:80px;height:80px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#fff;border-radius:8px;border:1px dashed #ccc;overflow:hidden">
+              ${v.logoUrl?`<img src="${v.logoUrl}" style="max-width:80px;max-height:80px;object-fit:contain">`:`<i class="bi bi-image text-muted" style="font-size:2rem"></i>`}
+            </div>
+            <div>
+              <div class="fw-semibold small mb-1">Logo do Clube</div>
+              <div class="text-muted mb-2" style="font-size:.75rem">PNG, JPG ou WebP · mínimo recomendado 300×300 px</div>
+              ${pode.editar()?`<div class="d-flex gap-2 flex-wrap">
+                <button type="button" class="btn btn-sm btn-outline-secondary"
+                  onclick="document.getElementById('logo-file-inp').click()">
+                  <i class="bi bi-upload me-1"></i>${v.logoUrl?'Trocar logo':'Carregar logo'}</button>
+                ${v.logoUrl&&v.id?`<button type="button" class="btn btn-sm btn-outline-danger"
+                  onclick="App._removeLogo(${v.id})"><i class="bi bi-trash me-1"></i>Remover</button>`:''}
+                <input type="file" id="logo-file-inp" style="display:none" accept=".png,.jpg,.jpeg,.webp"
+                  onchange="App._previewLogo(this)">
+              </div>`:''}
+            </div>
+          </div>
+        </div>
         <div class="col-md-8">
           <label class="form-label req">Nome do Clube</label>
           <input name="nomeClube" class="form-control" required value="${esc(v.nomeClube||'')}" placeholder="Nome completo do clube">
@@ -1285,12 +1305,35 @@ async function saveClube(e,id) {
       Api.call(`/api/clubes/${cid}/membros`,{method:'PUT',body:_fMembros}),
       Api.call(`/api/clubes/${cid}/enderecos-adicionais`,{method:'PUT',body:_fEnderecos}),
     ]);
+    const logoInp=document.getElementById('logo-file-inp');
+    if(logoInp&&logoInp.files[0]){
+      const lfd=new FormData();
+      lfd.append('file',logoInp.files[0]);
+      await fetch(`/api/clubes/${cid}/logo`,{method:'POST',body:lfd,credentials:'include'});
+    }
     toast(`Clube "${data.nomeClube}" ${id?'atualizado':'cadastrado'}!`);
     await go('clube-detalhe',cid);
   } catch(err2) {
     toast(err2.message,'danger');
     btn.disabled=false;btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Salvar';
   }
+}
+
+function _previewLogo(inp) {
+  if(!inp.files[0])return;
+  const wrap=document.getElementById('logo-preview-wrap');
+  if(!wrap)return;
+  const url=URL.createObjectURL(inp.files[0]);
+  wrap.innerHTML=`<img src="${url}" style="max-width:80px;max-height:80px;object-fit:contain">`;
+}
+
+async function _removeLogo(id) {
+  try {
+    await Api.call(`/api/clubes/${id}/logo`,{method:'DELETE'});
+    const wrap=document.getElementById('logo-preview-wrap');
+    if(wrap)wrap.innerHTML='<i class="bi bi-image text-muted" style="font-size:2rem"></i>';
+    toast('Logo removida.');
+  } catch(e){toast(e.message,'danger');}
 }
 
 function confirmarExcluirClube(id,nome) {
@@ -1417,6 +1460,15 @@ async function renderClubeDetalhe(id) {
 
     <!-- Coluna lateral -->
     <div class="col-lg-4">
+
+      <!-- Logo -->
+      ${c.logoUrl?`
+      <div class="card shadow-sm mb-4 text-center">
+        <div class="card-body py-3">
+          <img src="${c.logoUrl}" alt="Logo ${esc(c.nomeClube)}"
+            style="max-height:140px;max-width:100%;object-fit:contain;border-radius:6px">
+        </div>
+      </div>`:''}
 
       <!-- Contato principal -->
       <div class="card shadow-sm mb-4">
@@ -3773,7 +3825,7 @@ async function init() {
 
 return{
   init,login,logout,go,applyFilters,clearFilters,toggleSidebar,closeSidebar,
-  saveClube,confirmarExcluirClube,
+  saveClube,confirmarExcluirClube,_previewLogo,_removeLogo,
   saveUsuario,confirmarExcluirUsuario,renderUsuarios,
   salvarSenha,toggleSenha,
   exportarCSV,abrirImportCSV,analisarCSV,confirmarImportCSV,downloadTemplateCSV,

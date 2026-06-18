@@ -66,6 +66,7 @@ def clube_dict(c):
         'site':                c.site,
         'youtube':             c.youtube,
         'tiktok':              c.tiktok,
+        'logoUrl':             f'/api/clubes/{c.id}/logo' if c.logo_filename else None,
         'observacoes':         c.observacoes,
         'ativo':               c.ativo,
         'criadoEm':            c.criado_em.isoformat()     if c.criado_em     else None,
@@ -327,8 +328,12 @@ def delete_clube(id):
     c = db.session.get(Clube, id)
     if not c:
         return err('Clube não encontrado.', 404)
-    # Remove uploaded files for this club's documents
     upload_dir = current_app.config['UPLOAD_FOLDER']
+    if c.logo_filename:
+        try:
+            os.remove(os.path.join(upload_dir, c.logo_filename))
+        except OSError:
+            pass
     for doc in c.documentos:
         try:
             os.remove(os.path.join(upload_dir, doc.filename))
@@ -336,6 +341,62 @@ def delete_clube(id):
             pass
     db.session.delete(c)
     db.session.commit()
+    return ok()
+
+
+# ── LOGO DO CLUBE ────────────────────────────────────────────────────────────
+@api_bp.route('/clubes/<int:id>/logo')
+@login_required
+def get_logo(id):
+    c = db.session.get(Clube, id)
+    if not c or not c.logo_filename:
+        return err('Logo não encontrada.', 404)
+    return send_from_directory(current_app.config['UPLOAD_FOLDER'], c.logo_filename)
+
+
+@api_bp.route('/clubes/<int:id>/logo', methods=['POST'])
+@login_required
+def upload_logo(id):
+    if not current_user.pode_editar():
+        return err('Sem permissão.', 403)
+    c = db.session.get(Clube, id)
+    if not c:
+        return err('Clube não encontrado.', 404)
+    if 'file' not in request.files:
+        return err('Nenhum arquivo enviado.')
+    f = request.files['file']
+    if not f.filename:
+        return err('Arquivo inválido.')
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in {'.png', '.jpg', '.jpeg', '.webp'}:
+        return err('Use PNG, JPG ou WebP para a logo.')
+    if c.logo_filename:
+        try:
+            os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], c.logo_filename))
+        except OSError:
+            pass
+    unique = f'logo_{id}_{uuid.uuid4().hex[:8]}{ext}'
+    f.save(os.path.join(current_app.config['UPLOAD_FOLDER'], unique))
+    c.logo_filename = unique
+    db.session.commit()
+    return ok({'logoUrl': f'/api/clubes/{id}/logo'})
+
+
+@api_bp.route('/clubes/<int:id>/logo', methods=['DELETE'])
+@login_required
+def delete_logo(id):
+    if not current_user.pode_editar():
+        return err('Sem permissão.', 403)
+    c = db.session.get(Clube, id)
+    if not c:
+        return err('Clube não encontrado.', 404)
+    if c.logo_filename:
+        try:
+            os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], c.logo_filename))
+        except OSError:
+            pass
+        c.logo_filename = None
+        db.session.commit()
     return ok()
 
 

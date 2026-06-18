@@ -90,6 +90,7 @@ def _migrate_db():
                 ('site', 'VARCHAR(150)'),
                 ('youtube', 'VARCHAR(150)'),
                 ('tiktok', 'VARCHAR(150)'),
+                ('logo_filename', 'VARCHAR(300)'),
             ]
             for col_name, col_type in new_cols:
                 if col_name not in existing:

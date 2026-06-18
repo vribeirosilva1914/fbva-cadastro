@@ -56,6 +56,7 @@ class Clube(db.Model):
     site = db.Column(db.String(150), nullable=True)
     youtube = db.Column(db.String(150), nullable=True)
     tiktok = db.Column(db.String(150), nullable=True)
+    logo_filename = db.Column(db.String(300), nullable=True)
     observacoes = db.Column(db.Text, nullable=True)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
     criado_em = db.Column(db.DateTime, default=datetime.utcnow)
