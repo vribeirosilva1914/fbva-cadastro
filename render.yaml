@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: fbva-sistema
+    name: fbva-cadastro
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
