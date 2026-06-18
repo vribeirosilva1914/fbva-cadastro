@@ -895,6 +895,7 @@ def list_trimestralidades():
         'dataPagamento':  r.data_pagamento.isoformat()  if r.data_pagamento  else None,
         'observacoes':    r.observacoes,
         'registradoPor':  r.registrado_por.nome if r.registrado_por else None,
+        'comprovanteUrl': f'/api/trimestralidades/{r.clube_id}/{r.ano}/{r.trimestre}/comprovante' if r.comprovante_filename else None,
     } for r in registros])
 
 
@@ -923,7 +924,64 @@ def update_trimestralidade(clube_id, ano, trimestre):
     db.session.commit()
     return ok({'id': r.id, 'clubeId': r.clube_id, 'trimestre': r.trimestre,
                'status': r.status, 'valor': str(r.valor) if r.valor else None,
-               'dataPagamento': r.data_pagamento.isoformat() if r.data_pagamento else None})
+               'dataPagamento': r.data_pagamento.isoformat() if r.data_pagamento else None,
+               'comprovanteUrl': f'/api/trimestralidades/{r.clube_id}/{r.ano}/{r.trimestre}/comprovante' if r.comprovante_filename else None})
+
+
+# ── COMPROVANTE DE TRIMESTRALIDADE ───────────────────────────────────────────
+@api_bp.route('/trimestralidades/<int:clube_id>/<int:ano>/<int:trimestre>/comprovante')
+@login_required
+def get_comprovante_tri(clube_id, ano, trimestre):
+    r = Trimestralidade.query.filter_by(clube_id=clube_id, ano=ano, trimestre=trimestre).first()
+    if not r or not r.comprovante_filename:
+        return err('Comprovante não encontrado.', 404)
+    return send_from_directory(current_app.config['UPLOAD_FOLDER'], r.comprovante_filename,
+                               as_attachment=False, download_name=r.comprovante_filename)
+
+
+@api_bp.route('/trimestralidades/<int:clube_id>/<int:ano>/<int:trimestre>/comprovante', methods=['POST'])
+@login_required
+def upload_comprovante_tri(clube_id, ano, trimestre):
+    if not current_user.pode_editar():
+        return err('Sem permissão.', 403)
+    r = Trimestralidade.query.filter_by(clube_id=clube_id, ano=ano, trimestre=trimestre).first()
+    if not r:
+        return err('Trimestralidade não encontrada.', 404)
+    if 'file' not in request.files:
+        return err('Nenhum arquivo enviado.')
+    f = request.files['file']
+    if not f.filename:
+        return err('Arquivo inválido.')
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext != '.pdf':
+        return err('Apenas arquivos PDF são aceitos.')
+    if r.comprovante_filename:
+        try:
+            os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], r.comprovante_filename))
+        except OSError:
+            pass
+    unique = f'comprovante_tri_{clube_id}_{ano}_{trimestre}_{uuid.uuid4().hex[:8]}.pdf'
+    f.save(os.path.join(current_app.config['UPLOAD_FOLDER'], unique))
+    r.comprovante_filename = unique
+    db.session.commit()
+    return ok({'comprovanteUrl': f'/api/trimestralidades/{clube_id}/{ano}/{trimestre}/comprovante'})
+
+
+@api_bp.route('/trimestralidades/<int:clube_id>/<int:ano>/<int:trimestre>/comprovante', methods=['DELETE'])
+@login_required
+def delete_comprovante_tri(clube_id, ano, trimestre):
+    if not current_user.pode_editar():
+        return err('Sem permissão.', 403)
+    r = Trimestralidade.query.filter_by(clube_id=clube_id, ano=ano, trimestre=trimestre).first()
+    if not r or not r.comprovante_filename:
+        return err('Comprovante não encontrado.', 404)
+    try:
+        os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], r.comprovante_filename))
+    except OSError:
+        pass
+    r.comprovante_filename = None
+    db.session.commit()
+    return ok()
 
 
 # ── E-MAIL ───────────────────────────────────────────────────────────────────

@@ -468,7 +468,20 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;font-size:
         <div>
           <label class="form-label">Observações</label>
           <textarea id="tri-obs" class="form-control form-control-sm" rows="2"
-            placeholder="Parcelas, acordos, comprovante..."></textarea>
+            placeholder="Parcelas, acordos, observações..."></textarea>
+        </div>
+        <div class="mt-3">
+          <label class="form-label fw-semibold">Comprovante de pagamento (PDF)</label>
+          <div id="tri-comprovante-atual" class="mb-2"></div>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary"
+              onclick="document.getElementById('tri-comprovante-inp').click()">
+              <i class="bi bi-upload me-1"></i><span id="tri-comp-btn-txt">Carregar PDF</span>
+            </button>
+            <input type="file" id="tri-comprovante-inp" accept=".pdf" style="display:none"
+              onchange="App._triPreviewComprovante(this)">
+            <span id="tri-comprovante-novo" class="text-muted small"></span>
+          </div>
         </div>
       </div>
       <div class="modal-footer">
@@ -2202,6 +2215,22 @@ function _editarTri(clubeId, clubeNome, ano, trimestre) {
   document.getElementById('tri-venc').value  = r.dataVencimento||'';
   document.getElementById('tri-pgto').value  = r.dataPagamento||'';
   document.getElementById('tri-obs').value   = r.observacoes||'';
+  // Comprovante
+  document.getElementById('tri-comprovante-inp').value = '';
+  document.getElementById('tri-comprovante-novo').textContent = '';
+  document.getElementById('tri-comp-btn-txt').textContent = 'Carregar PDF';
+  const atualEl = document.getElementById('tri-comprovante-atual');
+  if (r.comprovanteUrl) {
+    atualEl.innerHTML = `<div class="d-flex align-items-center gap-2">
+      <a href="${r.comprovanteUrl}" target="_blank" class="btn btn-sm btn-outline-success">
+        <i class="bi bi-file-earmark-pdf-fill me-1"></i>Ver comprovante</a>
+      <button type="button" class="btn btn-sm btn-outline-danger"
+        onclick="App._triRemoverComprovante()">
+        <i class="bi bi-trash me-1"></i>Remover</button>
+    </div>`;
+  } else {
+    atualEl.innerHTML = '';
+  }
   new bootstrap.Modal(document.getElementById('modal-trimestre')).show();
 }
 
@@ -2217,11 +2246,37 @@ async function _salvarTrimestralidade() {
       dataPagamento:  document.getElementById('tri-pgto').value||null,
       observacoes:    document.getElementById('tri-obs').value||null,
     });
+    const inp = document.getElementById('tri-comprovante-inp');
+    if (inp && inp.files[0]) {
+      const fd = new FormData();
+      fd.append('file', inp.files[0]);
+      await fetch(`/api/trimestralidades/${clubeId}/${ano}/${trimestre}/comprovante`,
+        {method:'POST', body:fd, credentials:'include'});
+    }
     bootstrap.Modal.getInstance(document.getElementById('modal-trimestre'))?.hide();
     toast('Trimestralidade atualizada!');
     const tris = await Api.get(`/api/trimestralidades?ano=${ano}`);
     window._triData = tris;
     _filtrarGestao();
+  } catch(e) { toast(e.message,'danger'); }
+}
+
+function _triPreviewComprovante(inp) {
+  const f = inp.files[0]; if(!f) return;
+  document.getElementById('tri-comprovante-novo').textContent = `Selecionado: ${f.name}`;
+  document.getElementById('tri-comp-btn-txt').textContent = 'Trocar PDF';
+}
+
+async function _triRemoverComprovante() {
+  if(!_triEditCtx) return;
+  const {clubeId, ano, trimestre} = _triEditCtx;
+  try {
+    await Api.call(`/api/trimestralidades/${clubeId}/${ano}/${trimestre}/comprovante`,{method:'DELETE'});
+    document.getElementById('tri-comprovante-atual').innerHTML = '';
+    // Atualiza cache local
+    const key = `${clubeId}_${trimestre}`;
+    if(window._triCache&&window._triCache[key]) window._triCache[key].comprovanteUrl = null;
+    toast('Comprovante removido.');
   } catch(e) { toast(e.message,'danger'); }
 }
 
@@ -3836,7 +3891,7 @@ return{
   // Gestão (Documentação & Trimestralidades)
   _renderGestaoTab,_filtrarGestao,
   _abrirUploadDoc,_abrirUploadDocClube,_submitUploadDoc,_excluirDoc,
-  _triNavAno,_editarTri,_salvarTrimestralidade,
+  _triNavAno,_editarTri,_salvarTrimestralidade,_triPreviewComprovante,_triRemoverComprovante,
   // Clipping
   _clBuscar,_clFiltrar,_clSetViz,_clMarcarLida,_clMarcarTodasLidas,_clDeletar,_clLimpar,
   // Form dynamic sections

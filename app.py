@@ -96,6 +96,12 @@ def _migrate_db():
                 if col_name not in existing:
                     conn.execute(text(f'ALTER TABLE clubes ADD COLUMN {col_name} {col_type}'))
 
+            # trimestralidades — comprovante
+            if 'trimestralidades' in inspector.get_table_names():
+                tri_cols = {c['name'] for c in inspector.get_columns('trimestralidades')}
+                if 'comprovante_filename' not in tri_cols:
+                    conn.execute(text('ALTER TABLE trimestralidades ADD COLUMN comprovante_filename VARCHAR(300)'))
+
             # clipping_noticias — novas colunas
             if 'clipping_noticias' in inspector.get_table_names():
                 clip_cols = {c['name'] for c in inspector.get_columns('clipping_noticias')}

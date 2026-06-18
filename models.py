@@ -195,9 +195,10 @@ class Trimestralidade(db.Model):
     valor             = db.Column(db.Numeric(10, 2), nullable=True)
     data_vencimento   = db.Column(db.Date, nullable=True)
     data_pagamento    = db.Column(db.Date, nullable=True)
-    observacoes       = db.Column(db.Text, nullable=True)
-    registrado_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
-    atualizado_em     = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    observacoes           = db.Column(db.Text, nullable=True)
+    comprovante_filename  = db.Column(db.String(300), nullable=True)
+    registrado_por_id     = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
+    atualizado_em         = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     clube           = db.relationship('Clube', backref='trimestralidades')
     registrado_por  = db.relationship('Usuario', foreign_keys=[registrado_por_id])
