@@ -564,6 +564,8 @@ const pode={
   editar:()=>['admin','secretaria','comunicacao'].includes(state.user?.perfil),
   secretaria:()=>['admin','secretaria'].includes(state.user?.perfil),
   comunicacao:()=>['admin','comunicacao'].includes(state.user?.perfil),
+  financeiro:()=>['admin','secretaria'].includes(state.user?.perfil),
+  documentos:()=>['admin','secretaria'].includes(state.user?.perfil),
   excluir:()=>state.user?.perfil==='admin',
   usuarios:()=>state.user?.perfil==='admin',
 };
@@ -877,21 +879,20 @@ async function renderDashboard() {
   );
   render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
   const anoAtual=new Date().getFullYear();
-  const [cl, tris]=await Promise.all([
-    Api.get('/api/clubes?status=todos'),
-    Api.get(`/api/trimestralidades?ano=${anoAtual}`),
-  ]);
+  const requests=[Api.get('/api/clubes?status=todos')];
+  if(pode.financeiro()) requests.push(Api.get(`/api/trimestralidades?ano=${anoAtual}`));
+  const [cl, tris=[]]=await Promise.all(requests);
   state.clubes=cl;
   const hoje=new Date().toISOString().slice(0,10);
   const em60=new Date(Date.now()+30*864e5).toISOString().slice(0,10);
-  const total=cl.length;
+  const total=cl.length, ativos=cl.filter(c=>c.ativo).length;
   const vencidos=cl.filter(c=>c.ativo&&c.fimMandato&&c.fimMandato<hoje).length;
   const proximos=cl.filter(c=>c.ativo&&c.fimMandato&&c.fimMandato>=hoje&&c.fimMandato<=em60).length;
   const totalAssociados=cl.reduce((s,c)=>s+(c.numAssociados||0),0);
   const totalMembros=cl.reduce((s,c)=>s+(c.numMembros||0),0);
   const ativosIds=new Set(cl.filter(c=>c.ativo).map(c=>c.id));
   const inadimpSet=new Set();
-  tris.forEach(r=>{
+  (tris||[]).forEach(r=>{
     if(!ativosIds.has(r.clubeId)) return;
     if(r.status==='vencido'||(r.status==='pendente'&&r.dataVencimento&&r.dataVencimento<hoje))
       inadimpSet.add(r.clubeId);
@@ -910,10 +911,13 @@ async function renderDashboard() {
       <div class="sc-icon"><i class="bi bi-building-fill"></i></div>
       <div class="sc-val">${total}</div><div class="sc-lbl">Total de Clubes</div>
     </div></div>
-    <div class="col-6 col-xl-3"><div class="stat-card sc-purple">
+    <div class="col-6 col-xl-3">${pode.financeiro()?`<div class="stat-card sc-purple">
       <div class="sc-icon"><i class="bi bi-exclamation-circle-fill"></i></div>
       <div class="sc-val">${inadimplentes}</div><div class="sc-lbl">Inadimplentes (Tri.)</div>
-    </div></div>
+    </div>`:`<div class="stat-card sc-teal">
+      <div class="sc-icon"><i class="bi bi-check-circle-fill"></i></div>
+      <div class="sc-val">${ativos}</div><div class="sc-lbl">Clubes Ativos</div>
+    </div>`}</div>
     <div class="col-6 col-xl-3"><div class="stat-card sc-yellow">
       <div class="sc-icon"><i class="bi bi-clock-history"></i></div>
       <div class="sc-val">${proximos}</div><div class="sc-lbl">Mandatos Vencendo (30 dias)</div>
@@ -1541,7 +1545,7 @@ async function renderClubeDetalhe(id) {
       </div>
 
       <!-- Documentos -->
-      <div class="card shadow-sm mb-4" id="card-docs">
+      ${pode.documentos()?`<div class="card shadow-sm mb-4" id="card-docs">
         <div class="card-header d-flex justify-content-between align-items-center">
           <span><i class="bi bi-file-earmark-fill me-2"></i>Documentos</span>
           ${pode.secretaria()?`<button class="btn btn-sm btn-outline-primary" onclick="document.getElementById('doc-upload-inp').click()">
@@ -1567,7 +1571,7 @@ async function renderClubeDetalhe(id) {
             <button class="btn btn-sm btn-outline-secondary" onclick="App._cancelDoc()">Cancelar</button>
           </div>
         </div>`:''}
-      </div>
+      </div>`:''}
 
       <!-- Registro -->
       <div class="card shadow-sm">

@@ -138,7 +138,8 @@ def associado_dict(a):
 def clube_full_dict(c):
     d = clube_dict(c)
     d['membros']             = [membro_dict(m)     for m   in c.membros_diretoria]
-    d['documentos']          = [documento_dict(doc) for doc in c.documentos]
+    d['documentos']          = [documento_dict(doc) for doc in c.documentos] \
+                               if current_user.pode_ver_restrito() else []
     d['enderecosAdicionais'] = [endereco_dict(e)   for e   in c.enderecos_adicionais]
     d['contatos']            = [contato_dict(ct)   for ct  in c.contatos]
     d['associados']          = [associado_dict(a)  for a   in c.associados]
@@ -454,6 +455,8 @@ def replace_membros(cid):
 @api_bp.route('/clubes/<int:cid>/documentos', methods=['GET'])
 @login_required
 def get_documentos(cid):
+    if not current_user.pode_ver_restrito():
+        return err('Sem permissão.', 403)
     c = db.session.get(Clube, cid)
     if not c:
         return err('Clube não encontrado.', 404)
@@ -463,7 +466,7 @@ def get_documentos(cid):
 @api_bp.route('/clubes/<int:cid>/documentos', methods=['POST'])
 @login_required
 def upload_documento(cid):
-    if not current_user.pode_editar():
+    if not current_user.pode_ver_restrito():
         return err('Sem permissão.', 403)
     c = db.session.get(Clube, cid)
     if not c:
@@ -498,6 +501,8 @@ def upload_documento(cid):
 @api_bp.route('/documentos/<int:did>', methods=['GET'])
 @login_required
 def download_documento(did):
+    if not current_user.pode_ver_restrito():
+        return err('Sem permissão.', 403)
     d = db.session.get(Documento, did)
     if not d:
         return err('Documento não encontrado.', 404)
@@ -509,7 +514,7 @@ def download_documento(did):
 @api_bp.route('/documentos/<int:did>', methods=['DELETE'])
 @login_required
 def delete_documento(did):
-    if not current_user.pode_editar():
+    if not current_user.pode_ver_restrito():
         return err('Sem permissão.', 403)
     d = db.session.get(Documento, did)
     if not d:
@@ -882,6 +887,8 @@ def upload_gestao_documento():
 @api_bp.route('/trimestralidades')
 @login_required
 def list_trimestralidades():
+    if not current_user.pode_ver_restrito():
+        return err('Sem permissão.', 403)
     ano = request.args.get('ano', datetime.utcnow().year, type=int)
     registros = Trimestralidade.query.filter_by(ano=ano).all()
     return ok([{
@@ -902,7 +909,7 @@ def list_trimestralidades():
 @api_bp.route('/trimestralidades/<int:clube_id>/<int:ano>/<int:trimestre>', methods=['PUT'])
 @login_required
 def update_trimestralidade(clube_id, ano, trimestre):
-    if not current_user.pode_editar():
+    if not current_user.pode_ver_restrito():
         return err('Sem permissão.', 403)
     if trimestre not in (1, 2, 3, 4):
         return err('Trimestre inválido.')
@@ -932,6 +939,8 @@ def update_trimestralidade(clube_id, ano, trimestre):
 @api_bp.route('/trimestralidades/<int:clube_id>/<int:ano>/<int:trimestre>/comprovante')
 @login_required
 def get_comprovante_tri(clube_id, ano, trimestre):
+    if not current_user.pode_ver_restrito():
+        return err('Sem permissão.', 403)
     r = Trimestralidade.query.filter_by(clube_id=clube_id, ano=ano, trimestre=trimestre).first()
     if not r or not r.comprovante_filename:
         return err('Comprovante não encontrado.', 404)
@@ -942,7 +951,7 @@ def get_comprovante_tri(clube_id, ano, trimestre):
 @api_bp.route('/trimestralidades/<int:clube_id>/<int:ano>/<int:trimestre>/comprovante', methods=['POST'])
 @login_required
 def upload_comprovante_tri(clube_id, ano, trimestre):
-    if not current_user.pode_editar():
+    if not current_user.pode_ver_restrito():
         return err('Sem permissão.', 403)
     r = Trimestralidade.query.filter_by(clube_id=clube_id, ano=ano, trimestre=trimestre).first()
     if not r:
@@ -970,7 +979,7 @@ def upload_comprovante_tri(clube_id, ano, trimestre):
 @api_bp.route('/trimestralidades/<int:clube_id>/<int:ano>/<int:trimestre>/comprovante', methods=['DELETE'])
 @login_required
 def delete_comprovante_tri(clube_id, ano, trimestre):
-    if not current_user.pode_editar():
+    if not current_user.pode_ver_restrito():
         return err('Sem permissão.', 403)
     r = Trimestralidade.query.filter_by(clube_id=clube_id, ano=ano, trimestre=trimestre).first()
     if not r or not r.comprovante_filename:

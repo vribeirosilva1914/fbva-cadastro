@@ -34,6 +34,10 @@ class Usuario(UserMixin, db.Model):
     def pode_gerenciar_usuarios(self):
         return self.perfil == 'admin'
 
+    def pode_ver_restrito(self):
+        """Acesso a financeiro (trimestralidades) e documentação: apenas admin e secretaria."""
+        return self.perfil in ('admin', 'secretaria')
+
 
 class Clube(db.Model):
     __tablename__ = 'clubes'
