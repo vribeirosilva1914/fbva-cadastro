@@ -1,0 +1,10 @@
+.env
+secret.key
+instance/
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.gitignore
+iniciar.bat
+.env.example

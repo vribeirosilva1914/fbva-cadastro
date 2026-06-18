@@ -1,0 +1,3666 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FBVA — Sistema de Gestão</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+:root{
+  --sb:240px;
+  --sbBg:#0f1c2e;
+  --accent:#009B3A;
+  --acHov:#007A2F;
+  --acLight:rgba(0,155,58,.15);
+  --bg:#f4f6fa;
+  --top:56px;
+  --blue:#2563eb;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;font-size:.875rem;margin:0}
+
+/* ── Sidebar ── */
+.sidebar{position:fixed;top:0;left:0;width:var(--sb);height:100vh;background:var(--sbBg);display:flex;flex-direction:column;z-index:1000;overflow-y:auto}
+.sb-brand{display:flex;align-items:center;gap:10px;padding:16px;border-bottom:1px solid rgba(255,255,255,.07);color:#fff;text-decoration:none}
+.sb-logo img{display:block;border-radius:4px;object-fit:contain}
+/* ── WhatsApp ── */
+.wa-chip{display:inline-flex;align-items:center;gap:6px;background:#25D366;color:#fff;border-radius:20px;padding:5px 14px;font-size:.82rem;font-weight:600;text-decoration:none;transition:.15s}
+.wa-chip:hover{background:#128C7E;color:#fff}
+.wa-msg-card{background:#fff;border:1px solid #e8ebf0;border-radius:10px;padding:16px;margin-bottom:10px}
+.wa-msg-card .ts{font-size:.72rem;color:#9ca3af}
+.wa-log-wrap{max-height:280px;overflow-y:auto}
+.wa-var-btn{font-size:.72rem;padding:2px 8px;border-radius:12px;border:1px solid #d1d5db;background:#f9fafb;cursor:pointer;transition:.15s;color:#374151}
+.wa-var-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.brand-t{font-size:.85rem;font-weight:700;letter-spacing:.04em;display:block;line-height:1.2;color:#fff}
+.brand-s{font-size:.6rem;color:rgba(255,255,255,.45);display:block;letter-spacing:.02em}
+.sb-nav{padding:12px 8px;flex:1}
+.nav-sec{font-size:.62rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.3);padding:8px 10px 4px}
+.sb-nav .nl{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:7px;color:rgba(255,255,255,.72);text-decoration:none;font-size:.84rem;font-weight:500;cursor:pointer;margin-bottom:2px;transition:.15s;border:none;background:none;width:100%;text-align:left}
+.sb-nav .nl i{font-size:1rem;width:18px;text-align:center;flex-shrink:0}
+.sb-nav .nl:hover{background:rgba(255,255,255,.08);color:#fff}
+.sb-nav .nl.active{background:var(--accent);color:#fff}
+.sb-foot{padding:12px;border-top:1px solid rgba(255,255,255,.07)}
+.u-info{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.u-av{width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0}
+.u-name{font-size:.82rem;font-weight:600;color:#fff;line-height:1.2}
+.u-role{font-size:.7rem;color:rgba(255,255,255,.45)}
+.u-actions{display:flex;gap:4px}
+.btn-ic{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:6px;color:rgba(255,255,255,.5);cursor:pointer;transition:.15s;border:none;background:none;font-size:.9rem}
+.btn-ic:hover{background:rgba(255,255,255,.1);color:#fff}
+
+/* ── Main ── */
+.main{margin-left:var(--sb);min-height:100vh;display:flex;flex-direction:column}
+.topbar{height:var(--top);background:#fff;border-bottom:1px solid #e8ebf0;padding:0 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.topbar-t{font-size:1rem;font-weight:600;color:#1a1a2e}
+.topbar-t i{color:var(--accent)}
+.content{padding:24px;flex:1}
+
+/* ── Cards ── */
+.card{border:1px solid #e8ebf0;border-radius:10px}
+.card-header{background:#f8f9fb;border-bottom:1px solid #e8ebf0;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;padding:12px 16px;border-radius:10px 10px 0 0!important}
+
+/* ── Stat cards ── */
+.stat-card{background:#fff;border:1px solid #e8ebf0;border-radius:10px;padding:20px;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.sc-green::before{background:var(--accent)}.sc-teal::before{background:#0d9488}
+.sc-yellow::before{background:#d97706}.sc-red::before{background:#dc2626}
+.sc-blue::before{background:#2563eb}.sc-indigo::before{background:#4f46e5}.sc-purple::before{background:#7c3aed}
+.sc-icon{font-size:1.5rem;margin-bottom:4px;opacity:.85}
+.sc-green .sc-icon{color:var(--accent)}.sc-teal .sc-icon{color:#0d9488}
+.sc-yellow .sc-icon{color:#d97706}.sc-red .sc-icon{color:#dc2626}
+.sc-blue .sc-icon{color:#2563eb}.sc-indigo .sc-icon{color:#4f46e5}.sc-purple .sc-icon{color:#7c3aed}
+.sc-val{font-size:2rem;font-weight:700;color:#111827;line-height:1}
+.sc-lbl{font-size:.78rem;color:#6b7280;font-weight:500}
+
+/* ── Tables ── */
+.table>thead>tr>th{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;border-bottom:1px solid #e8ebf0;padding:10px 12px;background:#fafbfc;white-space:nowrap}
+.table>tbody>tr>td{padding:10px 12px;border-bottom:1px solid #f0f2f5;vertical-align:middle;font-size:.84rem}
+.table-hover>tbody>tr:hover{background:#f0faf4}
+
+/* ── Detail ── */
+.d-lbl{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;margin-bottom:2px}
+.d-val{font-size:.9rem;color:#111827}
+.av-sm{width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;flex-shrink:0}
+
+/* ── Login ── */
+#screen-login{background:linear-gradient(135deg,#0f1c2e 0%,#0d2a1a 50%,#0f1c2e 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-card{background:#fff;border-radius:16px;padding:40px 36px;box-shadow:0 24px 60px rgba(0,0,0,.35);width:100%;max-width:420px}
+.login-title{font-size:1.5rem;font-weight:800;color:#0f1c2e;margin-bottom:2px;letter-spacing:.03em}
+.login-sub{font-size:.8rem;font-weight:500;color:#6b7280;margin-bottom:0}
+
+/* ── Forms ── */
+.form-label.req::after{content:' *';color:#dc2626}
+.form-control,.form-select{font-size:.875rem;border-color:#d1d5db;border-radius:6px}
+.form-control:focus,.form-select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,155,58,.15)}
+
+/* ── Buttons ── */
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover,.btn-primary:focus{background:var(--acHov);border-color:var(--acHov);color:#fff}
+.btn-outline-primary{color:var(--accent);border-color:var(--accent)}
+.btn-outline-primary:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* ── Alerts ── */
+.alert{border-radius:8px;font-size:.85rem;border:none;padding:10px 14px}
+.alert-success{background:#d1fae5;color:#065f46}.alert-danger{background:#fee2e2;color:#991b1b}
+.alert-warning{background:#fef3c7;color:#92400e}.alert-info{background:#dbeafe;color:#1e40af}
+
+/* ── Toast ── */
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+
+/* ── Import step indicator ── */
+.step-bar{display:flex;gap:0;margin-bottom:20px}
+.step{flex:1;text-align:center;padding:8px;font-size:.78rem;font-weight:600;color:#9ca3af;border-bottom:2px solid #e5e7eb;transition:.2s}
+.step.active{color:var(--accent);border-color:var(--accent)}
+.step.done{color:var(--acHov);border-color:var(--acHov)}
+
+/* ── Preview table in modal ── */
+.preview-table-wrap{max-height:240px;overflow:auto;border:1px solid #e5e7eb;border-radius:6px;font-size:.78rem}
+.preview-table-wrap table th{background:#f9fafb;position:sticky;top:0}
+
+/* ── Dynamic form rows ── */
+.dyn-row{background:#fafbfc;border:1px solid #e8ebf0;border-radius:8px;padding:12px 14px;margin-bottom:8px;position:relative}
+.dyn-row:hover{border-color:#c5d1db}
+.dyn-sub-row{background:#f0f2f5;border-radius:6px;padding:8px 10px;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.dyn-add-btn{font-size:.78rem;padding:3px 10px}
+.sec-empty{text-align:center;padding:20px;color:#9ca3af;font-size:.82rem;border:2px dashed #e5e7eb;border-radius:8px}
+.doc-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e8ebf0;border-radius:8px;margin-bottom:6px;background:#fff}
+.doc-item:hover{background:#f8f9fb}
+.doc-icon{font-size:1.4rem;color:#dc2626;flex-shrink:0}
+.assoc-table th{font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280}
+/* ── Email Visual Editor ── */
+.em-palette{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px}
+.em-block-chip{display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;cursor:grab;background:white;font-size:.78rem;color:#374151;margin-bottom:4px;user-select:none;transition:.15s}
+.em-block-chip:hover{border-color:#93c5fd;background:#eff6ff;color:#1d4ed8}
+.em-block-chip:active{cursor:grabbing}
+.em-canvas{min-height:220px;border:2px dashed #e2e8f0;border-radius:8px;padding:8px;transition:border-color .15s,background .15s}
+.em-canvas.drag-over{border-color:#2563eb;background:#eff6ff}
+.em-canvas-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px;color:#9ca3af;font-size:.82rem;pointer-events:none}
+.em-blk{position:relative;border:1px solid transparent;border-radius:6px;margin-bottom:4px;transition:border-color .1s;cursor:pointer}
+.em-blk:hover{border-color:#93c5fd}
+.em-blk.em-active{border-color:#2563eb;box-shadow:0 0 0 2px #bfdbfe}
+.em-blk-bar{display:none;position:absolute;top:3px;right:4px;gap:2px;z-index:10;background:white;border:1px solid #e2e8f0;border-radius:5px;padding:2px;box-shadow:0 2px 6px rgba(0,0,0,.1)}
+.em-blk:hover .em-blk-bar,.em-blk.em-active .em-blk-bar{display:flex}
+.em-blk-bar button{width:24px;height:24px;border:none;background:none;border-radius:3px;font-size:.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#6b7280}
+.em-blk-bar button:hover{background:#f1f5f9;color:#111}
+.em-blk-bar .del:hover{color:#dc2626;background:#fee2e2}
+.em-blk-preview{padding:8px 10px}
+.em-blk-editor{padding:10px;border-top:1px solid #e2e8f0;background:#f8fafc;border-radius:0 0 6px 6px}
+.em-blk-editor label{font-size:.72rem;font-weight:600;color:#6b7280;margin-bottom:2px;display:block;text-transform:uppercase;letter-spacing:.03em}
+</style>
+</head>
+<body>
+
+<!-- logo.png: substitua pelo arquivo PNG oficial na mesma pasta -->
+
+<!-- ════════ LOGIN ════════ -->
+<div id="screen-login">
+  <div class="login-card">
+    <div class="text-center mb-4">
+      <img src="logo.png" height="100" style="display:block;margin:0 auto 16px;object-fit:contain" alt="FBVA">
+      <h1 class="login-title">Sistema de Gestão</h1>
+      <p class="login-sub">Clubes Membros da Federação Brasileira de Veículos Antigos</p>
+    </div>
+    <div id="login-alert"></div>
+    <div class="mb-3">
+      <label class="form-label fw-semibold">E-mail</label>
+      <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-envelope-fill"></i></span>
+        <input type="email" id="l-email" class="form-control" placeholder="seu@email.com.br">
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label fw-semibold">Senha</label>
+      <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+        <input type="password" id="l-senha" class="form-control" placeholder="Sua senha">
+        <button class="btn btn-outline-secondary" type="button" onclick="App.toggleSenha('l-senha','l-olho')">
+          <i class="bi bi-eye-fill" id="l-olho"></i>
+        </button>
+      </div>
+    </div>
+    <div class="mb-4">
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="l-lembrar">
+        <label class="form-check-label" for="l-lembrar">Lembrar-me</label>
+      </div>
+    </div>
+    <button class="btn btn-primary w-100 py-2 fw-semibold" onclick="App.login()">
+      <i class="bi bi-box-arrow-in-right me-2"></i>Entrar
+    </button>
+  </div>
+</div>
+
+<!-- ════════ APP ════════ -->
+<div id="screen-app" style="display:none">
+
+  <div class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-logo">
+        <img src="logo.png" height="36" width="54" alt="FBVA">
+      </div>
+      <div>
+        <span class="brand-t">Federação Brasileira de Veículos Antigos</span>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="nav-sec">Cadastro</div>
+      <button class="nl" onclick="App.go('dashboard')"><i class="bi bi-grid-1x2-fill"></i><span>Dashboard</span></button>
+      <button class="nl" onclick="App.go('clubes')"><i class="bi bi-building-fill"></i><span>Clubes</span></button>
+      <div class="nav-sec mt-2" id="nav-sec-secretaria">Secretaria</div>
+      <button class="nl" id="nav-gestao" onclick="App.go('gestao')"><i class="bi bi-folder2-open"></i><span>Documentação &amp; Financeiro</span></button>
+      <div class="nav-sec mt-2" id="nav-sec-comunicacao">Comunicação</div>
+      <button class="nl" id="nav-mensageiro" onclick="App.go('mensageiro')" style="color:rgba(37,211,102,.85)"><i class="bi bi-whatsapp"></i><span>Mensageiro WhatsApp</span></button>
+      <button class="nl" id="nav-email" onclick="App.go('email')"><i class="bi bi-envelope-fill"></i><span>Mensageiro E-mail</span></button>
+      <div class="nav-sec mt-2" id="nav-adm-label">Administração</div>
+      <button class="nl" id="nav-usuarios" onclick="App.go('usuarios')"><i class="bi bi-people-fill"></i><span>Usuários</span></button>
+      <button class="nl" id="nav-novo-usuario" onclick="App.go('usuario-form')"><i class="bi bi-person-plus-fill"></i><span>Novo Usuário</span></button>
+    </nav>
+    <div class="sb-foot">
+      <div class="u-info">
+        <div class="u-av" id="sb-av"></div>
+        <div><div class="u-name" id="sb-nome"></div><div class="u-role" id="sb-perfil"></div></div>
+      </div>
+      <div class="u-actions">
+        <button class="btn-ic" title="Alterar senha" onclick="App.go('alterar-senha')"><i class="bi bi-key-fill"></i></button>
+        <button class="btn-ic" title="Sair" onclick="App.logout()"><i class="bi bi-box-arrow-right"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-t" id="page-title"></div>
+      <div id="topbar-actions"></div>
+    </div>
+    <div class="content" id="app-content"></div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<!-- Modal confirmação -->
+<div class="modal fade" id="modal-confirm" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Confirmar exclusão</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body pt-2" id="modal-confirm-body"></div>
+      <div class="modal-footer border-0 pt-0">
+        <button class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-danger btn-sm" id="modal-confirm-ok">Excluir</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal importar CSV -->
+<div class="modal fade" id="modal-import" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#0f1c2e;color:#fff">
+        <h5 class="modal-title"><i class="bi bi-upload me-2" style="color:var(--accent)"></i>Importar Clubes via CSV</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Steps -->
+        <div class="step-bar" id="import-steps">
+          <div class="step active" id="step1-tab">1. Carregar arquivo</div>
+          <div class="step" id="step2-tab">2. Prévia e mapeamento</div>
+          <div class="step" id="step3-tab">3. Importar</div>
+        </div>
+
+        <!-- Passo 1: Upload -->
+        <div id="import-p1">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-header"><i class="bi bi-file-earmark-csv me-2"></i>Selecionar arquivo</div>
+                <div class="card-body d-flex flex-column justify-content-center align-items-center"
+                     style="min-height:140px;border:2px dashed #d1d5db;border-radius:0 0 10px 10px;cursor:pointer"
+                     onclick="document.getElementById('import-file').click()"
+                     ondragover="event.preventDefault()" ondrop="App.handleDrop(event)">
+                  <i class="bi bi-cloud-upload fs-2 mb-2" style="color:var(--accent)"></i>
+                  <p class="mb-1 fw-semibold">Clique ou arraste o arquivo aqui</p>
+                  <p class="text-muted small mb-0">Formatos aceitos: .csv, .txt</p>
+                  <input type="file" id="import-file" accept=".csv,.txt" style="display:none" onchange="App.handleFileSelect(this)">
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-header"><i class="bi bi-clipboard me-2"></i>Ou cole o conteúdo CSV</div>
+                <div class="card-body p-2">
+                  <textarea id="import-text" class="form-control border-0" style="height:140px;font-family:monospace;font-size:.78rem;resize:none"
+                    placeholder="Cole aqui o conteúdo do CSV...&#10;Ex: Nome do Clube;CNPJ;Presidente;..."></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3 p-3 rounded" style="background:#f0faf4;border:1px solid #a7f3d0">
+            <div class="d-flex align-items-start gap-2">
+              <i class="bi bi-info-circle-fill mt-1" style="color:var(--accent)"></i>
+              <div class="small">
+                <strong>Formato esperado:</strong> CSV com ponto-e-vírgula (;) ou vírgula (,) como separador.<br>
+                A primeira linha deve conter os cabeçalhos das colunas. Datas no formato <strong>DD/MM/AAAA</strong>.
+                <div class="mt-1">
+                  <button class="btn btn-sm btn-outline-secondary" onclick="App.downloadTemplateCSV()">
+                    <i class="bi bi-download me-1"></i>Baixar modelo .CSV
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <label class="form-label small fw-semibold">Separador</label>
+            <select id="import-sep" class="form-select form-select-sm" style="width:auto">
+              <option value="auto">Detectar automaticamente</option>
+              <option value=";">Ponto-e-vírgula (;)</option>
+              <option value=",">,Vírgula (,)</option>
+              <option value="&#9;">Tabulação (Tab)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Passo 2: Prévia -->
+        <div id="import-p2" style="display:none">
+          <div id="import-col-map" class="mb-3"></div>
+          <div class="preview-table-wrap" id="import-preview"></div>
+          <div id="import-summary" class="mt-3"></div>
+        </div>
+
+        <!-- Passo 3: Resultado -->
+        <div id="import-p3" style="display:none">
+          <div id="import-result"></div>
+        </div>
+      </div>
+      <div class="modal-footer" style="background:#f8f9fa">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+        <button class="btn btn-primary" id="btn-analisar" onclick="App.analisarCSV()">
+          <i class="bi bi-search me-1"></i>Analisar
+        </button>
+        <button class="btn btn-success" id="btn-importar" style="display:none" onclick="App.confirmarImportCSV()">
+          <i class="bi bi-check-lg me-1"></i>Confirmar Importação
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: upload documento (gestão centralizada) -->
+<div class="modal fade" id="modal-upload-doc" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#0f1c2e;color:#fff">
+        <h5 class="modal-title"><i class="bi bi-file-earmark-plus me-2" style="color:var(--accent)"></i>Enviar Documento</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="form-upload-doc" onsubmit="App._submitUploadDoc(event)">
+        <div class="modal-body">
+          <div id="upload-doc-alert"></div>
+          <div class="mb-3">
+            <label class="form-label req">Clube</label>
+            <select id="ud-clube" name="clube_id" class="form-select" required>
+              <option value="">Selecione o clube...</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label req">Arquivo</label>
+            <input type="file" id="ud-file" name="file" class="form-control" required
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+            <div class="form-text">PDF, DOC, DOCX, JPG, PNG — máx. 16 MB</div>
+          </div>
+          <div class="row g-2">
+            <div class="col-md-7">
+              <label class="form-label">Nome do documento</label>
+              <input id="ud-nome" name="nome" class="form-control" placeholder="Deixe em branco para usar o nome do arquivo">
+            </div>
+            <div class="col-md-5">
+              <label class="form-label">Tipo</label>
+              <select id="ud-tipo" name="tipo" class="form-select">
+                <option value="ata">Ata</option>
+                <option value="estatuto">Estatuto</option>
+                <option value="cnpj">Registro CNPJ</option>
+                <option value="regimento">Regimento</option>
+                <option value="outro">Outro</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btn-upload-doc">
+            <i class="bi bi-upload me-1"></i>Enviar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: editar trimestralidade -->
+<div class="modal fade" id="modal-trimestre" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#0f1c2e;color:#fff">
+        <h5 class="modal-title" id="tri-modal-titulo"><i class="bi bi-cash-coin me-2" style="color:var(--accent)"></i>Trimestralidade</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="fw-semibold mb-3 text-secondary" id="tri-clube-nome"></div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Status do pagamento</label>
+          <div class="d-flex gap-3">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="tri-status" id="tri-pago" value="pago">
+              <label class="form-check-label fw-semibold text-success" for="tri-pago">
+                <i class="bi bi-check-circle-fill me-1"></i>Pago</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="tri-status" id="tri-pendente" value="pendente" checked>
+              <label class="form-check-label fw-semibold text-warning" for="tri-pendente">
+                <i class="bi bi-clock-fill me-1"></i>Pendente</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="tri-status" id="tri-vencido" value="vencido">
+              <label class="form-check-label fw-semibold text-danger" for="tri-vencido">
+                <i class="bi bi-x-circle-fill me-1"></i>Vencido</label>
+            </div>
+          </div>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-md-4">
+            <label class="form-label">Valor (R$)</label>
+            <input id="tri-valor" type="number" step="0.01" min="0" class="form-control form-control-sm" placeholder="0,00">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Vencimento</label>
+            <input id="tri-venc" type="date" class="form-control form-control-sm">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Data pagamento</label>
+            <input id="tri-pgto" type="date" class="form-control form-control-sm">
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Observações</label>
+          <textarea id="tri-obs" class="form-control form-control-sm" rows="2"
+            placeholder="Parcelas, acordos, comprovante..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" onclick="App._salvarTrimestralidade()">
+          <i class="bi bi-check-lg me-1"></i>Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const App = (() => {
+
+const ESTADOS = [
+  ['AC','Acre'],['AL','Alagoas'],['AP','Amapá'],['AM','Amazonas'],
+  ['BA','Bahia'],['CE','Ceará'],['DF','Distrito Federal'],['ES','Espírito Santo'],
+  ['GO','Goiás'],['MA','Maranhão'],['MT','Mato Grosso'],['MS','Mato Grosso do Sul'],
+  ['MG','Minas Gerais'],['PA','Pará'],['PB','Paraíba'],['PR','Paraná'],
+  ['PE','Pernambuco'],['PI','Piauí'],['RJ','Rio de Janeiro'],['RN','Rio Grande do Norte'],
+  ['RS','Rio Grande do Sul'],['RO','Rondônia'],['RR','Roraima'],['SC','Santa Catarina'],
+  ['SP','São Paulo'],['SE','Sergipe'],['TO','Tocantins']
+];
+const PERFIS = { admin:'Administrador', secretaria:'Secretaria', comunicacao:'Comunicação' };
+
+let state = { user:null, view:'', editId:null, filters:{q:'',estado:'',status:'ativos'}, csvData:null, clubes:[], waLog:[] };
+
+// ── API client ─────────────────────────────────
+const Api = {
+  async call(path, opts={}) {
+    const o = { credentials:'same-origin', ...opts };
+    if (o.body !== undefined && typeof o.body !== 'string') {
+      o.headers = { 'Content-Type':'application/json', ...(o.headers||{}) };
+      o.body = JSON.stringify(o.body);
+    }
+    let resp;
+    try { resp = await fetch(path, o); }
+    catch { throw new Error('Sem conexão com o servidor. Verifique se o servidor está rodando.'); }
+    const json = await resp.json();
+    if (!json.ok) throw new Error(json.error || `Erro ${resp.status}`);
+    return json.data;
+  },
+  get(p)   { return Api.call(p); },
+  post(p,b){ return Api.call(p,{method:'POST',body:b}); },
+  put(p,b) { return Api.call(p,{method:'PUT',body:b}); },
+  del(p)   { return Api.call(p,{method:'DELETE'}); },
+};
+
+// ── Auth ───────────────────────────────────────
+async function login() {
+  const email=document.getElementById('l-email').value.trim().toLowerCase();
+  const senha=document.getElementById('l-senha').value;
+  if(!email||!senha){showLoginAlert('Preencha e-mail e senha.','danger');return;}
+  try {
+    const u=await Api.post('/api/login',{email,senha,lembrar:document.getElementById('l-lembrar').checked});
+    state.user=u;
+    showApp(); await go('dashboard');
+  } catch(e) { showLoginAlert(e.message,'danger'); }
+}
+async function logout() {
+  try { await Api.post('/api/logout',{}); } catch {}
+  state.user=null;
+  document.getElementById('screen-app').style.display='none';
+  document.getElementById('screen-login').style.display='flex';
+  document.getElementById('l-senha').value='';
+  document.getElementById('login-alert').innerHTML='';
+}
+function showLoginAlert(msg,type) {
+  document.getElementById('login-alert').innerHTML=
+    `<div class="alert alert-${type} mb-3">${msg}</div>`;
+}
+async function tryAutoLogin() {
+  try { state.user=await Api.get('/api/me'); return true; }
+  catch { return false; }
+}
+
+// ── Permissions ────────────────────────────────
+const pode={
+  editar:()=>['admin','secretaria','comunicacao'].includes(state.user?.perfil),
+  secretaria:()=>['admin','secretaria'].includes(state.user?.perfil),
+  comunicacao:()=>['admin','comunicacao'].includes(state.user?.perfil),
+  excluir:()=>state.user?.perfil==='admin',
+  usuarios:()=>state.user?.perfil==='admin',
+};
+
+// ── UI helpers ─────────────────────────────────
+function showApp() {
+  document.getElementById('screen-login').style.display='none';
+  document.getElementById('screen-app').style.display='block';
+  const u=state.user;
+  document.getElementById('sb-av').textContent=u.nome[0].toUpperCase();
+  document.getElementById('sb-nome').textContent=u.nome.split(' ')[0];
+  document.getElementById('sb-perfil').textContent=PERFIS[u.perfil]||u.perfil;
+  ['nav-sec-secretaria','nav-gestao'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display=pode.secretaria()?'':'none';
+  });
+  ['nav-sec-comunicacao','nav-mensageiro','nav-email'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display=pode.comunicacao()?'':'none';
+  });
+  ['nav-adm-label','nav-usuarios','nav-novo-usuario'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display=pode.usuarios()?'':'none';
+  });
+}
+function setTitle(html,actions='') {
+  document.getElementById('page-title').innerHTML=html;
+  document.getElementById('topbar-actions').innerHTML=actions;
+}
+function render(html) { document.getElementById('app-content').innerHTML=html; }
+function activateNav(v) {
+  document.querySelectorAll('.sb-nav .nl').forEach(b=>b.classList.remove('active'));
+  const map={dashboard:'[onclick*="dashboard"]',clubes:'[onclick*="clubes"]',
+    'clube-form':'[onclick*="clube-form"]','clube-detalhe':'[onclick*="clubes"]',
+    usuarios:'[onclick*="usuarios"]','usuario-form':'[onclick*="usuario-form"]',
+    mensageiro:'[onclick*="mensageiro"]',gestao:'[onclick*="gestao"]',
+    email:'[onclick*="email"]'};
+  const sel=map[v];
+  if(sel) document.querySelector(`.sb-nav ${sel}`)?.classList.add('active');
+}
+function toast(msg,type='success') {
+  const icons={success:'check-circle-fill',danger:'exclamation-triangle-fill',
+    warning:'exclamation-circle-fill',info:'info-circle-fill'};
+  const bg={success:'#d1fae5',danger:'#fee2e2',warning:'#fef3c7',info:'#dbeafe'};
+  const fg={success:'#065f46',danger:'#991b1b',warning:'#92400e',info:'#1e40af'};
+  const el=document.createElement('div');
+  el.style.cssText=`background:${bg[type]};color:${fg[type]};border-radius:8px;padding:10px 14px;
+    font-size:.84rem;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,.1);min-width:220px`;
+  el.innerHTML=`<i class="bi bi-${icons[type]} me-2"></i>${msg}`;
+  document.getElementById('toast-wrap').appendChild(el);
+  setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity .3s';
+    setTimeout(()=>el.remove(),300);},3500);
+}
+function showConfirm(msg,cb) {
+  document.getElementById('modal-confirm-body').innerHTML=msg;
+  const btn=document.getElementById('modal-confirm-ok');
+  btn.onclick=()=>{cb();bootstrap.Modal.getInstance(document.getElementById('modal-confirm')).hide();};
+  new bootstrap.Modal(document.getElementById('modal-confirm')).show();
+}
+function toggleSenha(inp,ico) {
+  const el=document.getElementById(inp),ic=document.getElementById(ico);
+  if(el.type==='password'){el.type='text';ic.className='bi bi-eye-slash-fill';}
+  else{el.type='password';ic.className='bi bi-eye-fill';}
+}
+
+// ── Masks ──────────────────────────────────────
+function maskCNPJ(el) {
+  el.addEventListener('input',function(){
+    let v=this.value.replace(/\D/g,'').slice(0,14);
+    if(v.length>12)v=v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})/,'$1.$2.$3/$4-$5');
+    else if(v.length>8)v=v.replace(/^(\d{2})(\d{3})(\d{3})(\d{0,4})/,'$1.$2.$3/$4');
+    else if(v.length>5)v=v.replace(/^(\d{2})(\d{3})(\d{0,3})/,'$1.$2.$3');
+    else if(v.length>2)v=v.replace(/^(\d{2})(\d{0,3})/,'$1.$2');
+    this.value=v;
+  });
+}
+function maskFone(el) {
+  el.addEventListener('input',function(){
+    let v=this.value.replace(/\D/g,'').slice(0,11);
+    if(v.length>10)v=v.replace(/^(\d{2})(\d{5})(\d{0,4})/,'($1) $2-$3');
+    else if(v.length>6)v=v.replace(/^(\d{2})(\d{4})(\d{0,4})/,'($1) $2-$3');
+    else if(v.length>2)v=v.replace(/^(\d{2})(\d{0,5})/,'($1) $2');
+    else v=v.replace(/^(\d{0,2})/,'($1');
+    this.value=v;
+  });
+}
+
+function maskCPF(el) {
+  el.addEventListener('input',function(){
+    let v=this.value.replace(/\D/g,'').slice(0,11);
+    if(v.length>9)v=v.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,2})/,'$1.$2.$3-$4');
+    else if(v.length>6)v=v.replace(/^(\d{3})(\d{3})(\d{0,3})/,'$1.$2.$3');
+    else if(v.length>3)v=v.replace(/^(\d{3})(\d{0,3})/,'$1.$2');
+    this.value=v;
+  });
+}
+
+// ── Formatters ─────────────────────────────────
+const fmtDate=s=>{if(!s)return'—';const[y,m,d]=s.split('-');return`${d}/${m}/${y}`;};
+const fmtDatetime=s=>s?new Date(s).toLocaleString('pt-BR'):'—';
+const isVencido=s=>s&&s<new Date().toISOString().slice(0,10);
+const isProximo=s=>{if(!s)return false;const d=(new Date(s+'T00:00:00')-new Date())/864e5;return d>=0&&d<=60;};
+function badgeDate(fm) {
+  if(!fm)return'—';
+  if(isVencido(fm))return`<span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="bi bi-exclamation-triangle-fill me-1"></i>${fmtDate(fm)}</span>`;
+  if(isProximo(fm))return`<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle"><i class="bi bi-clock-history me-1"></i>${fmtDate(fm)}</span>`;
+  return fmtDate(fm);
+}
+const optStr=v=>v||'<span class="text-muted">Não informado</span>';
+const statesOpts=sel=>`<option value="">Selecione...</option>`+ESTADOS.map(([s,n])=>`<option value="${s}"${sel===s?' selected':''}>${s} — ${n}</option>`).join('');
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
+
+// ── Dynamic form state ────────────────────────
+let _fMembros=[], _fEnderecos=[], _fContatos=[];
+
+const CARGOS_DIRETORIA=[
+  ['presidente','Presidente'],['vice_presidente','Vice-Presidente'],
+  ['secretario','Secretário(a)'],['financeiro','Financeiro(a)'],
+  ['equipe_tecnica','Equipe Técnica'],['outro','Outro'],
+];
+const TIPOS_FONE=[['whatsapp','WhatsApp'],['celular','Celular'],['comercial','Comercial']];
+const TIPOS_EMAIL=[['principal','Principal'],['alternativo','Alternativo']];
+const TIPOS_END=[['correspondencia','Correspondência'],['filial','Filial'],['outro','Outro']];
+const TIPOS_DOC=[['ata','Ata'],['estatuto','Estatuto'],['cnpj','Registro CNPJ'],['regimento','Regimento'],['outro','Outro']];
+
+function _cargoLabel(v){return(CARGOS_DIRETORIA.find(([k])=>k===v)||[v,v])[1];}
+
+function _renderMembros(){
+  const el=document.getElementById('membros-list');if(!el)return;
+  if(!_fMembros.length){el.innerHTML='<div class="sec-empty"><i class="bi bi-people me-2"></i>Nenhum membro adicionado. Clique em "Adicionar".</div>';return;}
+  el.innerHTML=_fMembros.map((m,i)=>`
+  <div class="dyn-row">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-2">
+        <label class="form-label small mb-1">Cargo</label>
+        <select class="form-select form-select-sm" onchange="_fMembros[${i}].cargo=this.value">
+          ${CARGOS_DIRETORIA.map(([v,l])=>`<option value="${v}"${m.cargo===v?' selected':''}>${l}</option>`).join('')}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Nome completo *</label>
+        <input class="form-control form-control-sm" value="${esc(m.nome)}" placeholder="Nome"
+          oninput="_fMembros[${i}].nome=this.value">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1">CPF</label>
+        <input class="form-control form-control-sm cpf-m" value="${esc(m.cpf||'')}" placeholder="000.000.000-00"
+          oninput="_fMembros[${i}].cpf=this.value">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1">WhatsApp</label>
+        <input class="form-control form-control-sm fone-m" value="${esc(m.whatsapp||'')}" placeholder="(XX) XXXXX-XXXX"
+          oninput="_fMembros[${i}].whatsapp=this.value">
+      </div>
+      <div class="col">
+        <label class="form-label small mb-1">E-mail</label>
+        <input type="email" class="form-control form-control-sm" value="${esc(m.email||'')}" placeholder="email@..."
+          oninput="_fMembros[${i}].email=this.value">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1">Data Nasc.</label>
+        <input type="date" class="form-control form-control-sm" value="${m.dataNascimento||''}"
+          onchange="_fMembros[${i}].dataNascimento=this.value">
+      </div>
+      <div class="col-auto">
+        <button type="button" class="btn btn-sm btn-outline-danger" title="Remover"
+          onclick="_fMembros.splice(${i},1);_renderMembros()"><i class="bi bi-trash"></i></button>
+      </div>
+    </div>
+  </div>`).join('');
+  document.querySelectorAll('#membros-list .cpf-m').forEach(maskCPF);
+  document.querySelectorAll('#membros-list .fone-m').forEach(maskFone);
+}
+
+function _addMembro(){
+  _fMembros.push({cargo:'secretario',nome:'',cpf:'',whatsapp:'',email:'',dataNascimento:''});
+  _renderMembros();
+}
+
+function _renderEnderecos(){
+  const el=document.getElementById('enderecos-list');if(!el)return;
+  if(!_fEnderecos.length){el.innerHTML='<div class="sec-empty"><i class="bi bi-geo-alt me-2"></i>Nenhum endereço adicional. Clique em "Adicionar".</div>';return;}
+  el.innerHTML=_fEnderecos.map((e,i)=>`
+  <div class="dyn-row">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-2">
+        <label class="form-label small mb-1">Tipo</label>
+        <select class="form-select form-select-sm" onchange="_fEnderecos[${i}].tipo=this.value">
+          ${TIPOS_END.map(([v,l])=>`<option value="${v}"${e.tipo===v?' selected':''}>${l}</option>`).join('')}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1">Descrição</label>
+        <input class="form-control form-control-sm" value="${esc(e.descricao||'')}" placeholder="Ex: Matriz"
+          oninput="_fEnderecos[${i}].descricao=this.value">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small mb-1">Logradouro</label>
+        <input class="form-control form-control-sm" value="${esc(e.logradouro||'')}" placeholder="Rua, número, bairro"
+          oninput="_fEnderecos[${i}].logradouro=this.value">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1">Cidade</label>
+        <input class="form-control form-control-sm" value="${esc(e.cidade||'')}"
+          oninput="_fEnderecos[${i}].cidade=this.value">
+      </div>
+      <div class="col-md-1">
+        <label class="form-label small mb-1">UF</label>
+        <select class="form-select form-select-sm" onchange="_fEnderecos[${i}].estado=this.value">
+          <option value=""></option>
+          ${ESTADOS.map(([s])=>`<option value="${s}"${e.estado===s?' selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="button" class="btn btn-sm btn-outline-danger" title="Remover"
+          onclick="_fEnderecos.splice(${i},1);_renderEnderecos()"><i class="bi bi-trash"></i></button>
+      </div>
+    </div>
+  </div>`).join('');
+}
+
+function _addEndereco(){
+  _fEnderecos.push({tipo:'correspondencia',descricao:'',logradouro:'',cidade:'',estado:''});
+  _renderEnderecos();
+}
+
+function _renderContatos(){
+  const el=document.getElementById('contatos-list');if(!el)return;
+  if(!_fContatos.length){el.innerHTML='<div class="sec-empty"><i class="bi bi-person-lines-fill me-2"></i>Nenhum contato adicional. Clique em "Adicionar".</div>';return;}
+  el.innerHTML=_fContatos.map((ct,i)=>`
+  <div class="dyn-row">
+    <div class="row g-2 mb-3">
+      <div class="col-md-4">
+        <label class="form-label small mb-1">Nome do Contato *</label>
+        <input class="form-control form-control-sm" value="${esc(ct.nome)}" placeholder="Nome completo"
+          oninput="_fContatos[${i}].nome=this.value">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Função / Cargo</label>
+        <input class="form-control form-control-sm" value="${esc(ct.cargo||'')}" placeholder="Ex: Secretário"
+          oninput="_fContatos[${i}].cargo=this.value">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small mb-1">Observação</label>
+        <input class="form-control form-control-sm" value="${esc(ct.descricao||'')}" placeholder="Opcional"
+          oninput="_fContatos[${i}].descricao=this.value">
+      </div>
+      <div class="col-auto d-flex align-items-end">
+        <button type="button" class="btn btn-sm btn-outline-danger"
+          onclick="_fContatos.splice(${i},1);_renderContatos()"><i class="bi bi-trash"></i></button>
+      </div>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <label class="form-label small mb-0"><i class="bi bi-telephone-fill me-1"></i>Telefones / WhatsApp</label>
+          <button type="button" class="btn dyn-add-btn btn-outline-secondary"
+            onclick="_fContatos[${i}].telefones.push({numero:'',tipo:'whatsapp'});_renderContatos()">
+            <i class="bi bi-plus-lg me-1"></i>Add</button>
+        </div>
+        ${ct.telefones.map((t,j)=>`
+        <div class="dyn-sub-row">
+          <input class="form-control form-control-sm fone-ct" value="${esc(t.numero)}" placeholder="(XX) XXXXX-XXXX"
+            style="width:150px" oninput="_fContatos[${i}].telefones[${j}].numero=this.value">
+          <select class="form-select form-select-sm" style="width:130px"
+            onchange="_fContatos[${i}].telefones[${j}].tipo=this.value">
+            ${TIPOS_FONE.map(([v,l])=>`<option value="${v}"${t.tipo===v?' selected':''}>${l}</option>`).join('')}
+          </select>
+          <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-auto"
+            onclick="_fContatos[${i}].telefones.splice(${j},1);_renderContatos()">
+            <i class="bi bi-x-circle"></i></button>
+        </div>`).join('')}
+        ${!ct.telefones.length?'<div class="text-muted small" style="padding:6px 0">Nenhum telefone.</div>':''}
+      </div>
+      <div class="col-md-6">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <label class="form-label small mb-0"><i class="bi bi-envelope-fill me-1"></i>E-mails</label>
+          <button type="button" class="btn dyn-add-btn btn-outline-secondary"
+            onclick="_fContatos[${i}].emails.push({email:'',tipo:'principal'});_renderContatos()">
+            <i class="bi bi-plus-lg me-1"></i>Add</button>
+        </div>
+        ${ct.emails.map((em,j)=>`
+        <div class="dyn-sub-row">
+          <input type="email" class="form-control form-control-sm" value="${esc(em.email)}" placeholder="email@..."
+            style="flex:1" oninput="_fContatos[${i}].emails[${j}].email=this.value">
+          <select class="form-select form-select-sm" style="width:130px"
+            onchange="_fContatos[${i}].emails[${j}].tipo=this.value">
+            ${TIPOS_EMAIL.map(([v,l])=>`<option value="${v}"${em.tipo===v?' selected':''}>${l}</option>`).join('')}
+          </select>
+          <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-auto"
+            onclick="_fContatos[${i}].emails.splice(${j},1);_renderContatos()">
+            <i class="bi bi-x-circle"></i></button>
+        </div>`).join('')}
+        ${!ct.emails.length?'<div class="text-muted small" style="padding:6px 0">Nenhum e-mail.</div>':''}
+      </div>
+    </div>
+  </div>`).join('');
+  document.querySelectorAll('#contatos-list .fone-ct').forEach(maskFone);
+}
+
+function _addContato(){
+  _fContatos.push({nome:'',cargo:'',descricao:'',telefones:[{numero:'',tipo:'whatsapp'}],emails:[]});
+  _renderContatos();
+}
+
+// ── Navigation ─────────────────────────────────
+async function go(view,id=null) {
+  state.view=view; state.editId=id; activateNav(view);
+  try {
+    if(view==='dashboard')          await renderDashboard();
+    else if(view==='clubes')        await renderClubes();
+    else if(view==='clube-form')    await renderClubeForm(id);
+    else if(view==='clube-detalhe') await renderClubeDetalhe(id);
+    else if(view==='usuarios')      await renderUsuarios();
+    else if(view==='usuario-form')  await renderUsuarioForm(id);
+    else if(view==='alterar-senha')      renderAlterarSenha();
+    else if(view==='gestao')        await renderGestao();
+    else if(view==='mensageiro')    await renderMensageiro();
+    else if(view==='email')         await renderMensageiroEmail();
+  } catch(e) { toast(e.message,'danger'); }
+  window.scrollTo(0,0);
+}
+
+// ═════════ DASHBOARD ═════════════════════════════
+function aniversariantesDoMes(clubes) {
+  const hoje=new Date(); hoje.setHours(0,0,0,0);
+  const mes=hoje.getMonth(), ano=hoje.getFullYear();
+  const result=[];
+  clubes.forEach(c=>{
+    if(!c.dataFundacao) return;
+    const d=new Date(c.dataFundacao+'T00:00:00');
+    if(d.getMonth()!==mes) return;
+    const aniv=new Date(ano,d.getMonth(),d.getDate());
+    const diff=Math.round((aniv-hoje)/864e5);
+    result.push({clube:c.nomeClube,id:c.id,data:c.dataFundacao,
+      dia:d.getDate(),anos:ano-d.getFullYear(),diasRestantes:diff});
+  });
+  return result.sort((a,b)=>a.dia-b.dia);
+}
+
+async function renderDashboard() {
+  setTitle('<i class="bi bi-grid-1x2-fill me-2"></i>Dashboard',
+    pode.editar()?`<button class="btn btn-primary btn-sm" onclick="App.go('clube-form')">
+      <i class="bi bi-plus-lg me-1"></i>Novo Clube</button>`:''
+  );
+  render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
+  const cl=await Api.get('/api/clubes?status=todos');
+  state.clubes=cl;
+  const hoje=new Date().toISOString().slice(0,10);
+  const em60=new Date(Date.now()+60*864e5).toISOString().slice(0,10);
+  const total=cl.length, ativos=cl.filter(c=>c.ativo).length;
+  const vencidos=cl.filter(c=>c.ativo&&c.fimMandato&&c.fimMandato<hoje).length;
+  const proximos=cl.filter(c=>c.ativo&&c.fimMandato&&c.fimMandato>=hoje&&c.fimMandato<=em60).length;
+  const totalAssociados=cl.reduce((s,c)=>s+(c.numAssociados||0),0);
+  const totalMembros=cl.reduce((s,c)=>s+(c.numMembros||0),0);
+  const totalDocs=cl.reduce((s,c)=>s+(c.numDocs||0),0);
+  const recentes=[...cl].sort((a,b)=>b.id-a.id).slice(0,5);
+  const anivs=aniversariantesDoMes(cl);
+  const mandatosAlerta=cl.filter(c=>c.ativo&&c.fimMandato&&c.fimMandato<=em60)
+    .sort((a,b)=>a.fimMandato.localeCompare(b.fimMandato)).slice(0,6);
+
+  render(`
+  <!-- Stat cards principais -->
+  <div class="row g-3 mb-3">
+    <div class="col-sm-6 col-xl-3"><div class="stat-card sc-green">
+      <div class="sc-icon"><i class="bi bi-building-fill"></i></div>
+      <div class="sc-val">${total}</div><div class="sc-lbl">Total de Clubes</div>
+    </div></div>
+    <div class="col-sm-6 col-xl-3"><div class="stat-card sc-teal">
+      <div class="sc-icon"><i class="bi bi-check-circle-fill"></i></div>
+      <div class="sc-val">${ativos}</div><div class="sc-lbl">Clubes Ativos</div>
+    </div></div>
+    <div class="col-sm-6 col-xl-3"><div class="stat-card sc-yellow">
+      <div class="sc-icon"><i class="bi bi-clock-history"></i></div>
+      <div class="sc-val">${proximos}</div><div class="sc-lbl">Mandatos Vencendo (60 dias)</div>
+    </div></div>
+    <div class="col-sm-6 col-xl-3"><div class="stat-card sc-red">
+      <div class="sc-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+      <div class="sc-val">${vencidos}</div><div class="sc-lbl">Mandatos Vencidos</div>
+    </div></div>
+  </div>
+
+  <!-- Stat cards secundários -->
+  <div class="row g-3 mb-4">
+    <div class="col-sm-4"><div class="stat-card sc-blue">
+      <div class="sc-icon"><i class="bi bi-people-fill"></i></div>
+      <div class="sc-val">${totalAssociados}</div><div class="sc-lbl">Total de Associados</div>
+    </div></div>
+    <div class="col-sm-4"><div class="stat-card sc-indigo">
+      <div class="sc-icon"><i class="bi bi-person-badge-fill"></i></div>
+      <div class="sc-val">${totalMembros}</div><div class="sc-lbl">Membros de Diretoria</div>
+    </div></div>
+    <div class="col-sm-4"><div class="stat-card sc-purple">
+      <div class="sc-icon"><i class="bi bi-file-earmark-fill"></i></div>
+      <div class="sc-val">${totalDocs}</div><div class="sc-lbl">Documentos Arquivados</div>
+    </div></div>
+  </div>
+
+  <!-- Conteúdo principal -->
+  <div class="row g-4">
+
+    <!-- Coluna esquerda: Aniversários + Mandatos -->
+    <div class="col-lg-5">
+      <div class="card shadow-sm mb-4">
+        <div class="card-header"><i class="bi bi-gift-fill me-2" style="color:#e11d48"></i>Clubes Aniversariantes do Mês</div>
+        <div class="card-body p-0" style="max-height:320px;overflow-y:auto">
+          ${anivs.length?`<ul class="list-group list-group-flush">
+            ${anivs.map(a=>`<li class="list-group-item d-flex align-items-center gap-3 py-2 px-3${a.diasRestantes<0?' opacity-50':''}">
+              <div class="av-sm flex-shrink-0" style="background:#e11d48">
+                <i class="bi bi-building" style="font-size:.7rem"></i>
+              </div>
+              <div class="flex-grow-1 overflow-hidden">
+                <div class="fw-semibold small text-truncate">${esc(a.clube)}</div>
+                <div class="text-muted" style="font-size:.71rem">Fundação: ${fmtDate(a.data)} · ${a.anos} ano${a.anos!==1?'s':''}</div>
+              </div>
+              <span class="badge flex-shrink-0 ${a.diasRestantes===0?'bg-danger':a.diasRestantes>0?'bg-light text-dark border':'bg-secondary'}">
+                ${a.diasRestantes===0?'Hoje':'Dia '+a.dia}
+              </span>
+              <button class="btn btn-sm btn-outline-primary py-0 px-2 flex-shrink-0"
+                onclick="App.go('clube-detalhe',${a.id})"><i class="bi bi-eye-fill"></i></button>
+            </li>`).join('')}
+          </ul>`:`<div class="text-center py-5 text-muted">
+            <i class="bi bi-calendar-check fs-1 d-block mb-2 opacity-25"></i>
+            <small>Nenhum clube faz aniversário este mês.</small>
+          </div>`}
+        </div>
+      </div>
+
+      ${mandatosAlerta.length?`
+      <div class="card shadow-sm">
+        <div class="card-header"><i class="bi bi-exclamation-triangle-fill me-2 text-warning"></i>Mandatos a Vencer</div>
+        <div class="card-body p-0">
+          <ul class="list-group list-group-flush">
+            ${mandatosAlerta.map(c=>`<li class="list-group-item d-flex align-items-center gap-3 py-2 px-3">
+              <div class="flex-grow-1 overflow-hidden">
+                <div class="fw-semibold small text-truncate">${esc(c.nomeClube)}</div>
+                <div class="text-muted" style="font-size:.71rem">${esc(c.nomePresidente||'—')}</div>
+              </div>
+              <div class="flex-shrink-0">${badgeDate(c.fimMandato)}</div>
+              <button class="btn btn-sm btn-outline-primary py-0 px-2 flex-shrink-0"
+                onclick="App.go('clube-detalhe',${c.id})"><i class="bi bi-eye-fill"></i></button>
+            </li>`).join('')}
+          </ul>
+        </div>
+      </div>`:''}
+    </div>
+
+    <!-- Coluna direita: Recentes -->
+    <div class="col-lg-7">
+      <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-clock-fill me-2"></i>Clubes Cadastrados Recentemente</span>
+          <button class="btn btn-outline-primary btn-sm" onclick="App.go('clubes')">
+            Ver todos <i class="bi bi-arrow-right ms-1"></i></button>
+        </div>
+        <div class="card-body p-0">
+          ${recentes.length?`
+          <div class="table-responsive">
+            <table class="table table-hover mb-0"><thead><tr>
+              <th>Clube</th><th>Cidade / UF</th><th>Presidente</th><th>Fim Mandato</th><th>Status</th><th></th>
+            </tr></thead><tbody>
+            ${recentes.map(c=>`<tr>
+              <td class="fw-semibold">${esc(c.nomeClube)}</td>
+              <td>${esc(c.cidade||'')}${c.estado?` <span class="badge bg-light text-dark border">${c.estado}</span>`:''}</td>
+              <td>${esc(c.nomePresidente||'—')}</td>
+              <td>${badgeDate(c.fimMandato)}</td>
+              <td><span class="badge bg-${c.ativo?'success':'secondary'}">${c.ativo?'Ativo':'Inativo'}</span></td>
+              <td><button class="btn btn-sm btn-outline-primary" onclick="App.go('clube-detalhe',${c.id})">
+                <i class="bi bi-eye-fill"></i></button></td>
+            </tr>`).join('')}
+            </tbody></table>
+          </div>`:`<div class="text-center py-5 text-muted">
+            <i class="bi bi-building fs-1 d-block mb-2 opacity-25"></i>
+            Nenhum clube cadastrado ainda.
+            ${pode.editar()?`<div class="mt-2"><button class="btn btn-primary btn-sm" onclick="App.go('clube-form')">
+              <i class="bi bi-plus-lg me-1"></i>Cadastrar primeiro clube</button></div>`:''}
+          </div>`}
+        </div>
+      </div>
+    </div>
+
+  </div>`);
+}
+
+// ═════════ LISTA DE CLUBES ════════════════════════
+async function renderClubes() {
+  const editActions=pode.editar()?`
+    <button class="btn btn-primary btn-sm" onclick="App.go('clube-form')">
+      <i class="bi bi-plus-lg me-1"></i>Novo Clube</button>
+    <button class="btn btn-sm btn-outline-secondary" onclick="App.abrirImportCSV()">
+      <i class="bi bi-upload me-1"></i>Importar CSV</button>
+    <button class="btn btn-sm btn-outline-secondary" onclick="App.exportarCSV()">
+      <i class="bi bi-download me-1"></i>Exportar CSV</button>`:
+    `<button class="btn btn-sm btn-outline-secondary" onclick="App.exportarCSV()">
+      <i class="bi bi-download me-1"></i>Exportar CSV</button>`;
+  setTitle('<i class="bi bi-building-fill me-2"></i>Clubes Membros', editActions);
+
+  const params=new URLSearchParams();
+  if(state.filters.q) params.set('q',state.filters.q);
+  if(state.filters.estado) params.set('estado',state.filters.estado);
+  params.set('status',state.filters.status||'ativos');
+  const cl=await Api.get('/api/clubes?'+params.toString());
+  state.clubes=cl;
+
+  render(`
+  <div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-4">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control" id="f-q" value="${esc(state.filters.q)}"
+              placeholder="Nome, presidente, cidade, CNPJ..." onkeydown="if(event.key==='Enter')App.applyFilters()">
+          </div>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select form-select-sm" id="f-estado">
+            <option value="">Todos os estados</option>
+            ${ESTADOS.map(([s,n])=>`<option value="${s}"${state.filters.estado===s?' selected':''}>${s} — ${n}</option>`).join('')}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select form-select-sm" id="f-status">
+            <option value="ativos"${state.filters.status==='ativos'?' selected':''}>Ativos</option>
+            <option value="inativos"${state.filters.status==='inativos'?' selected':''}>Inativos</option>
+            <option value="todos"${state.filters.status==='todos'?' selected':''}>Todos</option>
+          </select>
+        </div>
+        <div class="col-auto">
+          <button class="btn btn-primary btn-sm" onclick="App.applyFilters()">
+            <i class="bi bi-funnel-fill me-1"></i>Filtrar</button>
+          <button class="btn btn-outline-secondary btn-sm ms-1" onclick="App.clearFilters()">
+            <i class="bi bi-x-circle me-1"></i>Limpar</button>
+        </div>
+        <div class="col-auto ms-auto text-muted small">
+          <strong>${cl.length}</strong> clube${cl.length!==1?'s':''} encontrado${cl.length!==1?'s':''}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+    ${cl.length?`
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0"><thead><tr>
+          <th>Nome do Clube</th><th>CNPJ</th><th>Presidente</th>
+          <th>Cidade / UF</th><th>Telefone</th><th>Fim Mandato</th>
+          <th class="text-center">Status</th><th class="text-center">Ações</th>
+        </tr></thead><tbody>
+        ${cl.map(c=>`<tr>
+          <td><button class="btn btn-link p-0 fw-semibold text-dark text-decoration-none"
+            onclick="App.go('clube-detalhe',${c.id})">${esc(c.nomeClube)}</button></td>
+          <td class="text-muted small">${esc(c.cnpj||'—')}</td>
+          <td>${esc(c.nomePresidente||'—')}</td>
+          <td>${esc(c.cidade||'')}${c.estado?` <span class="badge bg-light text-dark border ms-1">${c.estado}</span>`:''}</td>
+          <td class="text-muted small">${esc(c.telefoneCelular||'—')}</td>
+          <td>${badgeDate(c.fimMandato)}</td>
+          <td class="text-center"><span class="badge bg-${c.ativo?'success':'secondary'}">${c.ativo?'Ativo':'Inativo'}</span></td>
+          <td class="text-center">
+            <div class="btn-group btn-group-sm">
+              <button class="btn btn-outline-primary" title="Ver" onclick="App.go('clube-detalhe',${c.id})">
+                <i class="bi bi-eye-fill"></i></button>
+              ${pode.editar()?`<button class="btn btn-outline-secondary" title="Editar" onclick="App.go('clube-form',${c.id})">
+                <i class="bi bi-pencil-fill"></i></button>`:''}
+              ${pode.excluir()?`<button class="btn btn-outline-danger" title="Excluir"
+                onclick="App.confirmarExcluirClube(${c.id},'${esc(c.nomeClube).replace(/'/g,"\\'")}')">
+                <i class="bi bi-trash-fill"></i></button>`:''}
+            </div>
+          </td>
+        </tr>`).join('')}
+        </tbody></table>
+      </div>`:
+    `<div class="text-center py-5 text-muted">
+      <i class="bi bi-building fs-1 d-block mb-2 opacity-25"></i>
+      <p class="mb-0">Nenhum clube encontrado com os filtros selecionados.</p>
+    </div>`}
+    </div>
+  </div>`);
+}
+
+function applyFilters() {
+  state.filters.q=document.getElementById('f-q')?.value||'';
+  state.filters.estado=document.getElementById('f-estado')?.value||'';
+  state.filters.status=document.getElementById('f-status')?.value||'ativos';
+  go('clubes');
+}
+function clearFilters() { state.filters={q:'',estado:'',status:'ativos'}; go('clubes'); }
+
+// ═════════ CLUBE FORM ════════════════════════════
+async function renderClubeForm(id=null) {
+  const editing=id!==null;
+  let clube={};
+  if(editing){
+    render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
+    clube=await Api.get(`/api/clubes/${id}`);
+    if(!clube){await go('clubes');return;}
+  }
+  setTitle(`<i class="bi bi-pencil-square me-2"></i>${editing?'Editar':'Novo'} Clube`,
+    `<button class="btn btn-outline-secondary btn-sm" onclick="App.go('clubes')">
+      <i class="bi bi-arrow-left me-1"></i>Voltar</button>`);
+  const v=clube||{};
+  _fMembros=(v.membros||[]).map(m=>({...m}));
+  _fEnderecos=(v.enderecosAdicionais||[]).map(e=>({...e}));
+  _fContatos=(v.contatos||[]).map(ct=>({
+    nome:ct.nome||'', cargo:ct.cargo||'', descricao:ct.descricao||'',
+    telefones:(ct.telefones||[]).map(t=>({...t})),
+    emails:(ct.emails||[]).map(e=>({...e})),
+  }));
+
+  render(`
+  <form id="clube-form" onsubmit="App.saveClube(event,${id})">
+
+    <!-- ── Informações do Clube ── -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header"><i class="bi bi-building-fill me-2"></i>Informações do Clube</div>
+      <div class="card-body"><div class="row g-3">
+        <div class="col-md-8">
+          <label class="form-label req">Nome do Clube</label>
+          <input name="nomeClube" class="form-control" required value="${esc(v.nomeClube||'')}" placeholder="Nome completo do clube">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">CNPJ</label>
+          <input name="cnpj" id="inp-cnpj" class="form-control" value="${esc(v.cnpj||'')}" placeholder="XX.XXX.XXX/XXXX-XX">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Data de Fundação</label>
+          <input name="dataFundacao" type="date" class="form-control" value="${v.dataFundacao||''}" title="Data de criação do clube">
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Nome do Presidente</label>
+          <input name="nomePresidente" class="form-control" value="${esc(v.nomePresidente||'')}" placeholder="Nome completo">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Data de Nasc. do Presidente</label>
+          <input name="dataNascimentoPresidente" type="date" class="form-control" value="${v.dataNascimentoPresidente||''}">
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Contato Preferencial</label>
+          <input name="contatoPreferencial" class="form-control" value="${esc(v.contatoPreferencial||'')}" placeholder="Ex: WhatsApp, E-mail...">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Fim do Mandato</label>
+          <input name="fimMandato" type="date" class="form-control" value="${v.fimMandato||''}">
+        </div>
+      </div></div>
+    </div>
+
+    <!-- ── Membros da Diretoria ── -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-people-fill me-2"></i>Membros da Diretoria</span>
+        <button type="button" class="btn btn-sm btn-outline-primary" onclick="App._addMembro()">
+          <i class="bi bi-plus-lg me-1"></i>Adicionar</button>
+      </div>
+      <div class="card-body p-3">
+        <div id="membros-list"></div>
+      </div>
+    </div>
+
+    <!-- ── Localização ── -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header"><i class="bi bi-geo-alt-fill me-2"></i>Localização</div>
+      <div class="card-body">
+        <p class="small fw-semibold text-muted mb-2">Endereço Principal (sede)</p>
+        <div class="row g-3 mb-3">
+          <div class="col-12">
+            <label class="form-label">Endereço</label>
+            <input name="endereco" class="form-control" value="${esc(v.endereco||'')}" placeholder="Rua, número, bairro">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Cidade</label>
+            <input name="cidade" class="form-control" value="${esc(v.cidade||'')}" placeholder="Cidade">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Estado</label>
+            <select name="estado" class="form-select">${statesOpts(v.estado||'')}</select>
+          </div>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <p class="small fw-semibold text-muted mb-0">Endereços Adicionais</p>
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="App._addEndereco()">
+            <i class="bi bi-plus-lg me-1"></i>Adicionar</button>
+        </div>
+        <div id="enderecos-list"></div>
+      </div>
+    </div>
+
+    <!-- ── Contato Principal + Redes Sociais ── -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header"><i class="bi bi-telephone-fill me-2"></i>Contato Principal e Redes Sociais</div>
+      <div class="card-body"><div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">Telefone / WhatsApp Principal</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-phone-fill"></i></span>
+            <input name="telefoneCelular" id="inp-fone" class="form-control" value="${esc(v.telefoneCelular||'')}" placeholder="(XX) XXXXX-XXXX">
+          </div>
+        </div>
+        <div class="col-md-8">
+          <label class="form-label">E-mail Principal</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-envelope-fill"></i></span>
+            <input name="email" type="email" class="form-control" value="${esc(v.email||'')}" placeholder="email@clube.com.br">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Instagram</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-instagram"></i></span>
+            <input name="instagram" class="form-control" value="${esc(v.instagram||'')}" placeholder="@perfil ou URL">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Facebook</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-facebook"></i></span>
+            <input name="facebook" class="form-control" value="${esc(v.facebook||'')}" placeholder="Nome da página ou URL">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Site</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-globe2"></i></span>
+            <input name="site" class="form-control" value="${esc(v.site||'')}" placeholder="https://...">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">YouTube</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-youtube"></i></span>
+            <input name="youtube" class="form-control" value="${esc(v.youtube||'')}" placeholder="Canal ou URL">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">TikTok</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-tiktok"></i></span>
+            <input name="tiktok" class="form-control" value="${esc(v.tiktok||'')}" placeholder="@perfil ou URL">
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- ── Contatos Adicionais ── -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-person-lines-fill me-2"></i>Contatos Adicionais</span>
+        <button type="button" class="btn btn-sm btn-outline-primary" onclick="App._addContato()">
+          <i class="bi bi-plus-lg me-1"></i>Adicionar Contato</button>
+      </div>
+      <div class="card-body p-3">
+        <div id="contatos-list"></div>
+      </div>
+    </div>
+
+    <!-- ── Observações e Status ── -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header"><i class="bi bi-chat-text-fill me-2"></i>Observações e Status</div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="form-label">Observações</label>
+          <textarea name="observacoes" class="form-control" rows="4" placeholder="Informações adicionais...">${esc(v.observacoes||'')}</textarea>
+        </div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" name="ativo" id="sw-ativo"${v.ativo!==false?' checked':''}>
+          <label class="form-check-label" for="sw-ativo">Clube ativo na federação</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2 justify-content-end mb-4">
+      <button type="button" class="btn btn-outline-secondary" onclick="App.go('clubes')">Cancelar</button>
+      <button type="submit" class="btn btn-primary px-4"><i class="bi bi-check-lg me-1"></i>Salvar</button>
+    </div>
+  </form>`);
+
+  maskCNPJ(document.getElementById('inp-cnpj'));
+  maskFone(document.getElementById('inp-fone'));
+  _renderMembros();
+  _renderEnderecos();
+  _renderContatos();
+}
+
+async function saveClube(e,id) {
+  e.preventDefault();
+  const fd=new FormData(e.target);
+  const data=Object.fromEntries(fd.entries());
+  data.ativo=fd.has('ativo');
+  data.nomeClube=(data.nomeClube||'').trim();
+  if(!data.nomeClube){toast('Informe o nome do clube.','danger');return;}
+  const btn=e.target.querySelector('[type=submit]');
+  btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Salvando...';
+  try {
+    let resultado;
+    if(id){
+      resultado=await Api.put(`/api/clubes/${id}`,data);
+    } else {
+      resultado=await Api.post('/api/clubes',data);
+    }
+    const cid=resultado.id;
+    // Save related data in parallel
+    await Promise.all([
+      Api.call(`/api/clubes/${cid}/membros`,{method:'PUT',body:_fMembros}),
+      Api.call(`/api/clubes/${cid}/enderecos-adicionais`,{method:'PUT',body:_fEnderecos}),
+      Api.call(`/api/clubes/${cid}/contatos`,{method:'PUT',body:_fContatos}),
+    ]);
+    toast(`Clube "${data.nomeClube}" ${id?'atualizado':'cadastrado'}!`);
+    await go('clube-detalhe',cid);
+  } catch(err2) {
+    toast(err2.message,'danger');
+    btn.disabled=false;btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Salvar';
+  }
+}
+
+function confirmarExcluirClube(id,nome) {
+  showConfirm(`Tem certeza que deseja excluir o clube <strong>${nome}</strong>?<br>
+    <span class="text-muted small">Esta ação não pode ser desfeita.</span>`,async()=>{
+    try { await Api.del(`/api/clubes/${id}`); toast(`Clube "${nome}" excluído.`); await go('clubes'); }
+    catch(e) { toast(e.message,'danger'); }
+  });
+}
+
+// ═════════ DETALHE DO CLUBE ══════════════════════
+async function renderClubeDetalhe(id) {
+  render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
+  const c=await Api.get(`/api/clubes/${id}`);
+  if(!c){await go('clubes');return;}
+  setTitle(`<i class="bi bi-building-fill me-2"></i>${esc(c.nomeClube)}`,`
+    <div class="btn-group btn-group-sm">
+      <button class="btn btn-outline-secondary" onclick="App.go('clubes')">
+        <i class="bi bi-arrow-left me-1"></i>Voltar</button>
+      ${pode.editar()?`<button class="btn btn-primary" onclick="App.go('clube-form',${c.id})">
+        <i class="bi bi-pencil-fill me-1"></i>Editar</button>`:''}
+      ${pode.excluir()?`<button class="btn btn-outline-danger"
+        onclick="App.confirmarExcluirClube(${c.id},'${esc(c.nomeClube).replace(/'/g,"\\'")}')">
+        <i class="bi bi-trash-fill me-1"></i>Excluir</button>`:''}
+    </div>`);
+
+  const membros=c.membros||[];
+  const docs=c.documentos||[];
+  const endsAdic=c.enderecosAdicionais||[];
+  const contatos=c.contatos||[];
+  const associados=c.associados||[];
+
+  const tipoEndLabel=v=>({'correspondencia':'Correspondência','filial':'Filial','outro':'Outro'}[v]||v);
+
+  render(`
+  <div class="mb-3">
+    <span class="badge bg-${c.ativo?'success':'secondary'} fs-6">
+      <i class="bi bi-${c.ativo?'check':'x'}-circle-fill me-1"></i>Clube ${c.ativo?'Ativo':'Inativo'}</span>
+    ${c.fimMandato&&isVencido(c.fimMandato)?'<span class="badge bg-danger ms-2"><i class="bi bi-exclamation-triangle-fill me-1"></i>Mandato Vencido</span>':''}
+    ${c.fimMandato&&isProximo(c.fimMandato)&&!isVencido(c.fimMandato)?'<span class="badge bg-warning text-dark ms-2"><i class="bi bi-clock-history me-1"></i>Mandato Vencendo em Breve</span>':''}
+  </div>
+  <div class="row g-4">
+
+    <!-- Coluna principal -->
+    <div class="col-lg-8">
+
+      <!-- Informações -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header"><i class="bi bi-building-fill me-2"></i>Informações do Clube</div>
+        <div class="card-body"><div class="row g-3">
+          <div class="col-sm-6"><div class="d-lbl">Nome do Clube</div><div class="d-val">${esc(c.nomeClube)}</div></div>
+          <div class="col-sm-3"><div class="d-lbl">CNPJ</div><div class="d-val">${optStr(esc(c.cnpj))}</div></div>
+          <div class="col-sm-3"><div class="d-lbl">Fundação</div><div class="d-val">${c.dataFundacao?fmtDate(c.dataFundacao):'<span class="text-muted">—</span>'}</div></div>
+          <div class="col-sm-5"><div class="d-lbl">Presidente</div><div class="d-val">${optStr(esc(c.nomePresidente))}</div></div>
+          <div class="col-sm-4"><div class="d-lbl">Nasc. Presidente</div><div class="d-val">${c.dataNascimentoPresidente?fmtDate(c.dataNascimentoPresidente):'<span class="text-muted">—</span>'}</div></div>
+          <div class="col-sm-3"><div class="d-lbl">Fim do Mandato</div>
+            <div class="d-val">${c.fimMandato?badgeDate(c.fimMandato):'<span class="text-muted">—</span>'}</div></div>
+          <div class="col-sm-6"><div class="d-lbl">Contato Preferencial</div><div class="d-val">${optStr(esc(c.contatoPreferencial))}</div></div>
+        </div></div>
+      </div>
+
+      <!-- Membros da Diretoria -->
+      ${membros.length?`
+      <div class="card shadow-sm mb-4">
+        <div class="card-header"><i class="bi bi-people-fill me-2"></i>Membros da Diretoria</div>
+        <div class="card-body p-0">
+          <table class="table table-hover align-middle mb-0 assoc-table">
+            <thead><tr><th>Cargo</th><th>Nome</th><th>CPF</th><th>WhatsApp</th><th>E-mail</th><th>Nasc.</th></tr></thead>
+            <tbody>
+            ${membros.map(m=>`<tr>
+              <td><span class="badge bg-secondary-subtle text-secondary border">${_cargoLabel(m.cargo)}</span></td>
+              <td class="fw-semibold">${esc(m.nome)}</td>
+              <td class="text-muted small">${esc(m.cpf||'—')}</td>
+              <td class="small">${m.whatsapp?`<a href="${waLink(m.whatsapp,'')}" target="_blank" class="wa-chip" style="font-size:.72rem;padding:3px 8px">
+                <i class="bi bi-whatsapp"></i> ${esc(m.whatsapp)}</a>`:'—'}</td>
+              <td class="small">${m.email?`<a href="mailto:${esc(m.email)}">${esc(m.email)}</a>`:'—'}</td>
+              <td class="small text-muted">${m.dataNascimento?fmtDate(m.dataNascimento):'—'}</td>
+            </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`:''}
+
+      <!-- Localização -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header"><i class="bi bi-geo-alt-fill me-2"></i>Localização</div>
+        <div class="card-body">
+          <p class="small fw-semibold text-muted mb-2">Sede Principal</p>
+          <div class="row g-3 mb-3">
+            <div class="col-12"><div class="d-lbl">Endereço</div><div class="d-val">${optStr(esc(c.endereco))}</div></div>
+            <div class="col-sm-6"><div class="d-lbl">Cidade</div><div class="d-val">${optStr(esc(c.cidade))}</div></div>
+            <div class="col-sm-6"><div class="d-lbl">Estado</div>
+              <div class="d-val">${c.estado?`<span class="badge bg-success">${c.estado}</span>`:'<span class="text-muted">—</span>'}</div></div>
+          </div>
+          ${endsAdic.length?`
+          <p class="small fw-semibold text-muted mb-2">Endereços Adicionais</p>
+          ${endsAdic.map(e=>`
+          <div class="p-2 rounded mb-2" style="background:#f8f9fb;border:1px solid #e8ebf0">
+            <span class="badge bg-secondary-subtle text-secondary border me-2">${tipoEndLabel(e.tipo)}</span>
+            ${e.descricao?`<strong>${esc(e.descricao)}</strong> — `:''}
+            ${[e.logradouro,e.cidade,e.estado].filter(Boolean).map(esc).join(', ')||'—'}
+          </div>`).join('')}`:''}
+        </div>
+      </div>
+
+      <!-- Contatos Adicionais -->
+      ${contatos.length?`
+      <div class="card shadow-sm mb-4">
+        <div class="card-header"><i class="bi bi-person-lines-fill me-2"></i>Contatos Adicionais</div>
+        <div class="card-body">
+          ${contatos.map(ct=>`
+          <div class="mb-3 pb-3 border-bottom last-no-border">
+            <div class="fw-semibold">${esc(ct.nome)}${ct.cargo?` <span class="badge bg-light text-dark border ms-1">${esc(ct.cargo)}</span>`:''}</div>
+            ${ct.descricao?`<div class="text-muted small">${esc(ct.descricao)}</div>`:''}
+            <div class="d-flex flex-wrap gap-2 mt-2">
+              ${(ct.telefones||[]).map(t=>`<a href="${waLink(t.numero,'')}" target="_blank" class="wa-chip" style="font-size:.72rem;padding:3px 8px">
+                <i class="bi bi-whatsapp"></i> ${esc(t.numero)} <span class="opacity-75">(${t.tipo})</span></a>`).join('')}
+              ${(ct.emails||[]).map(e=>`<a href="mailto:${esc(e.email)}" class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size:.75rem;padding:4px 8px;text-decoration:none">
+                <i class="bi bi-envelope me-1"></i>${esc(e.email)}</a>`).join('')}
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>`:''}
+
+      <!-- Observações -->
+      ${c.observacoes?`
+      <div class="card shadow-sm mb-4">
+        <div class="card-header"><i class="bi bi-chat-text-fill me-2"></i>Observações</div>
+        <div class="card-body"><p class="mb-0" style="white-space:pre-wrap">${esc(c.observacoes)}</p></div>
+      </div>`:''}
+
+      <!-- Associados -->
+      <div class="card shadow-sm mb-4" id="card-associados">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-person-badge-fill me-2"></i>Associados <span class="badge bg-secondary ms-1" id="badge-assoc">${associados.length}</span></span>
+          ${pode.editar()?`<button class="btn btn-sm btn-outline-primary" onclick="App._showAssocForm(${c.id})">
+            <i class="bi bi-plus-lg me-1"></i>Adicionar</button>`:''}
+        </div>
+        <div class="card-body p-0" id="assoc-body">
+          ${_buildAssocTable(associados, c.id)}
+        </div>
+      </div>
+    </div>
+
+    <!-- Coluna lateral -->
+    <div class="col-lg-4">
+
+      <!-- Contato principal -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header"><i class="bi bi-telephone-fill me-2"></i>Contato Principal</div>
+        <div class="card-body">
+          <div class="mb-3"><div class="d-lbl"><i class="bi bi-phone-fill me-1"></i>WhatsApp / Celular</div>
+            ${c.telefoneCelular?`<div class="d-flex align-items-center gap-2">
+              <a href="tel:${esc(c.telefoneCelular)}" class="d-val text-decoration-none">${esc(c.telefoneCelular)}</a>
+              <a href="${waLink(c.telefoneCelular,'')}" target="_blank" class="wa-chip" title="Abrir no WhatsApp">
+                <i class="bi bi-whatsapp"></i> WhatsApp</a>
+            </div>`:'<span class="text-muted">Não informado</span>'}</div>
+          <div class="mb-3"><div class="d-lbl"><i class="bi bi-envelope-fill me-1"></i>E-mail</div>
+            ${c.email?`<a href="mailto:${esc(c.email)}" class="d-val text-decoration-none">${esc(c.email)}</a>`:'<span class="text-muted">Não informado</span>'}</div>
+          <div class="mb-2"><div class="d-lbl"><i class="bi bi-instagram me-1"></i>Instagram</div>
+            ${c.instagram?`<a href="${c.instagram.startsWith('http')?c.instagram:'https://instagram.com/'+c.instagram.replace('@','')}" target="_blank" class="d-val text-decoration-none text-truncate d-block">${esc(c.instagram)}</a>`:'<span class="text-muted">—</span>'}</div>
+          <div class="mb-2"><div class="d-lbl"><i class="bi bi-facebook me-1"></i>Facebook</div>
+            ${c.facebook?`<a href="${c.facebook.startsWith('http')?c.facebook:'https://facebook.com/'+c.facebook}" target="_blank" class="d-val text-decoration-none text-truncate d-block">${esc(c.facebook)}</a>`:'<span class="text-muted">—</span>'}</div>
+          ${c.site?`<div class="mb-2"><div class="d-lbl"><i class="bi bi-globe2 me-1"></i>Site</div>
+            <a href="${c.site.startsWith('http')?c.site:'https://'+c.site}" target="_blank" class="d-val text-decoration-none text-truncate d-block">${esc(c.site)}</a></div>`:''}
+          ${c.youtube?`<div class="mb-2"><div class="d-lbl"><i class="bi bi-youtube me-1"></i>YouTube</div>
+            <a href="${c.youtube.startsWith('http')?c.youtube:'https://youtube.com/'+c.youtube}" target="_blank" class="d-val text-decoration-none text-truncate d-block">${esc(c.youtube)}</a></div>`:''}
+          ${c.tiktok?`<div><div class="d-lbl"><i class="bi bi-tiktok me-1"></i>TikTok</div>
+            <a href="${c.tiktok.startsWith('http')?c.tiktok:'https://tiktok.com/@'+c.tiktok.replace('@','')}" target="_blank" class="d-val text-decoration-none text-truncate d-block">${esc(c.tiktok)}</a></div>`:''}
+        </div>
+      </div>
+
+      <!-- Documentos -->
+      <div class="card shadow-sm mb-4" id="card-docs">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-file-earmark-fill me-2"></i>Documentos</span>
+          ${pode.secretaria()?`<button class="btn btn-sm btn-outline-primary" onclick="document.getElementById('doc-upload-inp').click()">
+            <i class="bi bi-upload me-1"></i>Anexar</button>`:''}
+        </div>
+        <div class="card-body" id="docs-body">
+          ${_buildDocsList(docs, c.id)}
+        </div>
+        ${pode.secretaria()?`
+        <input type="file" id="doc-upload-inp" style="display:none" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+          onchange="App._uploadDoc(${c.id}, this)">
+        <div class="card-footer py-2 d-none" id="doc-tipo-bar">
+          <div class="d-flex gap-2 align-items-center">
+            <label class="small fw-semibold mb-0">Tipo:</label>
+            <select id="doc-tipo-sel" class="form-select form-select-sm" style="width:auto">
+              <option value="ata">Ata</option>
+              <option value="estatuto">Estatuto</option>
+              <option value="regimento">Regimento</option>
+              <option value="outro">Outro</option>
+            </select>
+            <input id="doc-nome-inp" class="form-control form-control-sm" placeholder="Nome do documento" style="flex:1">
+            <button class="btn btn-sm btn-primary" id="doc-confirm-btn">Salvar</button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="App._cancelDoc()">Cancelar</button>
+          </div>
+        </div>`:''}
+      </div>
+
+      <!-- Registro -->
+      <div class="card shadow-sm">
+        <div class="card-header"><i class="bi bi-info-circle-fill me-2"></i>Registro</div>
+        <div class="card-body">
+          <div class="mb-2"><div class="d-lbl">Cadastrado em</div><div class="small">${fmtDatetime(c.criadoEm)}</div></div>
+          ${c.atualizadoEm?`<div class="mb-2"><div class="d-lbl">Última atualização</div><div class="small">${fmtDatetime(c.atualizadoEm)}</div></div>`:''}
+          ${c.criadoPorNome?`<div><div class="d-lbl">Cadastrado por</div><div class="small">${esc(c.criadoPorNome)}</div></div>`:''}
+        </div>
+      </div>
+    </div>
+  </div>`);
+}
+
+function _buildDocsList(docs, cid) {
+  if(!docs.length) return '<div class="text-muted small text-center py-2">Nenhum documento anexado.</div>';
+  return docs.map(d=>`
+  <div class="doc-item">
+    <i class="doc-icon bi bi-file-earmark-pdf-fill"></i>
+    <div class="flex-grow-1 min-w-0">
+      <div class="fw-semibold small text-truncate">${esc(d.nome)}</div>
+      <div class="text-muted" style="font-size:.72rem">${d.tipo||'outro'} · ${d.tamanhoFmt||'—'}</div>
+    </div>
+    <a href="/api/documentos/${d.id}" class="btn btn-sm btn-outline-secondary" title="Baixar">
+      <i class="bi bi-download"></i></a>
+    ${pode.secretaria()?`<button class="btn btn-sm btn-outline-danger" title="Excluir"
+      onclick="App._deleteDoc(${d.id},${cid})"><i class="bi bi-trash"></i></button>`:''}
+  </div>`).join('');
+}
+
+function _buildAssocTable(assocs, cid) {
+  if(!assocs.length) return '<div class="text-muted small text-center py-3">Nenhum associado cadastrado.</div>';
+  return `<div class="table-responsive"><table class="table table-hover align-middle mb-0 assoc-table">
+    <thead><tr><th>Nome</th><th>CPF</th><th>WhatsApp</th><th>E-mail</th><th class="text-center">Status</th>
+    ${pode.editar()?'<th></th>':''}</tr></thead><tbody>
+    ${assocs.map(a=>`<tr>
+      <td class="fw-semibold">${esc(a.nome)}</td>
+      <td class="text-muted small">${esc(a.cpf||'—')}</td>
+      <td class="small">${a.whatsapp?`<a href="${waLink(a.whatsapp,'')}" target="_blank" class="wa-chip" style="font-size:.72rem;padding:3px 8px"><i class="bi bi-whatsapp"></i> ${esc(a.whatsapp)}</a>`:'—'}</td>
+      <td class="small">${a.email?`<a href="mailto:${esc(a.email)}">${esc(a.email)}</a>`:'—'}</td>
+      <td class="text-center"><span class="badge bg-${a.ativo?'success':'secondary'}">${a.ativo?'Ativo':'Inativo'}</span></td>
+      ${pode.editar()?`<td class="text-center"><div class="btn-group btn-group-sm">
+        <button class="btn btn-outline-secondary btn-sm" onclick="App._editAssoc(${cid},${a.id},'${esc(a.nome).replace(/'/g,"\\'")}','${esc(a.cpf||'')}','${esc(a.whatsapp||'')}','${esc(a.email||'')}',${a.ativo})"><i class="bi bi-pencil-fill"></i></button>
+        <button class="btn btn-outline-danger btn-sm" onclick="App._deleteAssoc(${cid},${a.id},'${esc(a.nome).replace(/'/g,"\\'")}')"><i class="bi bi-trash-fill"></i></button>
+      </div></td>`:''}
+    </tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+let _docPendingFile=null;
+function _uploadDoc(cid, inp) {
+  const file=inp.files[0]; if(!file) return;
+  _docPendingFile=file;
+  document.getElementById('doc-nome-inp').value=file.name;
+  document.getElementById('doc-tipo-bar').classList.remove('d-none');
+  document.getElementById('doc-confirm-btn').onclick=()=>_confirmUploadDoc(cid);
+}
+function _cancelDoc() {
+  _docPendingFile=null;
+  document.getElementById('doc-upload-inp').value='';
+  document.getElementById('doc-tipo-bar').classList.add('d-none');
+}
+async function _confirmUploadDoc(cid) {
+  if(!_docPendingFile) return;
+  const tipo=document.getElementById('doc-tipo-sel').value;
+  const nome=document.getElementById('doc-nome-inp').value.trim()||_docPendingFile.name;
+  const fd=new FormData();
+  fd.append('file',_docPendingFile);
+  fd.append('tipo',tipo);
+  fd.append('nome',nome);
+  try {
+    await fetch(`/api/clubes/${cid}/documentos`,{method:'POST',credentials:'same-origin',body:fd});
+    _cancelDoc();
+    const updated=await Api.get(`/api/clubes/${cid}/documentos`);
+    document.getElementById('docs-body').innerHTML=_buildDocsList(updated,cid);
+    toast('Documento anexado!');
+  } catch(err2) { toast(err2.message||'Erro ao enviar arquivo.','danger'); }
+}
+async function _deleteDoc(did, cid) {
+  showConfirm('Excluir este documento?',async()=>{
+    try {
+      await Api.del(`/api/documentos/${did}`);
+      const updated=await Api.get(`/api/clubes/${cid}/documentos`);
+      document.getElementById('docs-body').innerHTML=_buildDocsList(updated,cid);
+      toast('Documento excluído.','info');
+    } catch(err2) { toast(err2.message,'danger'); }
+  });
+}
+
+function _showAssocForm(cid, aid=null, nome='', cpf='', whatsapp='', email='', ativo=true) {
+  const isEdit=aid!==null;
+  const html=`
+  <div class="p-3 border-top bg-light" id="assoc-form">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-3"><label class="form-label small mb-1">Nome *</label>
+        <input class="form-control form-control-sm" id="af-nome" value="${esc(nome)}" placeholder="Nome completo"></div>
+      <div class="col-md-2"><label class="form-label small mb-1">CPF</label>
+        <input class="form-control form-control-sm" id="af-cpf" value="${esc(cpf)}" placeholder="000.000.000-00"></div>
+      <div class="col-md-2"><label class="form-label small mb-1">WhatsApp</label>
+        <input class="form-control form-control-sm" id="af-wa" value="${esc(whatsapp)}" placeholder="(XX) XXXXX-XXXX"></div>
+      <div class="col-md-3"><label class="form-label small mb-1">E-mail</label>
+        <input type="email" class="form-control form-control-sm" id="af-email" value="${esc(email)}" placeholder="email@..."></div>
+      <div class="col-auto">
+        <div class="form-check mt-3">
+          <input class="form-check-input" type="checkbox" id="af-ativo"${ativo?' checked':''}>
+          <label class="form-check-label small" for="af-ativo">Ativo</label>
+        </div>
+      </div>
+      <div class="col-auto d-flex gap-2">
+        <button class="btn btn-sm btn-primary" onclick="App._saveAssoc(${cid},${aid})">
+          <i class="bi bi-check-lg me-1"></i>${isEdit?'Atualizar':'Adicionar'}</button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('assoc-form').remove()">Cancelar</button>
+      </div>
+    </div>
+  </div>`;
+  const existing=document.getElementById('assoc-form');
+  if(existing) existing.remove();
+  document.getElementById('card-associados').insertAdjacentHTML('beforeend',html);
+  maskCPF(document.getElementById('af-cpf'));
+  maskFone(document.getElementById('af-wa'));
+}
+function _editAssoc(cid,aid,nome,cpf,whatsapp,email,ativo){
+  _showAssocForm(cid,aid,nome,cpf,whatsapp,email,ativo);
+}
+async function _saveAssoc(cid, aid) {
+  const nome=document.getElementById('af-nome').value.trim();
+  if(!nome){toast('Informe o nome.','danger');return;}
+  const payload={
+    nome,
+    cpf:document.getElementById('af-cpf').value,
+    whatsapp:document.getElementById('af-wa').value,
+    email:document.getElementById('af-email').value,
+    ativo:document.getElementById('af-ativo').checked,
+  };
+  try {
+    if(aid) await Api.put(`/api/clubes/${cid}/associados/${aid}`,payload);
+    else    await Api.post(`/api/clubes/${cid}/associados`,payload);
+    document.getElementById('assoc-form')?.remove();
+    const updated=await Api.get(`/api/clubes/${cid}/associados`);
+    document.getElementById('assoc-body').innerHTML=_buildAssocTable(updated,cid);
+    document.getElementById('badge-assoc').textContent=updated.length;
+    toast(aid?'Associado atualizado!':'Associado adicionado!');
+  } catch(err2){toast(err2.message,'danger');}
+}
+function _deleteAssoc(cid,aid,nome){
+  showConfirm(`Excluir associado <strong>${nome}</strong>?`,async()=>{
+    try {
+      await Api.del(`/api/clubes/${cid}/associados/${aid}`);
+      const updated=await Api.get(`/api/clubes/${cid}/associados`);
+      document.getElementById('assoc-body').innerHTML=_buildAssocTable(updated,cid);
+      document.getElementById('badge-assoc').textContent=updated.length;
+      toast('Associado excluído.','info');
+    } catch(err2){toast(err2.message,'danger');}
+  });
+}
+
+// ═════════ USUÁRIOS ═══════════════════════════════
+async function renderUsuarios() {
+  if(!pode.usuarios()){toast('Acesso negado.','danger');await go('dashboard');return;}
+  setTitle('<i class="bi bi-people-fill me-2"></i>Usuários do Sistema',
+    `<button class="btn btn-primary btn-sm" onclick="App.go('usuario-form')">
+      <i class="bi bi-person-plus-fill me-1"></i>Novo Usuário</button>`);
+  const q=(document.getElementById('u-q')?.value||'').toLowerCase();
+  const pf=document.getElementById('u-perfil')?.value||'';
+  const params=new URLSearchParams();
+  if(q) params.set('q',q);
+  if(pf) params.set('perfil',pf);
+  const us=await Api.get('/api/usuarios?'+params.toString());
+  const badgePerfil=p=>({
+    admin:'<span class="badge" style="background:#009B3A">Administrador</span>',
+    secretaria:'<span class="badge bg-info">Secretaria</span>',
+    comunicacao:'<span class="badge bg-primary">Comunicação</span>'})[p]||p;
+  render(`
+  <div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-4">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control" id="u-q" placeholder="Nome ou e-mail..."
+              onkeydown="if(event.key==='Enter')App.renderUsuarios()">
+          </div>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select form-select-sm" id="u-perfil">
+            <option value="">Todos</option>
+            <option value="admin">Administrador</option>
+            <option value="secretaria">Secretaria</option>
+            <option value="comunicacao">Comunicação</option>
+          </select>
+        </div>
+        <div class="col-auto">
+          <button class="btn btn-primary btn-sm" onclick="App.renderUsuarios()">
+            <i class="bi bi-funnel-fill me-1"></i>Filtrar</button>
+        </div>
+        <div class="col-auto ms-auto text-muted small"><strong>${us.length}</strong> usuário${us.length!==1?'s':''}</div>
+      </div>
+    </div>
+  </div>
+  <div class="card shadow-sm"><div class="card-body p-0">
+  ${us.length?`
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0"><thead><tr>
+        <th>Nome</th><th>E-mail</th><th class="text-center">Perfil</th>
+        <th class="text-center">Status</th><th>Criado em</th><th class="text-center">Ações</th>
+      </tr></thead><tbody>
+      ${us.map(u=>`<tr>
+        <td><div class="d-flex align-items-center gap-2">
+          <div class="av-sm">${u.nome[0].toUpperCase()}</div>
+          <span class="fw-semibold">${esc(u.nome)}</span>
+          ${u.id===state.user.id?'<span class="badge bg-info-subtle text-info border border-info-subtle">você</span>':''}
+        </div></td>
+        <td class="text-muted">${esc(u.email)}</td>
+        <td class="text-center">${badgePerfil(u.perfil)}</td>
+        <td class="text-center"><span class="badge bg-${u.ativo?'success':'secondary'}">${u.ativo?'Ativo':'Inativo'}</span></td>
+        <td class="text-muted small">${fmtDate(u.criadoEm?.slice(0,10))}</td>
+        <td class="text-center">
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-secondary" onclick="App.go('usuario-form',${u.id})">
+              <i class="bi bi-pencil-fill"></i></button>
+            ${u.id!==state.user.id?`<button class="btn btn-outline-danger"
+              onclick="App.confirmarExcluirUsuario(${u.id},'${esc(u.nome).replace(/'/g,"\\'")}')">
+              <i class="bi bi-trash-fill"></i></button>`:''}
+          </div>
+        </td>
+      </tr>`).join('')}
+      </tbody></table>
+    </div>`:
+  `<div class="text-center py-5 text-muted">
+    <i class="bi bi-people fs-1 d-block mb-2 opacity-25"></i>Nenhum usuário encontrado.
+  </div>`}
+  </div></div>`);
+}
+
+async function renderUsuarioForm(id=null) {
+  if(!pode.usuarios()){await go('dashboard');return;}
+  const editing=id!==null;
+  let u={};
+  if(editing){
+    render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
+    u=await Api.get(`/api/usuarios/${id}`);
+    if(!u){await go('usuarios');return;}
+  }
+  setTitle(`<i class="bi bi-person-fill me-2"></i>${editing?'Editar':'Novo'} Usuário`,
+    `<button class="btn btn-outline-secondary btn-sm" onclick="App.go('usuarios')">
+      <i class="bi bi-arrow-left me-1"></i>Voltar</button>`);
+  const v=u||{};
+  render(`
+  <div class="row justify-content-center"><div class="col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-header"><i class="bi bi-person-badge-fill me-2"></i>Dados do Usuário</div>
+      <div class="card-body">
+        <form id="usuario-form" onsubmit="App.saveUsuario(event,${id})">
+          <div class="mb-3">
+            <label class="form-label req">Nome completo</label>
+            <input name="nome" class="form-control" required value="${esc(v.nome||'')}" placeholder="Nome completo">
+          </div>
+          <div class="mb-3">
+            <label class="form-label req">E-mail</label>
+            <input name="email" type="email" class="form-control" required value="${esc(v.email||'')}" placeholder="usuario@email.com">
+          </div>
+          <div class="mb-3">
+            <label class="form-label req">Perfil de acesso</label>
+            <select name="perfil" class="form-select" required>
+              <option value="secretaria"${!v.perfil||v.perfil==='secretaria'?' selected':''}>Secretaria — Cadastro, financeiro e documentos</option>
+              <option value="comunicacao"${v.perfil==='comunicacao'?' selected':''}>Comunicação — Cadastro e mensageiros</option>
+              <option value="admin"${v.perfil==='admin'?' selected':''}>Administrador — Acesso total</option>
+            </select>
+          </div>
+          <hr>
+          <div class="mb-3">
+            <label class="form-label${editing?'':' req'}">
+              Senha${editing?' <span class="text-muted fw-normal small">(deixe em branco para manter)</span>':''}
+            </label>
+            <div class="input-group">
+              <input name="senha" type="password" id="inp-senha" class="form-control"
+                placeholder="Mínimo 6 caracteres"${editing?'':'required minlength="6"'}>
+              <button class="btn btn-outline-secondary" type="button" onclick="App.toggleSenha('inp-senha','ico-senha')">
+                <i class="bi bi-eye-fill" id="ico-senha"></i></button>
+            </div>
+          </div>
+          <div class="mb-4">
+            <label class="form-label">Confirmar senha</label>
+            <input name="confirmarSenha" type="password" class="form-control" placeholder="Repita a senha">
+          </div>
+          <div class="form-check form-switch mb-4">
+            <input class="form-check-input" type="checkbox" name="ativo" id="sw-u-ativo"${v.ativo!==false?' checked':''}>
+            <label class="form-check-label" for="sw-u-ativo">Usuário ativo</label>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary px-4"><i class="bi bi-check-lg me-1"></i>Salvar</button>
+            <button type="button" class="btn btn-outline-secondary" onclick="App.go('usuarios')">Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div></div>`);
+}
+
+async function saveUsuario(e,id) {
+  e.preventDefault();
+  const fd=new FormData(e.target);
+  const nome=(fd.get('nome')||'').trim();
+  const email=(fd.get('email')||'').trim().toLowerCase();
+  const perfil=fd.get('perfil');
+  const senha=fd.get('senha')||'';
+  const conf=fd.get('confirmarSenha')||'';
+  const ativo=fd.has('ativo');
+  if(!nome){toast('Informe o nome.','danger');return;}
+  if(!email||!email.includes('@')){toast('Informe um e-mail válido.','danger');return;}
+  if(senha&&senha.length<6){toast('Senha deve ter mínimo 6 caracteres.','danger');return;}
+  if(senha&&senha!==conf){toast('As senhas não conferem.','danger');return;}
+  try {
+    const payload={nome,email,perfil,ativo};
+    if(senha) payload.senha=senha;
+    if(id){
+      const u=await Api.put(`/api/usuarios/${id}`,payload);
+      if(id===state.user.id){state.user=u;showApp();}
+      toast(`Usuário "${nome}" atualizado!`);
+    } else {
+      if(!senha){toast('Informe uma senha para o novo usuário.','danger');return;}
+      await Api.post('/api/usuarios',payload);
+      toast(`Usuário "${nome}" criado!`);
+    }
+    await go('usuarios');
+  } catch(e) { toast(e.message,'danger'); }
+}
+
+function confirmarExcluirUsuario(id,nome) {
+  showConfirm(`Tem certeza que deseja excluir o usuário <strong>${nome}</strong>?<br>
+    <span class="text-muted small">Esta ação não pode ser desfeita.</span>`,async()=>{
+    try { await Api.del(`/api/usuarios/${id}`); toast(`Usuário "${nome}" excluído.`); await renderUsuarios(); }
+    catch(e) { toast(e.message,'danger'); }
+  });
+}
+
+// ═════════ WHATSAPP UTILS ═════════════════════════
+function waPhone(tel) {
+  const d=(tel||'').replace(/\D/g,'');
+  if(!d) return null;
+  if(d.length>=12&&d.startsWith('55')) return d;
+  if(d.length===11||d.length===10) return '55'+d;
+  if(d.length===13&&d.startsWith('55')) return d;
+  return '55'+d;
+}
+function waLink(tel,msg) {
+  const p=waPhone(tel);
+  if(!p) return '#';
+  const t=encodeURIComponent(msg||'');
+  return `https://wa.me/${p}${t?'?text='+t:''}`;
+}
+function fillTemplate(tmpl, clube) {
+  return tmpl
+    .replace(/\{nome_clube\}/gi,  clube.nomeClube||'')
+    .replace(/\{presidente\}/gi,  clube.nomePresidente||'')
+    .replace(/\{cidade\}/gi,      clube.cidade||'')
+    .replace(/\{estado\}/gi,      clube.estado||'')
+    .replace(/\{celular\}/gi,     clube.telefoneCelular||'')
+    .replace(/\{email\}/gi,       clube.email||'')
+    .replace(/\{cnpj\}/gi,        clube.cnpj||'');
+}
+
+// ═════════ DOCUMENTAÇÃO & FINANCEIRO ══════════════
+const TIPOS_DOC_LABEL = {ata:'Ata',estatuto:'Estatuto',cnpj:'Reg. CNPJ',regimento:'Regimento',outro:'Outro'};
+const SIT_TRI = {
+  pago:     {label:'Pago',     cls:'success', icon:'check-circle-fill'},
+  pendente: {label:'Pendente', cls:'warning', icon:'clock-fill'},
+  vencido:  {label:'Vencido',  cls:'danger',  icon:'x-circle-fill'},
+};
+const TRI_PERIODOS = ['Jan–Mar','Abr–Jun','Jul–Set','Out–Dez'];
+let _gestaoTab = 'docs';
+let _triEditCtx = null;   // {clubeId, clubeNome, ano, trimestre}
+
+async function renderGestao() {
+  if(!pode.secretaria()){toast('Acesso negado.','danger');await go('dashboard');return;}
+  setTitle('<i class="bi bi-folder2-open me-2"></i>Documentação &amp; Financeiro');
+  render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
+  const clubes = await Api.get('/api/clubes?status=ativos');
+  state.clubes = clubes;
+  await _renderGestaoTab(_gestaoTab);
+}
+
+async function _renderGestaoTab(tab) {
+  _gestaoTab = tab;
+  const q = (document.getElementById('gestao-q')?.value||'').toLowerCase();
+
+  if(tab === 'docs') {
+    setTitle('<i class="bi bi-folder2-open me-2"></i>Documentação &amp; Financeiro',
+      pode.secretaria()?`<button class="btn btn-primary btn-sm" onclick="App._abrirUploadDoc()">
+        <i class="bi bi-upload me-1"></i>Enviar Documento</button>`:'');
+    const docs = await Api.get('/api/gestao/documentos');
+    window._gdAllDocs = docs;
+    _renderGestaoShell('docs', q);
+  } else {
+    const ano = window._triAno || new Date().getFullYear();
+    window._triAno = ano;
+    setTitle('<i class="bi bi-folder2-open me-2"></i>Documentação &amp; Financeiro');
+    const tris = await Api.get(`/api/trimestralidades?ano=${ano}`);
+    window._triData = tris;
+    _renderGestaoShell('fin', q);
+  }
+}
+
+function _renderGestaoShell(tab, q='') {
+  const clubes = (state.clubes||[])
+    .filter(c=> !q || c.nomeClube.toLowerCase().includes(q) || (c.cidade||'').toLowerCase().includes(q))
+    .sort((a,b)=>a.nomeClube.localeCompare(b.nomeClube,'pt-BR'));
+
+  const conteudo = tab==='docs' ? _docsTabContent(clubes) : _finTabContent(clubes);
+
+  render(`
+  <!-- Busca por clube -->
+  <div class="mb-3">
+    <div class="input-group">
+      <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+      <input type="text" id="gestao-q" class="form-control border-start-0"
+        placeholder="Buscar clube por nome ou cidade..."
+        value="${esc(q)}"
+        oninput="App._filtrarGestao()">
+      ${q?`<button class="btn btn-outline-secondary" onclick="document.getElementById('gestao-q').value='';App._filtrarGestao()">
+        <i class="bi bi-x-lg"></i></button>`:''}
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <ul class="nav nav-tabs mb-0">
+    <li class="nav-item">
+      <button class="nav-link ${tab==='docs'?'active':''} fw-semibold"
+        onclick="App._renderGestaoTab('docs')">
+        <i class="bi bi-file-earmark-text me-2"></i>Documentação</button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link ${tab==='fin'?'active':''} fw-semibold"
+        onclick="App._renderGestaoTab('fin')">
+        <i class="bi bi-cash-coin me-2"></i>Trimestralidades</button>
+    </li>
+  </ul>
+  <div class="card shadow-sm border-top-0" style="border-radius:0 0 10px 10px">
+    <div class="card-body p-0" id="gestao-corpo">
+      ${conteudo}
+    </div>
+  </div>`);
+}
+
+function _filtrarGestao() {
+  const q = (document.getElementById('gestao-q')?.value||'').toLowerCase();
+  const el = document.getElementById('gestao-corpo');
+  if(!el) return;
+  const clubes = (state.clubes||[])
+    .filter(c=> !q || c.nomeClube.toLowerCase().includes(q) || (c.cidade||'').toLowerCase().includes(q))
+    .sort((a,b)=>a.nomeClube.localeCompare(b.nomeClube,'pt-BR'));
+  el.innerHTML = _gestaoTab==='docs' ? _docsTabContent(clubes) : _finTabContent(clubes);
+  // update clear button
+  const btn=document.querySelector('[onclick*="gestao-q"]');
+  if(q && !btn) {
+    const inp=document.getElementById('gestao-q');
+    inp?.insertAdjacentHTML('afterend',`<button class="btn btn-outline-secondary"
+      onclick="document.getElementById('gestao-q').value='';App._filtrarGestao()"><i class="bi bi-x-lg"></i></button>`);
+  }
+}
+
+// ── Aba Documentação ────────────────────────────────
+function _docsTabContent(clubes) {
+  const allDocs = window._gdAllDocs || [];
+  if(!clubes.length) return `<div class="text-center py-5 text-muted">
+    <i class="bi bi-search fs-1 d-block mb-2 opacity-25"></i>Nenhum clube encontrado.</div>`;
+
+  return `<table class="table table-hover mb-0">
+    <thead><tr>
+      <th style="min-width:200px">Clube</th>
+      <th class="text-center">Ata</th>
+      <th class="text-center">Estatuto</th>
+      <th class="text-center">Reg. CNPJ</th>
+      <th class="text-center">Outros</th>
+      <th class="text-center">Total</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+    ${clubes.map(c=>{
+      const docs = allDocs.filter(d=>d.clubeId===c.id);
+      const cnt  = t => docs.filter(d=>d.tipo===t).length;
+      const outros = docs.filter(d=>!['ata','estatuto','cnpj'].includes(d.tipo)).length;
+      function docCell(n) {
+        if(!n) return '<td class="text-center"><i class="bi bi-dash text-muted"></i></td>';
+        return `<td class="text-center"><span class="badge bg-success-subtle text-success border">
+          <i class="bi bi-check-lg me-1"></i>${n}</span></td>`;
+      }
+      return `<tr>
+        <td>
+          <div class="fw-semibold small">${esc(c.nomeClube)}</div>
+          <div class="text-muted" style="font-size:.71rem">${esc(c.cidade||'')}${c.estado?' — '+c.estado:''}</div>
+        </td>
+        ${docCell(cnt('ata'))}
+        ${docCell(cnt('estatuto'))}
+        ${docCell(cnt('cnpj'))}
+        ${docCell(outros)}
+        <td class="text-center">
+          <span class="badge ${docs.length?'bg-primary-subtle text-primary border':'bg-light text-muted border'}">
+            ${docs.length}</span>
+        </td>
+        <td class="text-end pe-3">
+          <div class="btn-group btn-group-sm">
+            ${pode.secretaria()?`<button class="btn btn-outline-primary" title="Enviar documento"
+              onclick="App._abrirUploadDocClube(${c.id},'${esc(c.nomeClube).replace(/'/g,"\\'")}')">
+              <i class="bi bi-upload"></i></button>`:''}
+            <button class="btn btn-outline-secondary" title="Ver documentos do clube"
+              onclick="App.go('clube-detalhe',${c.id})">
+              <i class="bi bi-eye-fill"></i></button>
+          </div>
+        </td>
+      </tr>
+      ${docs.length?`<tr class="bg-light">
+        <td colspan="7" class="py-1 px-3">
+          <div class="d-flex flex-wrap gap-2">
+            ${docs.map(d=>`
+            <div class="d-flex align-items-center gap-1 small border rounded px-2 py-1 bg-white">
+              <span class="badge bg-secondary-subtle text-secondary" style="font-size:.65rem">${TIPOS_DOC_LABEL[d.tipo]||d.tipo}</span>
+              <span class="text-truncate" style="max-width:180px" title="${esc(d.nome)}">${esc(d.nome)}</span>
+              <a href="/api/documentos/${d.id}" class="btn btn-link btn-sm p-0 ms-1" title="Download">
+                <i class="bi bi-download"></i></a>
+              ${pode.secretaria()?`<button class="btn btn-link btn-sm p-0 text-danger" title="Excluir"
+                onclick="App._excluirDoc(${d.id},'${esc(d.nome).replace(/'/g,"\\'")}')">
+                <i class="bi bi-trash-fill"></i></button>`:''}
+            </div>`).join('')}
+          </div>
+        </td>
+      </tr>`:''}`;
+    }).join('')}
+    </tbody>
+  </table>`;
+}
+
+function fmt_size_js(n) {
+  if(!n) return '0 B';
+  if(n<1024) return n+' B';
+  if(n<1024*1024) return (n/1024).toFixed(1)+' KB';
+  return (n/1024/1024).toFixed(1)+' MB';
+}
+
+function _abrirUploadDoc(clubeId=null, clubeNome=null) {
+  const sel = document.getElementById('ud-clube');
+  if(sel) {
+    sel.innerHTML = '<option value="">Selecione o clube...</option>' +
+      (state.clubes||[]).filter(c=>c.ativo).sort((a,b)=>a.nomeClube.localeCompare(b.nomeClube,'pt-BR'))
+        .map(c=>`<option value="${c.id}"${c.id===clubeId?' selected':''}>${esc(c.nomeClube)}</option>`).join('');
+  }
+  document.getElementById('form-upload-doc')?.reset();
+  if(clubeId && sel) sel.value = clubeId;
+  document.getElementById('upload-doc-alert').innerHTML='';
+  new bootstrap.Modal(document.getElementById('modal-upload-doc')).show();
+}
+
+function _abrirUploadDocClube(id, nome) { _abrirUploadDoc(id, nome); }
+
+async function _submitUploadDoc(e) {
+  e.preventDefault();
+  const btn=document.getElementById('btn-upload-doc');
+  btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Enviando...';
+  const alertEl=document.getElementById('upload-doc-alert');
+  alertEl.innerHTML='';
+  try {
+    const fd=new FormData(e.target);
+    const resp=await fetch('/api/gestao/documentos',{method:'POST',body:fd,credentials:'same-origin'});
+    const json=await resp.json();
+    if(!json.ok) throw new Error(json.error||'Erro ao enviar.');
+    bootstrap.Modal.getInstance(document.getElementById('modal-upload-doc'))?.hide();
+    toast('Documento enviado!');
+    await _renderGestaoTab('docs');
+  } catch(err) {
+    alertEl.innerHTML=`<div class="alert alert-danger">${err.message}</div>`;
+    btn.disabled=false; btn.innerHTML='<i class="bi bi-upload me-1"></i>Enviar';
+  }
+}
+
+async function _excluirDoc(id, nome) {
+  showConfirm(`Excluir o documento <strong>${esc(nome)}</strong>?`, async()=>{
+    try { await Api.del(`/api/documentos/${id}`); toast('Documento excluído.'); await _renderGestaoTab('docs'); }
+    catch(e) { toast(e.message,'danger'); }
+  });
+}
+
+// ── Aba Trimestralidades ────────────────────────────
+function _finTabContent(clubes) {
+  const ano   = window._triAno || new Date().getFullYear();
+  const tris  = window._triData || [];
+  const byClube = {};
+  window._triCache = {};
+  tris.forEach(r=>{
+    if(!byClube[r.clubeId]) byClube[r.clubeId]={};
+    byClube[r.clubeId][r.trimestre] = r;
+    window._triCache[`${r.clubeId}_${r.trimestre}`] = r;
+  });
+
+  const totalPago = tris.filter(r=>r.status==='pago'&&r.valor)
+    .reduce((s,r)=>s+parseFloat(r.valor||0),0);
+  const pagos    = tris.filter(r=>r.status==='pago').length;
+  const pendentes= tris.filter(r=>r.status==='pendente').length;
+  const vencidos = tris.filter(r=>r.status==='vencido').length;
+
+  if(!clubes.length) return `<div class="text-center py-5 text-muted">
+    <i class="bi bi-search fs-1 d-block mb-2 opacity-25"></i>Nenhum clube encontrado.</div>`;
+
+  return `
+  <!-- Stats + Ano -->
+  <div class="p-3 border-bottom">
+    <div class="row g-3 align-items-center">
+      <div class="col-auto d-flex align-items-center gap-2">
+        <button class="btn btn-sm btn-outline-secondary" onclick="App._triNavAno(-1)">
+          <i class="bi bi-chevron-left"></i></button>
+        <span class="fw-bold fs-5">${ano}</span>
+        <button class="btn btn-sm btn-outline-secondary" onclick="App._triNavAno(1)">
+          <i class="bi bi-chevron-right"></i></button>
+      </div>
+      <div class="col-auto"><span class="badge bg-success-subtle text-success border fs-6 fw-semibold">
+        <i class="bi bi-check-circle-fill me-1"></i>${pagos} pagos</span></div>
+      <div class="col-auto"><span class="badge bg-warning-subtle text-warning border fs-6 fw-semibold">
+        <i class="bi bi-clock-fill me-1"></i>${pendentes} pendentes</span></div>
+      <div class="col-auto"><span class="badge bg-danger-subtle text-danger border fs-6 fw-semibold">
+        <i class="bi bi-x-circle-fill me-1"></i>${vencidos} vencidos</span></div>
+      <div class="col-auto ms-auto fw-semibold text-primary">
+        <i class="bi bi-cash-stack me-1"></i>R$ ${totalPago.toLocaleString('pt-BR',{minimumFractionDigits:2})} recebido
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabela -->
+  <div class="table-responsive">
+    <table class="table table-hover mb-0" style="min-width:700px">
+      <thead><tr>
+        <th style="min-width:220px">Clube</th>
+        ${TRI_PERIODOS.map((p,i)=>`<th class="text-center">${i+1}° Tri<br><span class="fw-normal text-muted" style="font-size:.68rem">${p}</span></th>`).join('')}
+        <th class="text-center">Total pago</th>
+      </tr></thead>
+      <tbody>
+      ${clubes.map(c=>{
+        const regs = byClube[c.id]||{};
+        let totalC=0;
+        const cells=[1,2,3,4].map(t=>{
+          const r=regs[t];
+          const s=r?r.status:'pendente';
+          const cfg=SIT_TRI[s]||SIT_TRI.pendente;
+          const val=r&&r.valor?parseFloat(r.valor):null;
+          if(val&&s==='pago') totalC+=val;
+          const valStr=val?`<br><span style="font-size:.68rem">R$ ${val.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>`:'';
+          const dataPgto=r&&r.dataPagamento?`<br><span style="font-size:.63rem" class="text-muted">${fmtDate(r.dataPagamento)}</span>`:'';
+          return `<td class="text-center p-1">
+            <button class="btn btn-sm border w-100 bg-${cfg.cls}-subtle text-${cfg.cls}"
+              style="font-size:.75rem;line-height:1.3"
+              onclick="App._editarTri(${c.id},'${esc(c.nomeClube).replace(/'/g,"\\'")}',${ano},${t})">
+              <i class="bi bi-${cfg.icon}" style="font-size:.8rem"></i>
+              <span class="d-block fw-semibold">${cfg.label}</span>
+              ${valStr}${dataPgto}
+            </button>
+          </td>`;
+        }).join('');
+        return `<tr>
+          <td>
+            <button class="btn btn-link btn-sm p-0 fw-semibold text-start d-block"
+              onclick="App.go('clube-detalhe',${c.id})">${esc(c.nomeClube)}</button>
+            <div class="text-muted" style="font-size:.71rem">${esc(c.cidade||'')}${c.estado?' — '+c.estado:''}</div>
+          </td>
+          ${cells}
+          <td class="text-center small fw-semibold ${totalC?'text-success':'text-muted'}">
+            ${totalC?'R$ '+totalC.toLocaleString('pt-BR',{minimumFractionDigits:2}):'—'}
+          </td>
+        </tr>`;
+      }).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+async function _triNavAno(delta) {
+  window._triAno = (window._triAno||new Date().getFullYear()) + delta;
+  const tris = await Api.get(`/api/trimestralidades?ano=${window._triAno}`);
+  window._triData = tris;
+  _filtrarGestao();
+}
+
+function _editarTri(clubeId, clubeNome, ano, trimestre) {
+  _triEditCtx = {clubeId, clubeNome, ano, trimestre};
+  const r = (window._triCache||{})[`${clubeId}_${trimestre}`] || {};
+  const nomeTri = `${trimestre}° Trimestre ${ano} — ${TRI_PERIODOS[trimestre-1]}`;
+  document.getElementById('tri-modal-titulo').innerHTML =
+    `<i class="bi bi-cash-coin me-2" style="color:var(--accent)"></i>${nomeTri}`;
+  document.getElementById('tri-clube-nome').textContent = clubeNome;
+  const status = r.status || 'pendente';
+  document.querySelectorAll('[name="tri-status"]').forEach(rd=>rd.checked=(rd.value===status));
+  document.getElementById('tri-valor').value = r.valor||'';
+  document.getElementById('tri-venc').value  = r.dataVencimento||'';
+  document.getElementById('tri-pgto').value  = r.dataPagamento||'';
+  document.getElementById('tri-obs').value   = r.observacoes||'';
+  new bootstrap.Modal(document.getElementById('modal-trimestre')).show();
+}
+
+async function _salvarTrimestralidade() {
+  if(!_triEditCtx) return;
+  const {clubeId, ano, trimestre} = _triEditCtx;
+  const status = document.querySelector('[name="tri-status"]:checked')?.value||'pendente';
+  try {
+    await Api.put(`/api/trimestralidades/${clubeId}/${ano}/${trimestre}`, {
+      status,
+      valor:          document.getElementById('tri-valor').value||null,
+      dataVencimento: document.getElementById('tri-venc').value||null,
+      dataPagamento:  document.getElementById('tri-pgto').value||null,
+      observacoes:    document.getElementById('tri-obs').value||null,
+    });
+    bootstrap.Modal.getInstance(document.getElementById('modal-trimestre'))?.hide();
+    toast('Trimestralidade atualizada!');
+    const tris = await Api.get(`/api/trimestralidades?ano=${ano}`);
+    window._triData = tris;
+    _filtrarGestao();
+  } catch(e) { toast(e.message,'danger'); }
+}
+
+// ═════════ MENSAGEIRO WHATSAPP ════════════════════
+let _waStatusTimer = null;
+let _waConnected   = false;
+
+async function renderMensageiro() {
+  if(!pode.comunicacao()){toast('Acesso negado.','danger');await go('dashboard');return;}
+  if (_waStatusTimer) { clearInterval(_waStatusTimer); _waStatusTimer = null; }
+  setTitle('<i class="bi bi-whatsapp me-2" style="color:#25D366"></i>Mensageiro WhatsApp');
+  render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
+
+  const [log, todos] = await Promise.all([
+    Api.get('/api/wa-log'),
+    Api.get('/api/clubes?status=ativos'),
+  ]);
+  state.clubes = todos;
+  state.waLog  = log;
+
+  render(`
+  <!-- Status WhatsApp -->
+  <div id="wa-status-card" class="card shadow-sm mb-4">
+    <div class="card-body py-3 d-flex align-items-center gap-3">
+      <div class="spinner-border spinner-border-sm text-success"></div>
+      <span class="small">Verificando serviço WhatsApp...</span>
+    </div>
+  </div>
+
+  <div class="row g-4">
+
+    <!-- Coluna esquerda: composer + log -->
+    <div class="col-lg-5">
+
+      <!-- Template -->
+      <div class="card shadow-sm mb-3">
+        <div class="card-header"><i class="bi bi-pencil-square me-2"></i>Mensagem</div>
+        <div class="card-body">
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Variáveis disponíveis</label><br>
+            <div class="d-flex flex-wrap gap-1">
+              ${['{nome_clube}','{presidente}','{cidade}','{estado}','{celular}','{cnpj}'].map(v=>
+                `<button class="wa-var-btn" onclick="App.insereVar('${v}')">${v}</button>`).join('')}
+            </div>
+          </div>
+          <textarea id="wa-tmpl" class="form-control mt-2" rows="7"
+            placeholder="Digite sua mensagem aqui.&#10;&#10;Ex: Prezado {nome_clube}, informamos que..."
+            oninput="App.previewMsg()"
+            style="font-size:.85rem;resize:vertical"></textarea>
+          <div class="mt-2">
+            <label class="form-label small fw-semibold mb-1">Prévia (primeiro selecionado)</label>
+            <div id="wa-preview" class="p-2 rounded small"
+              style="background:#e9fbe9;border:1px solid #a7f3d0;min-height:48px;white-space:pre-wrap;font-size:.82rem;color:#065f46"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Histórico -->
+      <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-clock-history me-2"></i>Histórico de envios</span>
+          ${log.length?`<button class="btn btn-outline-secondary btn-sm" onclick="App.limparLogWA()">
+            <i class="bi bi-trash2 me-1"></i>Limpar</button>`:''}
+        </div>
+        <div class="card-body p-0">
+        ${log.length?`<div class="wa-log-wrap">
+          ${log.map(e=>`
+          <div class="wa-msg-card border-0 border-bottom rounded-0">
+            <div class="d-flex justify-content-between align-items-start">
+              <div class="fw-semibold small">${esc(e.clube)}</div>
+              <span class="ts">${e.hora}${e.por&&e.por!=='—'?' · '+esc(e.por):''}</span>
+            </div>
+            <div class="small text-muted mt-1" style="white-space:pre-wrap">${esc(e.msg.slice(0,120))}${e.msg.length>120?'…':''}</div>
+          </div>`).join('')}
+        </div>`:
+        `<div class="text-center py-4 text-muted small">
+          <i class="bi bi-chat-dots fs-2 d-block mb-2 opacity-25"></i>Nenhuma mensagem enviada ainda.
+        </div>`}
+        </div>
+      </div>
+    </div>
+
+    <!-- Coluna direita: seleção de clubes -->
+    <div class="col-lg-7">
+      <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-building-fill me-2"></i>Selecionar destinatários</span>
+          <span class="badge bg-success" id="wa-sel-count">0 selecionados</span>
+        </div>
+        <div class="card-body pb-2">
+          <div class="row g-2 mb-2">
+            <div class="col-md-5">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control" id="wa-q" placeholder="Filtrar clubes..." oninput="App.filtrarWA()">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <select class="form-select form-select-sm" id="wa-est" onchange="App.filtrarWA()">
+                <option value="">Todos estados</option>
+                ${ESTADOS.map(([s,n])=>`<option value="${s}">${s} — ${n}</option>`).join('')}
+              </select>
+            </div>
+            <div class="col-auto">
+              <div class="form-check form-check-inline mt-1">
+                <input class="form-check-input" type="checkbox" id="wa-so-cel" checked onchange="App.filtrarWA()">
+                <label class="form-check-label small" for="wa-so-cel">Só com celular</label>
+              </div>
+            </div>
+          </div>
+          <div class="d-flex gap-2 mb-2">
+            <button class="btn btn-outline-secondary btn-sm" onclick="App.selecionarTodosWA(true)">
+              <i class="bi bi-check-all me-1"></i>Selecionar todos</button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="App.selecionarTodosWA(false)">
+              <i class="bi bi-x-lg me-1"></i>Limpar seleção</button>
+          </div>
+          <div id="wa-lista" style="max-height:360px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px"></div>
+        </div>
+        <div class="card-footer d-flex justify-content-between align-items-center gap-2">
+          <div class="small text-muted" id="wa-footer-hint">
+            <i class="bi bi-info-circle me-1"></i>Verificando modo de envio...
+          </div>
+          <button class="btn btn-success fw-semibold" id="btn-enviar-wa" onclick="App.enviarWA()">
+            <i class="bi bi-whatsapp me-2"></i>Enviar mensagens
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>`);
+
+  _renderWALista();
+  await _pollWAStatus();
+  _waStatusTimer = setInterval(_pollWAStatus, 4000);
+}
+
+async function _pollWAStatus() {
+  try {
+    const s = await Api.get('/api/wa/status');
+    _renderWAStatusCard(s);
+    if (s.status === 'CONNECTED') {
+      if (_waStatusTimer) { clearInterval(_waStatusTimer); _waStatusTimer = null; }
+    }
+  } catch {
+    _renderWAStatusCard({ status: 'OFFLINE', hasQr: false });
+  }
+}
+
+async function _renderWAStatusCard(s) {
+  const card = document.getElementById('wa-status-card');
+  const hint = document.getElementById('wa-footer-hint');
+  if (!card) return;
+
+  if (s.status === 'CONNECTED') {
+    _waConnected = true;
+    card.className = 'card shadow-sm mb-4 border-success';
+    card.innerHTML = `
+      <div class="card-body py-3 d-flex align-items-center gap-3">
+        <i class="bi bi-whatsapp fs-4" style="color:#25D366"></i>
+        <div class="flex-grow-1">
+          <div class="fw-semibold text-success">WhatsApp Conectado</div>
+          <div class="small text-muted">Mensagens serão enviadas automaticamente pelo sistema.</div>
+        </div>
+        ${current_user_can_admin()?`<button class="btn btn-outline-danger btn-sm" onclick="App.desconectarWA()">
+          <i class="bi bi-box-arrow-right me-1"></i>Desconectar</button>`:''}
+      </div>`;
+    if (hint) hint.innerHTML = '<i class="bi bi-lightning-fill me-1 text-success"></i>Envio automático ativo';
+
+  } else if (s.status === 'QR_READY' || s.hasQr) {
+    _waConnected = false;
+    card.className = 'card shadow-sm mb-4 border-warning';
+    card.innerHTML = `
+      <div class="card-body">
+        <div class="row align-items-center g-3">
+          <div class="col-auto">
+            <div id="wa-qr-wrap" style="width:160px;height:160px;display:flex;align-items:center;justify-content:center;border:1px solid #e5e7eb;border-radius:8px;background:#fff">
+              <div class="spinner-border spinner-border-sm text-success"></div>
+            </div>
+          </div>
+          <div class="col">
+            <div class="fw-semibold mb-1"><i class="bi bi-qr-code me-2"></i>Escanear QR Code</div>
+            <ol class="small text-muted mb-0 ps-3">
+              <li>Abra o WhatsApp no celular</li>
+              <li>Toque em <strong>⋮ Menu → Aparelhos conectados</strong></li>
+              <li>Toque em <strong>Conectar um aparelho</strong></li>
+              <li>Aponte a câmera para o QR Code ao lado</li>
+            </ol>
+            <div class="mt-2 small text-warning fw-semibold">
+              <i class="bi bi-arrow-clockwise me-1"></i>O QR atualiza automaticamente.
+            </div>
+          </div>
+        </div>
+      </div>`;
+    if (hint) hint.innerHTML = '<i class="bi bi-info-circle me-1"></i>Conecte o WhatsApp para envio automático';
+    // Load QR image
+    try {
+      const qd = await Api.get('/api/wa/qr');
+      const wrap = document.getElementById('wa-qr-wrap');
+      if (wrap && qd?.qr) {
+        wrap.innerHTML = `<img src="${qd.qr}" style="width:156px;height:156px;border-radius:6px">`;
+      }
+    } catch {}
+
+  } else if (s.status === 'INITIALIZING') {
+    _waConnected = false;
+    card.className = 'card shadow-sm mb-4 border-secondary';
+    card.innerHTML = `
+      <div class="card-body py-3 d-flex align-items-center gap-3">
+        <div class="spinner-border spinner-border-sm text-success"></div>
+        <div>
+          <div class="fw-semibold">Iniciando serviço WhatsApp...</div>
+          <div class="small text-muted">Aguarde — pode levar até 30 segundos na primeira vez.</div>
+        </div>
+      </div>`;
+    if (hint) hint.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Aguardando serviço...';
+
+  } else {
+    _waConnected = false;
+    card.className = 'card shadow-sm mb-4 border-secondary';
+    card.innerHTML = `
+      <div class="card-body py-3">
+        <div class="d-flex align-items-center gap-3 mb-2">
+          <i class="bi bi-whatsapp fs-4 text-muted"></i>
+          <div>
+            <div class="fw-semibold">Serviço WhatsApp inativo</div>
+            <div class="small text-muted">Para ativar o envio automático, execute <code>wa_service\\iniciar_wa.bat</code></div>
+          </div>
+        </div>
+        <div class="small text-muted">
+          <i class="bi bi-info-circle me-1"></i>
+          No modo atual os envios abrem o WhatsApp Web no navegador (uma aba por clube).
+        </div>
+      </div>`;
+    if (hint) hint.innerHTML = '<i class="bi bi-box-arrow-up-right me-1"></i>Cada envio abre o WhatsApp Web no navegador';
+  }
+}
+
+function current_user_can_admin() {
+  return state.user && state.user.perfil === 'admin';
+}
+
+async function desconectarWA() {
+  try {
+    await Api.post('/api/wa/disconnect', {});
+    toast('WhatsApp desconectado.', 'info');
+    _waConnected = false;
+    await _pollWAStatus();
+    if (!_waStatusTimer) _waStatusTimer = setInterval(_pollWAStatus, 4000);
+  } catch(e) { toast(e.message, 'danger'); }
+}
+
+let _waFiltrados = [];
+function _renderWALista() {
+  const q   =(document.getElementById('wa-q')?.value||'').toLowerCase();
+  const est  =document.getElementById('wa-est')?.value||'';
+  const socel=document.getElementById('wa-so-cel')?.checked!==false;
+  let cl=(state.clubes||[]).filter(c=>c.ativo);
+  if(socel) cl=cl.filter(c=>c.telefoneCelular);
+  if(est)   cl=cl.filter(c=>c.estado===est);
+  if(q)     cl=cl.filter(c=>[c.nomeClube,c.cidade].some(v=>(v||'').toLowerCase().includes(q)));
+  cl.sort((a,b)=>a.nomeClube.localeCompare(b.nomeClube,'pt-BR'));
+  _waFiltrados=cl;
+
+  const wrap=document.getElementById('wa-lista');
+  if(!wrap) return;
+  if(!cl.length) {
+    wrap.innerHTML='<div class="text-center py-4 text-muted small">Nenhum clube encontrado.</div>';
+    _updateWASel(); return;
+  }
+  wrap.innerHTML=cl.map(c=>`
+  <label class="d-flex align-items-center gap-3 px-3 py-2 border-bottom wa-item" style="cursor:pointer"
+    onmouseover="this.style.background='#f0faf4'" onmouseout="this.style.background=''">
+    <input type="checkbox" class="form-check-input wa-check flex-shrink-0" value="${c.id}"
+      onchange="App._updateWASel()">
+    <div class="flex-grow-1 min-w-0">
+      <div class="fw-semibold small text-truncate">${esc(c.nomeClube)}</div>
+      <div class="text-muted" style="font-size:.72rem">${esc(c.cidade||'')}${c.estado?' — '+c.estado:''}
+        ${c.telefoneCelular?`· <span style="color:#25D366"><i class="bi bi-whatsapp"></i> ${esc(c.telefoneCelular)}</span>`:'<span class="text-danger">sem celular</span>'}
+      </div>
+    </div>
+  </label>`).join('');
+  _updateWASel();
+}
+
+function filtrarWA() { _renderWALista(); }
+
+function selecionarTodosWA(v) {
+  document.querySelectorAll('.wa-check').forEach(cb=>cb.checked=v);
+  _updateWASel();
+}
+
+function _updateWASel() {
+  const n=document.querySelectorAll('.wa-check:checked').length;
+  const el=document.getElementById('wa-sel-count');
+  if(el) el.textContent=`${n} selecionado${n!==1?'s':''}`;
+  previewMsg();
+}
+
+function insereVar(v) {
+  const ta=document.getElementById('wa-tmpl'); if(!ta) return;
+  const s=ta.selectionStart,e=ta.selectionEnd;
+  ta.value=ta.value.slice(0,s)+v+ta.value.slice(e);
+  ta.selectionStart=ta.selectionEnd=s+v.length;
+  ta.focus(); previewMsg();
+}
+
+function previewMsg() {
+  const tmpl=document.getElementById('wa-tmpl')?.value||'';
+  const sel=document.querySelectorAll('.wa-check:checked');
+  const prev=document.getElementById('wa-preview');
+  if(!prev) return;
+  if(!tmpl){prev.textContent='';return;}
+  if(!sel.length){prev.textContent=fillTemplate(tmpl,{nomeClube:'Nome do Clube',nomePresidente:'Presidente',cidade:'Cidade',estado:'UF'});return;}
+  const firstId=parseInt(sel[0].value);
+  const cl=(state.clubes||[]).find(c=>c.id===firstId)||{};
+  prev.textContent=fillTemplate(tmpl,cl);
+}
+
+async function enviarWA() {
+  const tmpl=document.getElementById('wa-tmpl')?.value||'';
+  if(!tmpl.trim()){toast('Digite a mensagem antes de enviar.','warning');return;}
+  const checks=document.querySelectorAll('.wa-check:checked');
+  if(!checks.length){toast('Selecione ao menos um clube.','warning');return;}
+  const ids=[...checks].map(c=>parseInt(c.value));
+  const clubes=(state.clubes||[]).filter(c=>ids.includes(c.id));
+  const semCel=clubes.filter(c=>!c.telefoneCelular);
+  const comCel=clubes.filter(c=>c.telefoneCelular);
+  if(!comCel.length){toast('Nenhum clube selecionado possui celular cadastrado.','danger');return;}
+
+  if (_waConnected) {
+    // Envio automático via serviço
+    const btn=document.getElementById('btn-enviar-wa');
+    if(btn){btn.disabled=true;}
+    let ok=0, fail=0;
+    for(let i=0;i<comCel.length;i++) {
+      const c=comCel[i];
+      const msg=fillTemplate(tmpl,c);
+      if(btn) btn.innerHTML=`<span class="spinner-border spinner-border-sm me-1"></span>Enviando ${i+1}/${comCel.length}...`;
+      try {
+        await Api.post('/api/wa/send',{numero:c.telefoneCelular,mensagem:msg,clube:c.nomeClube});
+        ok++;
+      } catch(e) {
+        fail++;
+        console.warn('Falha ao enviar para',c.nomeClube,e.message);
+      }
+      if(i<comCel.length-1) await new Promise(r=>setTimeout(r,2500));
+    }
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-whatsapp me-2"></i>Enviar mensagens';}
+    if(ok)   toast(`${ok} mensagem${ok!==1?'ns':''} enviada${ok!==1?'s':''} com sucesso!`,'success');
+    if(fail) toast(`${fail} envio${fail!==1?'s':''} falharam. Verifique o console.`,'danger');
+    if(semCel.length) toast(`${semCel.length} clube${semCel.length!==1?'s':''} sem celular ignorado${semCel.length!==1?'s':''}.`,'warning');
+    await go('mensageiro');
+
+  } else {
+    // Fallback: abre WhatsApp Web no navegador
+    let count=0;
+    for(const c of comCel) {
+      const msg=fillTemplate(tmpl,c);
+      window.open(waLink(c.telefoneCelular,msg),'_blank');
+      try { await Api.post('/api/wa-log',{clube:c.nomeClube,msg}); } catch {}
+      count++;
+      await new Promise(r=>setTimeout(r,700));
+    }
+    toast(`${count} WhatsApp${count!==1?'s':''} aberto${count!==1?'s':''} no navegador.`,'success');
+    if(semCel.length) toast(`${semCel.length} clube${semCel.length!==1?'s':''} sem celular ignorado${semCel.length!==1?'s':''}.`,'warning');
+    await go('mensageiro');
+  }
+}
+
+async function limparLogWA() {
+  try { await Api.del('/api/wa-log'); toast('Histórico limpo.','info'); await go('mensageiro'); }
+  catch(e) { toast(e.message,'danger'); }
+}
+
+// ═════════ MENSAGEIRO E-MAIL ══════════════════════
+async function renderMensageiroEmail() {
+  if(!pode.comunicacao()){toast('Acesso negado.','danger');await go('dashboard');return;}
+  setTitle('<i class="bi bi-envelope-fill me-2"></i>Mensageiro E-mail');
+  render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
+
+  const [cfg, log, todos] = await Promise.all([
+    Api.get('/api/email/config'),
+    Api.get('/api/email/log'),
+    Api.get('/api/clubes?status=ativos'),
+  ]);
+  state.clubes = todos;
+
+  const cfgPresets = [
+    { label:'Gmail',        host:'smtp.gmail.com',    port:'587', tls:'1', ssl:'0',
+      hint:'Use uma <strong>Senha de App</strong> do Google (não sua senha normal). <a href="https://myaccount.google.com/apppasswords" target="_blank">Criar senha de app</a>' },
+    { label:'Outlook/Hotmail', host:'smtp.office365.com', port:'587', tls:'1', ssl:'0',
+      hint:'Use seu e-mail e senha normais do Outlook/Hotmail.' },
+    { label:'Yahoo',        host:'smtp.mail.yahoo.com',port:'587', tls:'1', ssl:'0',
+      hint:'Ative o acesso SMTP nas configurações de segurança da conta Yahoo.' },
+    { label:'SMTP Personalizado', host:'', port:'587', tls:'1', ssl:'0', hint:'' },
+  ];
+
+  render(`
+  <!-- Config SMTP (admin only) -->
+  ${current_user_can_admin() ? `
+  <div class="card shadow-sm mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center" style="cursor:pointer"
+      onclick="document.getElementById('smtp-body').classList.toggle('d-none')">
+      <span><i class="bi bi-gear-fill me-2"></i>Configuração SMTP
+        ${cfg.configured
+          ? '<span class="badge bg-success ms-2"><i class="bi bi-check-lg me-1"></i>Configurado</span>'
+          : '<span class="badge bg-warning text-dark ms-2">Não configurado</span>'}
+      </span>
+      <i class="bi bi-chevron-down"></i>
+    </div>
+    <div id="smtp-body" class="${cfg.configured?'d-none':''}">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label small fw-semibold">Provedor</label>
+            <div class="d-flex flex-wrap gap-2">
+              ${cfgPresets.map((p,i)=>`<button type="button" class="btn btn-sm btn-outline-secondary"
+                onclick="App._emailPreset(${i})">${p.label}</button>`).join('')}
+            </div>
+            <div id="smtp-hint" class="mt-2 small text-muted ${cfg.configured?'':'d-none'}"></div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Nome do remetente</label>
+            <input id="em-nome" class="form-control form-control-sm" value="${esc(cfg.nome_remetente||'FBVA')}" placeholder="Ex: FBVA — Federação">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">E-mail remetente</label>
+            <input id="em-rem" class="form-control form-control-sm" type="email" value="${esc(cfg.email_remetente||cfg.smtp_usuario||'')}" placeholder="email@provedor.com">
+          </div>
+          <div class="col-md-5">
+            <label class="form-label small fw-semibold">Servidor SMTP</label>
+            <input id="em-host" class="form-control form-control-sm" value="${esc(cfg.smtp_host||'')}" placeholder="smtp.gmail.com">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold">Porta</label>
+            <input id="em-port" class="form-control form-control-sm" type="number" value="${esc(cfg.smtp_port||'587')}">
+          </div>
+          <div class="col-md-2 d-flex align-items-end gap-2 pb-1">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="em-tls" ${(cfg.smtp_tls||'1')==='1'?'checked':''}>
+              <label class="form-check-label small" for="em-tls">TLS</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="em-ssl" ${cfg.smtp_ssl==='1'?'checked':''}>
+              <label class="form-check-label small" for="em-ssl">SSL</label>
+            </div>
+          </div>
+          <div class="col-md-5">
+            <label class="form-label small fw-semibold">Usuário SMTP</label>
+            <input id="em-usr" class="form-control form-control-sm" value="${esc(cfg.smtp_usuario||'')}" placeholder="email@provedor.com">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Senha / App password</label>
+            <input id="em-pwd" class="form-control form-control-sm" type="password" value="${esc(cfg.smtp_senha||'')}" placeholder="Senha ou app password">
+          </div>
+        </div>
+      </div>
+      <div class="card-footer d-flex gap-2">
+        <button class="btn btn-primary btn-sm" onclick="App._salvarEmailConfig()">
+          <i class="bi bi-check-lg me-1"></i>Salvar configuração</button>
+        <button class="btn btn-outline-secondary btn-sm" onclick="App._testarEmail()">
+          <i class="bi bi-send me-1"></i>Testar (envia para ${esc(state.user?.email||'')})</button>
+      </div>
+    </div>
+  </div>` : ''}
+
+  <div class="row g-4">
+    <!-- Coluna esquerda: composer + log -->
+    <div class="col-lg-5">
+      <div class="card shadow-sm mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-pencil-square me-2"></i>Mensagem</span>
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-secondary active" id="em-tab-texto" onclick="App._emailSetMode('texto')">
+              <i class="bi bi-card-text me-1"></i>Texto
+            </button>
+            <button class="btn btn-outline-secondary" id="em-tab-visual" onclick="App._emailSetMode('visual')">
+              <i class="bi bi-palette me-1"></i>Visual
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Assunto</label>
+            <input id="em-assunto" class="form-control form-control-sm"
+              placeholder="Ex: Comunicado importante — FBVA" oninput="App._previewEmail()">
+          </div>
+
+          <!-- MODO TEXTO -->
+          <div id="em-mode-texto">
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">Variáveis disponíveis</label><br>
+              <div class="d-flex flex-wrap gap-1">
+                ${['{nome_clube}','{presidente}','{cidade}','{estado}','{celular}','{cnpj}','{email}'].map(v=>
+                  `<button class="wa-var-btn" onclick="App._insereVarEmail('${v}')">${v}</button>`).join('')}
+              </div>
+            </div>
+            <textarea id="em-corpo" class="form-control mt-2" rows="9"
+              placeholder="Prezado(a) {nome_clube},&#10;&#10;..."
+              oninput="App._previewEmail()"
+              style="font-size:.85rem;resize:vertical"></textarea>
+            <div class="mt-2">
+              <label class="form-label small fw-semibold mb-1">Prévia (primeiro selecionado)</label>
+              <div id="em-preview" class="p-2 rounded small"
+                style="background:#eff6ff;border:1px solid #bfdbfe;min-height:48px;white-space:pre-wrap;font-size:.82rem;color:#1e3a8a"></div>
+            </div>
+          </div>
+
+          <!-- MODO VISUAL -->
+          <div id="em-mode-visual" class="d-none">
+            <div class="d-flex gap-3" style="min-height:340px">
+              <div class="em-palette flex-shrink-0" style="width:148px">
+                <div class="small fw-semibold text-muted mb-2" style="font-size:.65rem;text-transform:uppercase;letter-spacing:.05em">Blocos</div>
+                ${_emBlockDefs.map(d=>`<div class="em-block-chip" draggable="true"
+                  ondragstart="App._emPaletteDragStart(event,'${d.type}')">
+                  <i class="bi ${d.icon}"></i>${d.label}</div>`).join('')}
+              </div>
+              <div class="flex-grow-1 d-flex flex-column">
+                <div id="em-canvas" class="em-canvas flex-grow-1"
+                  ondrop="App._emCanvasDrop(event)"
+                  ondragover="App._emCanvasDragOver(event)"
+                  ondragleave="App._emCanvasDragLeave()">
+                  <div class="em-canvas-empty">
+                    <i class="bi bi-plus-square fs-2 mb-2 opacity-25"></i>
+                    <div>Arraste blocos aqui para montar o e-mail</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="mt-3">
+              <label class="form-label small fw-semibold mb-1">Prévia do e-mail</label>
+              <div id="em-visual-preview" style="border:1px solid #bfdbfe;border-radius:8px;overflow:hidden;min-height:60px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Histórico -->
+      <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-clock-history me-2"></i>Histórico de envios</span>
+          ${log.length?`<button class="btn btn-outline-secondary btn-sm" onclick="App._limparEmailLog()">
+            <i class="bi bi-trash2 me-1"></i>Limpar</button>`:''}
+        </div>
+        <div class="card-body p-0">
+          ${log.length?`<div style="max-height:280px;overflow-y:auto">
+            ${log.map(e=>`<div class="wa-msg-card border-0 border-bottom rounded-0">
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <div>
+                  <span class="fw-semibold small">${esc(e.clube)}</span>
+                  <span class="badge ${e.status==='ok'?'bg-success':'bg-danger'} ms-1" style="font-size:.65rem">
+                    ${e.status==='ok'?'OK':'Erro'}</span>
+                </div>
+                <span class="ts flex-shrink-0">${e.hora}</span>
+              </div>
+              <div class="small text-muted mt-1">${esc(e.assunto)}</div>
+              <div class="small text-muted" style="font-size:.71rem">${esc(e.destinatario)}</div>
+            </div>`).join('')}
+          </div>`:`<div class="text-center py-4 text-muted small">
+            <i class="bi bi-envelope fs-2 d-block mb-2 opacity-25"></i>Nenhum e-mail enviado ainda.
+          </div>`}
+        </div>
+      </div>
+    </div>
+
+    <!-- Coluna direita: seleção de clubes -->
+    <div class="col-lg-7">
+      <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-building-fill me-2"></i>Selecionar destinatários</span>
+          <span class="badge bg-primary" id="em-sel-count">0 selecionados</span>
+        </div>
+        <div class="card-body pb-2">
+          <div class="row g-2 mb-2">
+            <div class="col-md-5">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control" id="em-q" placeholder="Filtrar clubes..." oninput="App._filtrarEmail()">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <select class="form-select form-select-sm" id="em-est" onchange="App._filtrarEmail()">
+                <option value="">Todos estados</option>
+                ${ESTADOS.map(([s,n])=>`<option value="${s}">${s} — ${n}</option>`).join('')}
+              </select>
+            </div>
+            <div class="col-auto">
+              <div class="form-check form-check-inline mt-1">
+                <input class="form-check-input" type="checkbox" id="em-so-email" checked onchange="App._filtrarEmail()">
+                <label class="form-check-label small" for="em-so-email">Só com e-mail</label>
+              </div>
+            </div>
+          </div>
+          <div class="d-flex gap-2 mb-2">
+            <button class="btn btn-outline-secondary btn-sm" onclick="App._selEmailTodos(true)">
+              <i class="bi bi-check-all me-1"></i>Selecionar todos</button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="App._selEmailTodos(false)">
+              <i class="bi bi-x-lg me-1"></i>Limpar</button>
+          </div>
+          <div id="em-lista" style="max-height:380px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px"></div>
+        </div>
+        <div class="card-footer d-flex justify-content-between align-items-center gap-2">
+          <div class="small text-muted">
+            ${cfg.configured
+              ? '<i class="bi bi-lightning-fill me-1 text-primary"></i>Envio direto pelo sistema'
+              : '<i class="bi bi-exclamation-triangle me-1 text-warning"></i>Configure o SMTP acima antes de enviar'}
+          </div>
+          <button class="btn fw-semibold" id="btn-enviar-email"
+            style="background:#2563eb;color:#fff;border-color:#2563eb"
+            onclick="App._enviarEmail()">
+            <i class="bi bi-send-fill me-2"></i>Enviar e-mails
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>`);
+
+  _emailPresets = cfgPresets;
+  _renderEmailLista();
+  _previewEmail();
+}
+
+let _emailPresets = [];
+let _emailFiltrados = [];
+
+function _emailPreset(i) {
+  const p = _emailPresets[i];
+  if(!p) return;
+  const set = (id, v) => { const el=document.getElementById(id); if(el) el.value=v; };
+  set('em-host', p.host); set('em-port', p.port);
+  const tls=document.getElementById('em-tls'); if(tls) tls.checked=p.tls==='1';
+  const ssl=document.getElementById('em-ssl'); if(ssl) ssl.checked=p.ssl==='1';
+  const hint=document.getElementById('smtp-hint');
+  if(hint && p.hint){ hint.innerHTML='<i class="bi bi-info-circle me-1"></i>'+p.hint; hint.classList.remove('d-none'); }
+  else if(hint){ hint.classList.add('d-none'); }
+}
+
+async function _salvarEmailConfig() {
+  const g = id => document.getElementById(id)?.value||'';
+  const chk = id => document.getElementById(id)?.checked?'1':'0';
+  try {
+    await Api.post('/api/email/config', {
+      nome_remetente:  g('em-nome'),
+      email_remetente: g('em-rem'),
+      smtp_host:       g('em-host'),
+      smtp_port:       g('em-port'),
+      smtp_tls:        chk('em-tls'),
+      smtp_ssl:        chk('em-ssl'),
+      smtp_usuario:    g('em-usr'),
+      smtp_senha:      g('em-pwd'),
+    });
+    toast('Configuração salva!');
+    document.getElementById('smtp-body')?.classList.add('d-none');
+  } catch(e) { toast(e.message,'danger'); }
+}
+
+async function _testarEmail() {
+  const btn = document.querySelector('[onclick="App._testarEmail()"]');
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Enviando...'; }
+  try {
+    const msg = await Api.post('/api/email/testar', {});
+    toast(msg || 'E-mail de teste enviado!');
+  } catch(e) { toast(e.message,'danger'); }
+  finally { if(btn){ btn.disabled=false; btn.innerHTML='<i class="bi bi-send me-1"></i>Testar'; } }
+}
+
+function _insereVarEmail(v) {
+  const ta=document.getElementById('em-corpo'); if(!ta) return;
+  const s=ta.selectionStart,e=ta.selectionEnd;
+  ta.value=ta.value.slice(0,s)+v+ta.value.slice(e);
+  ta.selectionStart=ta.selectionEnd=s+v.length;
+  ta.focus(); _previewEmail();
+}
+
+function _previewEmail() {
+  const assunto=document.getElementById('em-assunto')?.value||'';
+  const corpo=document.getElementById('em-corpo')?.value||'';
+  const prev=document.getElementById('em-preview'); if(!prev) return;
+  const sel=document.querySelectorAll('.em-check:checked');
+  const cl=sel.length
+    ? (state.clubes||[]).find(c=>c.id===parseInt(sel[0].value))||{}
+    : {nomeClube:'Nome do Clube',nomePresidente:'Presidente',cidade:'Cidade',estado:'UF',email:'email@clube.com'};
+  const txt=fillTemplate(corpo,cl).replace(/\{email\}/gi,cl.email||'');
+  if(!assunto&&!corpo){ prev.textContent=''; return; }
+  prev.innerHTML=`<strong>Assunto:</strong> ${esc(fillTemplate(assunto,cl))}\n\n${esc(txt)}`;
+  _updateEmailSel();
+}
+
+function fillEmailTemplate(tmpl, clube) {
+  return fillTemplate(tmpl, clube).replace(/\{email\}/gi, clube.email||'');
+}
+
+function _renderEmailLista() {
+  const q    =(document.getElementById('em-q')?.value||'').toLowerCase();
+  const est   =document.getElementById('em-est')?.value||'';
+  const soEmail=document.getElementById('em-so-email')?.checked!==false;
+  let cl=(state.clubes||[]).filter(c=>c.ativo);
+  if(soEmail) cl=cl.filter(c=>c.email);
+  if(est)     cl=cl.filter(c=>c.estado===est);
+  if(q)       cl=cl.filter(c=>[c.nomeClube,c.cidade].some(v=>(v||'').toLowerCase().includes(q)));
+  cl.sort((a,b)=>a.nomeClube.localeCompare(b.nomeClube,'pt-BR'));
+  _emailFiltrados=cl;
+  const wrap=document.getElementById('em-lista'); if(!wrap) return;
+  if(!cl.length){wrap.innerHTML='<div class="text-center py-4 text-muted small">Nenhum clube encontrado.</div>';_updateEmailSel();return;}
+  wrap.innerHTML=cl.map(c=>`
+  <label class="d-flex align-items-center gap-3 px-3 py-2 border-bottom"
+    style="cursor:pointer" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background=''">
+    <input type="checkbox" class="form-check-input em-check flex-shrink-0" value="${c.id}" onchange="App._updateEmailSel()">
+    <div class="flex-grow-1 min-w-0">
+      <div class="fw-semibold small text-truncate">${esc(c.nomeClube)}</div>
+      <div class="text-muted" style="font-size:.72rem">${esc(c.cidade||'')}${c.estado?' — '+c.estado:''}
+        ${c.email?`· <span style="color:#2563eb"><i class="bi bi-envelope"></i> ${esc(c.email)}</span>`:'<span class="text-danger">sem e-mail</span>'}
+      </div>
+    </div>
+  </label>`).join('');
+  _updateEmailSel();
+}
+
+function _filtrarEmail() { _renderEmailLista(); }
+function _selEmailTodos(v) { document.querySelectorAll('.em-check').forEach(cb=>cb.checked=v); _updateEmailSel(); }
+
+function _updateEmailSel() {
+  const n=document.querySelectorAll('.em-check:checked').length;
+  const el=document.getElementById('em-sel-count');
+  if(el) el.textContent=`${n} selecionado${n!==1?'s':''}`;
+  _previewEmail();
+}
+
+async function _enviarEmail() {
+  const assunto=(document.getElementById('em-assunto')?.value||'').trim();
+  const isVisual=_emMode==='visual';
+  const corpo=isVisual?'':(document.getElementById('em-corpo')?.value||'').trim();
+  if(!assunto){toast('Informe o assunto.','warning');return;}
+  if(isVisual&&!_emBlocks.length){toast('Adicione ao menos um bloco no editor visual.','warning');return;}
+  if(!isVisual&&!corpo){toast('Informe o corpo da mensagem.','warning');return;}
+  const checks=document.querySelectorAll('.em-check:checked');
+  if(!checks.length){toast('Selecione ao menos um clube.','warning');return;}
+  const ids=[...checks].map(c=>parseInt(c.value));
+  const clubes=(state.clubes||[]).filter(c=>ids.includes(c.id));
+  const semEmail=clubes.filter(c=>!c.email);
+  const comEmail=clubes.filter(c=>c.email);
+  if(!comEmail.length){toast('Nenhum clube selecionado possui e-mail cadastrado.','danger');return;}
+
+  const btn=document.getElementById('btn-enviar-email');
+  if(btn){btn.disabled=true;}
+  const destinatarios=comEmail.map(c=>({
+    clube:   c.nomeClube,
+    email:   c.email,
+    assunto: fillEmailTemplate(assunto,c),
+    mensagem:isVisual?_emPlainText():fillEmailTemplate(corpo,c),
+    ...(isVisual?{mensagem_html:_emCompileHtml(c)}:{}),
+  }));
+
+  try {
+    if(btn) btn.innerHTML=`<span class="spinner-border spinner-border-sm me-1"></span>Enviando ${comEmail.length} e-mail${comEmail.length!==1?'s':''}...`;
+    const resultados=await Api.post('/api/email/send',{destinatarios});
+    const ok=resultados.filter(r=>r.ok).length;
+    const fail=resultados.filter(r=>!r.ok).length;
+    if(ok)   toast(`${ok} e-mail${ok!==1?'s':''} enviado${ok!==1?'s':''} com sucesso!`,'success');
+    if(fail) toast(`${fail} envio${fail!==1?'s':''} falharam. Veja o histórico.`,'danger');
+    if(semEmail.length) toast(`${semEmail.length} clube${semEmail.length!==1?'s':''} sem e-mail ignorado${semEmail.length!==1?'s':''}.`,'warning');
+    await go('email');
+  } catch(e) {
+    toast(e.message,'danger');
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-send-fill me-2"></i>Enviar e-mails';}
+  }
+}
+
+async function _limparEmailLog() {
+  try { await Api.del('/api/email/log'); toast('Histórico limpo.','info'); await go('email'); }
+  catch(e) { toast(e.message,'danger'); }
+}
+
+// ═════════ EMAIL VISUAL EDITOR ══════════════════════════
+let _emMode='texto';
+let _emBlocks=[];
+let _emDragSrcIdx=null;
+
+const _emBlockDefs=[
+  {type:'header',  icon:'bi-building-fill',              label:'Cabeçalho'},
+  {type:'titulo',  icon:'bi-type-h1',                    label:'Título'},
+  {type:'texto',   icon:'bi-paragraph',                  label:'Texto'},
+  {type:'imagem',  icon:'bi-image',                      label:'Imagem'},
+  {type:'botao',   icon:'bi-hand-index-fill',            label:'Botão'},
+  {type:'divisor', icon:'bi-dash-lg',                    label:'Divisor'},
+  {type:'espaco',  icon:'bi-arrows-expand-vertical',     label:'Espaço'},
+  {type:'rodape',  icon:'bi-layout-text-window-reverse', label:'Rodapé'},
+];
+
+function _emDefaultData(type){
+  return JSON.parse(JSON.stringify({
+    header:  {cor:'#1d4ed8',subtitulo:'Comunicado Oficial'},
+    titulo:  {texto:'Título do e-mail',cor:'#1e293b',alinhamento:'left'},
+    texto:   {texto:'Prezado(a) {nome_clube},\n\nEscreva sua mensagem aqui.'},
+    imagem:  {url:'',alt:'',alinhamento:'center'},
+    botao:   {texto:'Saiba mais',url:'',cor:'#2563eb',alinhamento:'center'},
+    divisor: {},
+    espaco:  {altura:24},
+    rodape:  {texto:''},
+  }[type]||{}));
+}
+
+function _emailSetMode(mode){
+  _emMode=mode;
+  document.getElementById('em-tab-texto')?.classList.toggle('active',mode==='texto');
+  document.getElementById('em-tab-visual')?.classList.toggle('active',mode==='visual');
+  document.getElementById('em-mode-texto')?.classList.toggle('d-none',mode!=='texto');
+  document.getElementById('em-mode-visual')?.classList.toggle('d-none',mode!=='visual');
+  if(mode==='visual') _emRender();
+}
+
+function _emRender(){
+  const canvas=document.getElementById('em-canvas');
+  if(!canvas) return;
+  if(!_emBlocks.length){
+    canvas.innerHTML=`<div class="em-canvas-empty">
+      <i class="bi bi-plus-square fs-2 mb-2 opacity-25"></i>
+      <div>Arraste blocos aqui para montar o e-mail</div></div>`;
+    _emUpdatePreview(); return;
+  }
+  canvas.innerHTML=_emBlocks.map((b,i)=>_emBlockHtml(b,i)).join('');
+  _emUpdatePreview();
+}
+
+function _emBlockHtml(b,i){
+  return `<div class="em-blk" data-idx="${i}" draggable="true"
+    ondragstart="App._emDragStart(event,${i})"
+    ondragover="App._emDragOver(event,${i})"
+    ondrop="App._emDrop(event,${i})"
+    ondragend="App._emDragEnd()"
+    onclick="App._emBlockClick(${i},event)">
+    <div class="em-blk-bar">
+      <button onclick="App._emMoveUp(${i},event)" title="Mover para cima"><i class="bi bi-arrow-up"></i></button>
+      <button onclick="App._emMoveDown(${i},event)" title="Mover para baixo"><i class="bi bi-arrow-down"></i></button>
+      <button class="del" onclick="App._emDelete(${i},event)" title="Remover"><i class="bi bi-trash"></i></button>
+    </div>
+    <div class="em-blk-preview">${_emBlockPreview(b)}</div>
+    <div class="em-blk-editor d-none" id="em-editor-${i}">${_emBlockEditorHtml(b,i)}</div>
+  </div>`;
+}
+
+function _emBlockPreview(b){
+  switch(b.type){
+    case 'header':
+      return `<div style="background:${esc(b.data.cor||'#1d4ed8')};padding:16px 20px;border-radius:4px;text-align:center">
+        <div style="color:#fff;font-weight:700;font-size:1rem">FBVA — Federação Brasileira de Veículos Antigos</div>
+        ${b.data.subtitulo?`<div style="color:rgba(255,255,255,.75);font-size:.8rem;margin-top:3px">${esc(b.data.subtitulo)}</div>`:''}
+      </div>`;
+    case 'titulo':
+      return `<div style="text-align:${b.data.alinhamento||'left'}">
+        <span style="font-size:1.2rem;font-weight:700;color:${esc(b.data.cor||'#1e293b')}">${esc(b.data.texto||'Título')}</span></div>`;
+    case 'texto':
+      return `<div style="color:#374151;font-size:.85rem;line-height:1.6;white-space:pre-wrap">${esc(b.data.texto||'Texto...')}</div>`;
+    case 'imagem':
+      return b.data.url
+        ?`<div style="text-align:${b.data.alinhamento||'center'}"><img src="${esc(b.data.url)}" alt="${esc(b.data.alt||'')}" style="max-width:100%;max-height:180px;object-fit:contain;border-radius:4px"></div>`
+        :`<div style="text-align:center;border:2px dashed #e2e8f0;border-radius:6px;padding:20px;color:#9ca3af;font-size:.78rem"><i class="bi bi-image fs-3 d-block mb-1 opacity-50"></i>Informe a URL da imagem abaixo</div>`;
+    case 'botao':
+      return `<div style="text-align:${b.data.alinhamento||'center'}">
+        <span style="display:inline-block;background:${esc(b.data.cor||'#2563eb')};color:#fff;padding:8px 20px;border-radius:5px;font-weight:600;font-size:.85rem">${esc(b.data.texto||'Botão')}</span></div>`;
+    case 'divisor': return `<hr style="border:none;border-top:1px solid #e5e7eb;margin:4px 0">`;
+    case 'espaco':  return `<div style="height:${Math.max(8,parseInt(b.data.altura)||24)}px;background:repeating-linear-gradient(45deg,#f8fafc,#f8fafc 4px,#f1f5f9 4px,#f1f5f9 8px);border-radius:4px;opacity:.4"></div>`;
+    case 'rodape':
+      return `<div style="text-align:center;background:#f8fafc;border-radius:4px;padding:10px;color:#9ca3af;font-size:.75rem">
+        ${b.data.texto||'FBVA — Federação Brasileira de Veículos Antigos'}</div>`;
+    default: return `<div class="text-muted small">Bloco: ${esc(b.type)}</div>`;
+  }
+}
+
+function _emBlockEditorHtml(b,i){
+  const al=(v)=>['left','center','right'].map(a=>`<option value="${a}"${b.data.alinhamento===a?' selected':''}>${a==='left'?'Esquerda':a==='center'?'Centro':'Direita'}</option>`).join('');
+  switch(b.type){
+    case 'header': return `<div class="row g-2">
+      <div class="col"><label>Subtítulo</label>
+        <input class="form-control form-control-sm" value="${esc(b.data.subtitulo||'')}" oninput="App._emUpdate(${i},'subtitulo',this.value)"></div>
+      <div class="col-auto"><label>Cor do fundo</label>
+        <input type="color" class="form-control form-control-sm form-control-color" value="${b.data.cor||'#1d4ed8'}"
+          oninput="App._emUpdate(${i},'cor',this.value)" style="width:48px;padding:2px;height:31px"></div></div>`;
+    case 'titulo': return `<div class="row g-2">
+      <div class="col-12"><label>Texto</label>
+        <input class="form-control form-control-sm" value="${esc(b.data.texto||'')}" oninput="App._emUpdate(${i},'texto',this.value)"></div>
+      <div class="col-auto"><label>Cor</label>
+        <input type="color" class="form-control form-control-sm form-control-color" value="${b.data.cor||'#1e293b'}"
+          oninput="App._emUpdate(${i},'cor',this.value)" style="width:48px;padding:2px;height:31px"></div>
+      <div class="col"><label>Alinhamento</label>
+        <select class="form-select form-select-sm" onchange="App._emUpdate(${i},'alinhamento',this.value)">${al()}</select></div></div>`;
+    case 'texto': return `<label>Conteúdo (suporta variáveis: {nome_clube} {presidente} {cidade} {estado})</label>
+      <textarea class="form-control form-control-sm mt-1" rows="4" style="resize:vertical"
+        oninput="App._emUpdate(${i},'texto',this.value)">${esc(b.data.texto||'')}</textarea>`;
+    case 'imagem': return `<div class="row g-2">
+      <div class="col-12"><label>URL da imagem</label>
+        <input class="form-control form-control-sm" value="${esc(b.data.url||'')}" placeholder="https://..."
+          oninput="App._emUpdate(${i},'url',this.value)"></div>
+      <div class="col-md-7"><label>Texto alternativo</label>
+        <input class="form-control form-control-sm" value="${esc(b.data.alt||'')}" oninput="App._emUpdate(${i},'alt',this.value)"></div>
+      <div class="col-md-5"><label>Alinhamento</label>
+        <select class="form-select form-select-sm" onchange="App._emUpdate(${i},'alinhamento',this.value)">${al()}</select></div></div>`;
+    case 'botao': return `<div class="row g-2">
+      <div class="col-md-5"><label>Texto do botão</label>
+        <input class="form-control form-control-sm" value="${esc(b.data.texto||'')}" oninput="App._emUpdate(${i},'texto',this.value)"></div>
+      <div class="col-md-5"><label>URL (link)</label>
+        <input class="form-control form-control-sm" value="${esc(b.data.url||'')}" placeholder="https://..."
+          oninput="App._emUpdate(${i},'url',this.value)"></div>
+      <div class="col-auto"><label>Cor</label>
+        <input type="color" class="form-control form-control-sm form-control-color" value="${b.data.cor||'#2563eb'}"
+          oninput="App._emUpdate(${i},'cor',this.value)" style="width:48px;padding:2px;height:31px"></div>
+      <div class="col-6"><label>Alinhamento</label>
+        <select class="form-select form-select-sm" onchange="App._emUpdate(${i},'alinhamento',this.value)">${al()}</select></div></div>`;
+    case 'espaco': return `<label>Altura (px)</label>
+      <input type="number" class="form-control form-control-sm mt-1" style="width:90px"
+        value="${b.data.altura||24}" min="8" max="120"
+        oninput="App._emUpdate(${i},'altura',parseInt(this.value)||24)">`;
+    case 'rodape': return `<label>Texto (deixe em branco para usar o padrão FBVA)</label>
+      <textarea class="form-control form-control-sm mt-1" rows="2"
+        oninput="App._emUpdate(${i},'texto',this.value)">${esc(b.data.texto||'')}</textarea>`;
+    case 'divisor': return `<div class="text-muted small py-1">Divisor — sem configurações adicionais.</div>`;
+    default: return '';
+  }
+}
+
+function _emUpdate(idx,key,val){
+  if(!_emBlocks[idx]) return;
+  _emBlocks[idx].data[key]=val;
+  const prev=document.querySelector(`.em-blk[data-idx="${idx}"] .em-blk-preview`);
+  if(prev) prev.innerHTML=_emBlockPreview(_emBlocks[idx]);
+  _emUpdatePreview();
+}
+
+function _emBlockClick(idx,e){
+  if(e.target.closest('.em-blk-bar')) return;
+  document.querySelectorAll('.em-blk').forEach(el=>{
+    const i=parseInt(el.dataset.idx);
+    const ed=document.getElementById(`em-editor-${i}`);
+    if(i===idx){ el.classList.toggle('em-active'); ed?.classList.toggle('d-none'); }
+    else{ el.classList.remove('em-active'); ed?.classList.add('d-none'); }
+  });
+}
+
+function _emDelete(idx,e){
+  e.stopPropagation();
+  _emBlocks.splice(idx,1);
+  _emRender();
+}
+function _emMoveUp(idx,e){
+  e.stopPropagation();
+  if(idx===0) return;
+  [_emBlocks[idx-1],_emBlocks[idx]]=[_emBlocks[idx],_emBlocks[idx-1]];
+  _emRender();
+}
+function _emMoveDown(idx,e){
+  e.stopPropagation();
+  if(idx>=_emBlocks.length-1) return;
+  [_emBlocks[idx],_emBlocks[idx+1]]=[_emBlocks[idx+1],_emBlocks[idx]];
+  _emRender();
+}
+
+function _emDragStart(e,idx){
+  _emDragSrcIdx=idx;
+  e.dataTransfer.effectAllowed='move';
+  e.dataTransfer.setData('text/plain',`canvas:${idx}`);
+  setTimeout(()=>{
+    const el=document.querySelector(`.em-blk[data-idx="${idx}"]`);
+    if(el) el.style.opacity='.35';
+  },0);
+}
+function _emDragOver(e,idx){
+  e.preventDefault();
+  e.stopPropagation();
+  e.dataTransfer.dropEffect='move';
+}
+function _emDrop(e,idx){
+  e.preventDefault();
+  e.stopPropagation();
+  const data=e.dataTransfer.getData('text/plain');
+  if(data.startsWith('canvas:')){
+    const from=parseInt(data.slice(7));
+    if(from!==idx){
+      const [moved]=_emBlocks.splice(from,1);
+      _emBlocks.splice(idx,0,moved);
+      _emRender();
+    }
+  } else if(data.startsWith('palette:')){
+    const type=data.slice(8);
+    _emBlocks.splice(idx,0,{id:Date.now(),type,data:_emDefaultData(type)});
+    _emRender();
+  }
+}
+function _emDragEnd(){
+  document.querySelectorAll('.em-blk').forEach(el=>el.style.opacity='');
+  _emDragSrcIdx=null;
+}
+function _emPaletteDragStart(e,type){
+  e.dataTransfer.effectAllowed='copy';
+  e.dataTransfer.setData('text/plain',`palette:${type}`);
+}
+function _emCanvasDrop(e){
+  e.preventDefault();
+  document.getElementById('em-canvas')?.classList.remove('drag-over');
+  const data=e.dataTransfer.getData('text/plain');
+  if(data.startsWith('palette:')){
+    const type=data.slice(8);
+    _emBlocks.push({id:Date.now(),type,data:_emDefaultData(type)});
+    _emRender();
+  } else if(data.startsWith('canvas:')){
+    const from=parseInt(data.slice(7));
+    const [moved]=_emBlocks.splice(from,1);
+    _emBlocks.push(moved);
+    _emRender();
+  }
+}
+function _emCanvasDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect='copy';
+  document.getElementById('em-canvas')?.classList.add('drag-over');
+}
+function _emCanvasDragLeave(){
+  document.getElementById('em-canvas')?.classList.remove('drag-over');
+}
+
+function _emBlockToEmailHtml(b){
+  switch(b.type){
+    case 'header':
+      return `<table width="100%" cellpadding="0" cellspacing="0"><tr><td style="background:${b.data.cor||'#1d4ed8'};padding:28px 32px;text-align:center">
+        <div style="color:#ffffff;font-weight:700;font-size:20px;font-family:sans-serif;margin:0">FBVA — Federação Brasileira de Veículos Antigos</div>
+        ${b.data.subtitulo?`<div style="color:rgba(255,255,255,.8);font-size:14px;margin-top:6px;font-family:sans-serif">${esc(b.data.subtitulo)}</div>`:''}
+      </td></tr></table>`;
+    case 'titulo':
+      return `<h2 style="color:${b.data.cor||'#1e293b'};font-size:24px;font-weight:700;margin:20px 0 10px;font-family:sans-serif;text-align:${b.data.alinhamento||'left'}">${esc(b.data.texto||'')}</h2>`;
+    case 'texto':
+      return `<p style="color:#374151;font-size:15px;line-height:1.7;margin:12px 0;font-family:sans-serif;white-space:pre-wrap">${esc(b.data.texto||'')}</p>`;
+    case 'imagem':
+      return b.data.url
+        ?`<div style="text-align:${b.data.alinhamento||'center'};margin:16px 0"><img src="${esc(b.data.url)}" alt="${esc(b.data.alt||'')}" style="max-width:100%;height:auto"></div>`:'';
+    case 'botao':
+      return `<div style="text-align:${b.data.alinhamento||'center'};margin:20px 0">
+        <a href="${esc(b.data.url||'#')}" style="display:inline-block;background:${b.data.cor||'#2563eb'};color:#ffffff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;font-family:sans-serif">${esc(b.data.texto||'Clique aqui')}</a></div>`;
+    case 'divisor': return `<hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">`;
+    case 'espaco':  return `<div style="height:${Math.max(8,parseInt(b.data.altura)||24)}px"></div>`;
+    case 'rodape': {
+      const txt=b.data.texto||'FBVA — Federação Brasileira de Veículos Antigos\nEste é um comunicado oficial da Federação.';
+      return `<table width="100%" cellpadding="0" cellspacing="0"><tr><td style="background:#f8f9fa;padding:16px 24px;text-align:center;border-top:1px solid #e5e7eb">
+        <p style="color:#9ca3af;font-size:12px;margin:0;font-family:sans-serif;white-space:pre-wrap">${esc(txt)}</p></td></tr></table>`;
+    }
+    default: return '';
+  }
+}
+
+function _emCompileHtml(clube){
+  const body=_emBlocks.map(b=>{
+    const bc=JSON.parse(JSON.stringify(b));
+    if(bc.data.texto)     bc.data.texto=fillTemplate(bc.data.texto,clube||{});
+    if(bc.data.subtitulo) bc.data.subtitulo=fillTemplate(bc.data.subtitulo,clube||{});
+    if(bc.data.url)       bc.data.url=fillTemplate(bc.data.url,clube||{});
+    return _emBlockToEmailHtml(bc);
+  }).join('\n');
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f4f6fa;font-family:sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fa">
+<tr><td align="center" style="padding:20px">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:10px;overflow:hidden;max-width:100%">
+<tr><td style="padding:0">${body}</td></tr>
+</table></td></tr></table></body></html>`;
+}
+
+function _emPlainText(){
+  return _emBlocks
+    .filter(b=>['titulo','texto'].includes(b.type))
+    .map(b=>b.data.texto||'').join('\n\n');
+}
+
+function _emUpdatePreview(){
+  const prev=document.getElementById('em-visual-preview');
+  if(!prev) return;
+  if(!_emBlocks.length){prev.innerHTML='';return;}
+  const html=_emCompileHtml({nomeClube:'Clube Exemplo',nomePresidente:'Sr. Presidente',cidade:'São Paulo',estado:'SP',email:'exemplo@clube.com'});
+  const iframe=document.createElement('iframe');
+  iframe.style.cssText='width:100%;height:320px;border:none';
+  prev.innerHTML='';
+  prev.appendChild(iframe);
+  iframe.contentDocument.open();
+  iframe.contentDocument.write(html);
+  iframe.contentDocument.close();
+}
+
+// ═════════ ALTERAR SENHA ══════════════════════════
+function renderAlterarSenha() {
+  setTitle('<i class="bi bi-key-fill me-2"></i>Alterar Senha',
+    `<button class="btn btn-outline-secondary btn-sm" onclick="App.go('dashboard')">
+      <i class="bi bi-arrow-left me-1"></i>Voltar</button>`);
+  render(`
+  <div class="row justify-content-center"><div class="col-md-6 col-lg-5">
+    <div class="card shadow-sm"><div class="card-body p-4">
+      <div class="mb-3">
+        <label class="form-label req">Senha atual</label>
+        <input type="password" id="sa-atual" class="form-control">
+      </div>
+      <div class="mb-3">
+        <label class="form-label req">Nova senha</label>
+        <input type="password" id="sa-nova" class="form-control" placeholder="Mínimo 6 caracteres">
+      </div>
+      <div class="mb-4">
+        <label class="form-label req">Confirmar nova senha</label>
+        <input type="password" id="sa-conf" class="form-control">
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary" onclick="App.salvarSenha()">
+          <i class="bi bi-check-lg me-1"></i>Alterar senha</button>
+        <button class="btn btn-outline-secondary" onclick="App.go('dashboard')">Cancelar</button>
+      </div>
+    </div></div>
+  </div></div>`);
+}
+
+async function salvarSenha() {
+  const atual=document.getElementById('sa-atual').value;
+  const nova=document.getElementById('sa-nova').value;
+  const conf=document.getElementById('sa-conf').value;
+  if(!atual){toast('Informe a senha atual.','danger');return;}
+  if(nova.length<6){toast('Nova senha deve ter mínimo 6 caracteres.','danger');return;}
+  if(nova!==conf){toast('As senhas não conferem.','danger');return;}
+  try {
+    await Api.post('/api/senha',{atual,nova});
+    toast('Senha alterada com sucesso!'); await go('dashboard');
+  } catch(e) { toast(e.message,'danger'); }
+}
+
+// ═════════ EXPORTAR CSV ════════════════════════════
+async function exportarCSV() {
+  const cl=await Api.get('/api/clubes?status=todos');
+  if(!cl.length){toast('Nenhum clube para exportar.','warning');return;}
+  const headers=['Nome do Clube','CNPJ','Nome do Presidente','Contato Preferencial',
+    'Fim do Mandato','Endereço','Cidade','Estado','Telefone Celular',
+    'E-mail','Instagram','Facebook','Observações','Ativo'];
+  const fields=['nomeClube','cnpj','nomePresidente','contatoPreferencial',
+    'fimMandato','endereco','cidade','estado','telefoneCelular',
+    'email','instagram','facebook','observacoes','ativo'];
+  const rows=cl.map(c=>fields.map(f=>{
+    let v=c[f]??'';
+    if(f==='fimMandato'&&v) v=fmtDate(v);
+    if(f==='ativo') v=v?'Sim':'Não';
+    v=String(v);
+    return v.includes(';')||v.includes('"')||v.includes('\n')?`"${v.replace(/"/g,'""')}"`:v;
+  }).join(';'));
+  const csv='﻿'+[headers.join(';'),...rows].join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`clubes_fbva_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  URL.revokeObjectURL(url);
+  toast(`${cl.length} clube${cl.length!==1?'s':''} exportado${cl.length!==1?'s':''}!`);
+}
+
+// ═════════ IMPORTAR CSV ════════════════════════════
+const CSV_FIELD_MAP = {
+  nomeClube:    ['nome do clube','nome clube','clube','club'],
+  cnpj:         ['cnpj'],
+  nomePresidente:['nome do presidente','presidente'],
+  contatoPreferencial:['contato preferencial','contato'],
+  fimMandato:   ['fim do mandato','fim mandato','mandato','fim'],
+  endereco:     ['endereço','endereco','rua','logradouro'],
+  cidade:       ['cidade'],
+  estado:       ['estado','uf','sigla'],
+  telefoneCelular:['telefone celular','telefone','celular','fone','tel'],
+  email:        ['e-mail','email','correio'],
+  instagram:    ['instagram','insta'],
+  facebook:     ['facebook','fb'],
+  observacoes:  ['observações','observacoes','obs','observação'],
+};
+
+function mapHeader(h) {
+  const s=h.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+  for(const [field,aliases] of Object.entries(CSV_FIELD_MAP))
+    if(aliases.some(a=>s===a||s.includes(a))) return field;
+  return null;
+}
+
+function parseCSV(text, sep=null) {
+  const lines=text.trim().split(/\r?\n/).filter(l=>l.trim());
+  if(!lines.length) return [];
+  if(!sep){
+    const first=lines[0];
+    sep=first.includes(';')?';':first.includes('\t')?'\t':',';
+  }
+  return lines.map(line=>parseCSVLine(line,sep));
+}
+
+function parseCSVLine(line, sep) {
+  const fields=[]; let field='', inQ=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){if(inQ&&line[i+1]==='"'){field+='"';i++;}else inQ=!inQ;}
+    else if(c===sep&&!inQ){fields.push(field.trim());field='';}
+    else field+=c;
+  }
+  fields.push(field.trim()); return fields;
+}
+
+function parseDateBR(s) {
+  if(!s) return '';
+  s=s.trim();
+  const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  return '';
+}
+
+function abrirImportCSV() {
+  state.csvData=null;
+  document.getElementById('import-file').value='';
+  document.getElementById('import-text').value='';
+  document.getElementById('import-p1').style.display='';
+  document.getElementById('import-p2').style.display='none';
+  document.getElementById('import-p3').style.display='none';
+  document.getElementById('btn-analisar').style.display='';
+  document.getElementById('btn-importar').style.display='none';
+  ['step1-tab','step2-tab','step3-tab'].forEach((id,i)=>{
+    document.getElementById(id).className='step'+(i===0?' active':'');
+  });
+  new bootstrap.Modal(document.getElementById('modal-import')).show();
+}
+
+function handleFileSelect(inp) {
+  const file=inp.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{ document.getElementById('import-text').value=e.target.result; };
+  reader.readAsText(file,'UTF-8');
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  const file=e.dataTransfer.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{ document.getElementById('import-text').value=ev.target.result; };
+  reader.readAsText(file,'UTF-8');
+}
+
+function analisarCSV() {
+  const text=document.getElementById('import-text').value.trim();
+  if(!text){toast('Nenhum conteúdo CSV fornecido.','warning');return;}
+  const sepEl=document.getElementById('import-sep').value;
+  const sep=sepEl==='auto'?null:sepEl;
+  const rows=parseCSV(text,sep);
+  if(rows.length<2){toast('O CSV deve ter cabeçalho e pelo menos uma linha de dados.','warning');return;}
+
+  const headers=rows[0];
+  const mapping=headers.map(h=>mapHeader(h)); // field name or null per column
+  const dataRows=rows.slice(1).filter(r=>r.some(c=>c.trim()));
+
+  // Build preview data
+  const previewed=dataRows.slice(0,5).map(row=>{
+    const obj={};
+    headers.forEach((h,i)=>{if(mapping[i])obj[mapping[i]]=row[i]||'';});
+    return obj;
+  });
+
+  state.csvData={headers,mapping,dataRows};
+
+  // Render step 2
+  const mappedCount=mapping.filter(Boolean).length;
+  const unmapped=headers.filter((_,i)=>!mapping[i]);
+
+  document.getElementById('import-col-map').innerHTML=`
+    <div class="d-flex gap-2 flex-wrap mb-2">
+      ${headers.map((h,i)=>mapping[i]
+        ?`<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+            <i class="bi bi-check-circle-fill me-1"></i>${esc(h)} → ${mapping[i]}</span>`
+        :`<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1">
+            <i class="bi bi-dash-circle me-1"></i>${esc(h)} (ignorado)</span>`
+      ).join('')}
+    </div>
+    <p class="small text-muted mb-0">
+      <strong>${mappedCount}</strong> de ${headers.length} colunas mapeadas automaticamente.
+      ${unmapped.length?`Colunas ignoradas: <em>${unmapped.map(esc).join(', ')}</em>.`:''}
+    </p>`;
+
+  // Preview table
+  const previewCols=headers.filter((_,i)=>mapping[i]);
+  document.getElementById('import-preview').innerHTML=`
+    <table class="table table-sm table-bordered mb-0">
+      <thead><tr>${previewCols.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead>
+      <tbody>
+      ${previewed.map(r=>`<tr>${headers.filter((_,i)=>mapping[i]).map(h=>`<td>${esc(r[mapHeader(h)]||'')}</td>`).join('')}</tr>`).join('')}
+      </tbody>
+    </table>
+    ${dataRows.length>5?`<p class="text-muted small mt-1 px-2">Mostrando 5 de ${dataRows.length} registros.</p>`:''}`;
+
+  // Summary (duplicate check uses cached list; server will enforce at import time)
+  const cl=state.clubes||[];
+  let novos=0, duplicatas=0;
+  dataRows.forEach(row=>{
+    const obj={}; headers.forEach((h,i)=>{if(mapping[i])obj[mapping[i]]=row[i]||'';});
+    if(obj.cnpj&&cl.some(c=>c.cnpj===obj.cnpj)) duplicatas++;
+    else novos++;
+  });
+  document.getElementById('import-summary').innerHTML=`
+    <div class="d-flex gap-2 flex-wrap">
+      <div class="d-flex align-items-center gap-2 px-3 py-2 rounded" style="background:#d1fae5">
+        <i class="bi bi-plus-circle-fill" style="color:#009B3A"></i>
+        <div><strong>${novos}</strong> novos registros serão importados</div>
+      </div>
+      ${duplicatas?`<div class="d-flex align-items-center gap-2 px-3 py-2 rounded" style="background:#fef3c7">
+        <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+        <div><strong>${duplicatas}</strong> duplicata${duplicatas!==1?'s':''} por CNPJ (serão ignorada${duplicatas!==1?'s':''})</div>
+      </div>`:''}
+    </div>`;
+
+  // Show step 2
+  document.getElementById('import-p1').style.display='none';
+  document.getElementById('import-p2').style.display='';
+  document.getElementById('btn-analisar').style.display='none';
+  document.getElementById('btn-importar').style.display='';
+  document.getElementById('step1-tab').className='step done';
+  document.getElementById('step2-tab').className='step active';
+}
+
+async function confirmarImportCSV() {
+  if(!state.csvData) return;
+  const{headers,mapping,dataRows}=state.csvData;
+  const registros=[];
+  dataRows.forEach(row=>{
+    const obj={}; headers.forEach((h,i)=>{if(mapping[i])obj[mapping[i]]=(row[i]||'').trim();});
+    if(!obj.nomeClube) return;
+    if(obj.fimMandato) obj.fimMandato=parseDateBR(obj.fimMandato);
+    obj.ativo = obj.ativo ? !['não','nao','false','0','inativo'].includes(obj.ativo.toLowerCase()) : true;
+    registros.push(obj);
+  });
+
+  const btn=document.getElementById('btn-importar');
+  btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Importando...';
+
+  let importados=0, ignorados=0;
+  try {
+    const r=await Api.post('/api/clubes/importar',registros);
+    importados=r.importados; ignorados=r.ignorados;
+  } catch(e) { toast(e.message,'danger'); btn.disabled=false; btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Confirmar Importação'; return; }
+
+  document.getElementById('import-p2').style.display='none';
+  document.getElementById('import-p3').style.display='';
+  document.getElementById('btn-importar').style.display='none';
+  document.getElementById('step2-tab').className='step done';
+  document.getElementById('step3-tab').className='step active';
+  document.getElementById('import-result').innerHTML=`
+    <div class="text-center py-4">
+      <div style="font-size:3rem;color:var(--accent)"><i class="bi bi-check-circle-fill"></i></div>
+      <h5 class="mt-2 fw-bold" style="color:var(--accent)">Importação concluída!</h5>
+      <div class="d-flex justify-content-center gap-3 mt-3">
+        <div class="px-4 py-3 rounded text-center" style="background:#d1fae5">
+          <div class="fw-bold fs-3" style="color:var(--accent)">${importados}</div>
+          <div class="small text-muted">clube${importados!==1?'s':''} importado${importados!==1?'s':''}</div>
+        </div>
+        ${ignorados?`<div class="px-4 py-3 rounded text-center" style="background:#fef3c7">
+          <div class="fw-bold fs-3 text-warning">${ignorados}</div>
+          <div class="small text-muted">ignorado${ignorados!==1?'s':''} (CNPJ duplicado)</div>
+        </div>`:''}
+      </div>
+      <button class="btn btn-primary mt-4" data-bs-dismiss="modal" onclick="App.go('clubes')">
+        <i class="bi bi-building-fill me-1"></i>Ver lista de clubes</button>
+    </div>`;
+  toast(`${importados} clube${importados!==1?'s':''} importado${importados!==1?'s':''}!`);
+}
+
+function downloadTemplateCSV() {
+  const headers='Nome do Clube;CNPJ;Nome do Presidente;Contato Preferencial;Fim do Mandato;Endereço;Cidade;Estado;Telefone Celular;E-mail;Instagram;Facebook;Observações';
+  const ex='Clube Veículos Antigos SP;12.345.678/0001-90;João da Silva;WhatsApp;31/12/2025;Av. Paulista 1000;São Paulo;SP;(11) 99999-9999;clube@exemplo.com.br;@clubeexemplo;facebook.com/clubeexemplo;Clube fundado em 1985';
+  const csv='﻿'+headers+'\r\n'+ex;
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='modelo_importacao_fbva.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Init ───────────────────────────────────────
+async function init() {
+  document.getElementById('l-senha').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
+  if(await tryAutoLogin()){showApp(); await go('dashboard');}
+}
+
+return{
+  init,login,logout,go,applyFilters,clearFilters,
+  saveClube,confirmarExcluirClube,
+  saveUsuario,confirmarExcluirUsuario,renderUsuarios,
+  salvarSenha,toggleSenha,
+  exportarCSV,abrirImportCSV,analisarCSV,confirmarImportCSV,downloadTemplateCSV,
+  handleFileSelect,handleDrop,
+  // WhatsApp
+  filtrarWA,selecionarTodosWA,_updateWASel,insereVar,previewMsg,enviarWA,limparLogWA,desconectarWA,
+  // Email
+  _salvarEmailConfig,_testarEmail,_insereVarEmail,_previewEmail,
+  _filtrarEmail,_selEmailTodos,_updateEmailSel,_enviarEmail,_limparEmailLog,_emailPreset,
+  // Email visual editor
+  _emailSetMode,_emPaletteDragStart,_emCanvasDrop,_emCanvasDragOver,_emCanvasDragLeave,
+  _emDragStart,_emDragOver,_emDrop,_emDragEnd,
+  _emBlockClick,_emDelete,_emMoveUp,_emMoveDown,_emUpdate,
+  // Gestão (Documentação & Trimestralidades)
+  _renderGestaoTab,_filtrarGestao,
+  _abrirUploadDoc,_abrirUploadDocClube,_submitUploadDoc,_excluirDoc,
+  _triNavAno,_editarTri,_salvarTrimestralidade,
+  // Form dynamic sections
+  _addMembro,_addEndereco,_addContato,
+  // Detail view actions
+  _uploadDoc,_cancelDoc,_deleteDoc,
+  _showAssocForm,_editAssoc,_saveAssoc,_deleteAssoc,
+};
+})();
+
+document.addEventListener('DOMContentLoaded',()=>App.init());
+</script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+# Ambiente e segredos
+.env
+secret.key
+
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Banco de dados local
+instance/
+*.db
+*.sqlite3
+
+# Virtualenv
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.user
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# WhatsApp service (Node.js — não vai para produção)
+wa_service/node_modules/
+wa_service/.wwebjs_cache/
+wa_service/.wwebjs_auth/
+wa_service/wa_session/
+
+# Chave de sessão gerada localmente
+secret.key

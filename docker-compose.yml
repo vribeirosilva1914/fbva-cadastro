@@ -1,0 +1,17 @@
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - db_data:/app/instance
+    environment:
+      SECRET_KEY: ${SECRET_KEY:-troque-esta-chave-em-producao}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@fbva.org.br}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@2024}
+      FLASK_DEBUG: "0"
+      HTTPS: ${HTTPS:-0}
+
+volumes:
+  db_data:
