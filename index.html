@@ -645,7 +645,7 @@ const statesOpts=sel=>`<option value="">Selecione...</option>`+ESTADOS.map(([s,n
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
 
 // ── Dynamic form state ────────────────────────
-let _fMembros=[], _fEnderecos=[], _fContatos=[];
+let _fMembros=[], _fEnderecos=[];
 
 const CARGOS_DIRETORIA=[
   ['presidente','Presidente'],['vice_presidente','Vice-Presidente'],
@@ -704,11 +704,20 @@ function _renderMembros(){
   </div>`).join('');
   document.querySelectorAll('#membros-list .cpf-m').forEach(maskCPF);
   document.querySelectorAll('#membros-list .fone-m').forEach(maskFone);
+  _refreshContatoPref();
 }
 
 function _addMembro(){
   _fMembros.push({cargo:'secretario',nome:'',cpf:'',whatsapp:'',email:'',dataNascimento:''});
   _renderMembros();
+}
+
+function _refreshContatoPref(){
+  const sel=document.getElementById('sel-contato-pref');
+  if(!sel)return;
+  const cur=sel.value;
+  sel.innerHTML='<option value="">— Nenhum —</option>'+
+    _fMembros.filter(m=>m.nome).map(m=>`<option value="${esc(m.nome)}"${cur===m.nome?' selected':''}>${esc(m.nome)}${m.cargo?' ('+m.cargo+')':''}</option>`).join('');
 }
 
 function _renderEnderecos(){
@@ -756,85 +765,6 @@ function _renderEnderecos(){
 function _addEndereco(){
   _fEnderecos.push({tipo:'correspondencia',descricao:'',logradouro:'',cidade:'',estado:''});
   _renderEnderecos();
-}
-
-function _renderContatos(){
-  const el=document.getElementById('contatos-list');if(!el)return;
-  if(!_fContatos.length){el.innerHTML='<div class="sec-empty"><i class="bi bi-person-lines-fill me-2"></i>Nenhum contato adicional. Clique em "Adicionar".</div>';return;}
-  el.innerHTML=_fContatos.map((ct,i)=>`
-  <div class="dyn-row">
-    <div class="row g-2 mb-3">
-      <div class="col-md-4">
-        <label class="form-label small mb-1">Nome do Contato *</label>
-        <input class="form-control form-control-sm" value="${esc(ct.nome)}" placeholder="Nome completo"
-          oninput="_fContatos[${i}].nome=this.value">
-      </div>
-      <div class="col-md-3">
-        <label class="form-label small mb-1">Função / Cargo</label>
-        <input class="form-control form-control-sm" value="${esc(ct.cargo||'')}" placeholder="Ex: Secretário"
-          oninput="_fContatos[${i}].cargo=this.value">
-      </div>
-      <div class="col-md-4">
-        <label class="form-label small mb-1">Observação</label>
-        <input class="form-control form-control-sm" value="${esc(ct.descricao||'')}" placeholder="Opcional"
-          oninput="_fContatos[${i}].descricao=this.value">
-      </div>
-      <div class="col-auto d-flex align-items-end">
-        <button type="button" class="btn btn-sm btn-outline-danger"
-          onclick="_fContatos.splice(${i},1);_renderContatos()"><i class="bi bi-trash"></i></button>
-      </div>
-    </div>
-    <div class="row g-3">
-      <div class="col-md-6">
-        <div class="d-flex justify-content-between align-items-center mb-1">
-          <label class="form-label small mb-0"><i class="bi bi-telephone-fill me-1"></i>Telefones / WhatsApp</label>
-          <button type="button" class="btn dyn-add-btn btn-outline-secondary"
-            onclick="_fContatos[${i}].telefones.push({numero:'',tipo:'whatsapp'});_renderContatos()">
-            <i class="bi bi-plus-lg me-1"></i>Add</button>
-        </div>
-        ${ct.telefones.map((t,j)=>`
-        <div class="dyn-sub-row">
-          <input class="form-control form-control-sm fone-ct" value="${esc(t.numero)}" placeholder="(XX) XXXXX-XXXX"
-            style="width:150px" oninput="_fContatos[${i}].telefones[${j}].numero=this.value">
-          <select class="form-select form-select-sm" style="width:130px"
-            onchange="_fContatos[${i}].telefones[${j}].tipo=this.value">
-            ${TIPOS_FONE.map(([v,l])=>`<option value="${v}"${t.tipo===v?' selected':''}>${l}</option>`).join('')}
-          </select>
-          <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-auto"
-            onclick="_fContatos[${i}].telefones.splice(${j},1);_renderContatos()">
-            <i class="bi bi-x-circle"></i></button>
-        </div>`).join('')}
-        ${!ct.telefones.length?'<div class="text-muted small" style="padding:6px 0">Nenhum telefone.</div>':''}
-      </div>
-      <div class="col-md-6">
-        <div class="d-flex justify-content-between align-items-center mb-1">
-          <label class="form-label small mb-0"><i class="bi bi-envelope-fill me-1"></i>E-mails</label>
-          <button type="button" class="btn dyn-add-btn btn-outline-secondary"
-            onclick="_fContatos[${i}].emails.push({email:'',tipo:'principal'});_renderContatos()">
-            <i class="bi bi-plus-lg me-1"></i>Add</button>
-        </div>
-        ${ct.emails.map((em,j)=>`
-        <div class="dyn-sub-row">
-          <input type="email" class="form-control form-control-sm" value="${esc(em.email)}" placeholder="email@..."
-            style="flex:1" oninput="_fContatos[${i}].emails[${j}].email=this.value">
-          <select class="form-select form-select-sm" style="width:130px"
-            onchange="_fContatos[${i}].emails[${j}].tipo=this.value">
-            ${TIPOS_EMAIL.map(([v,l])=>`<option value="${v}"${em.tipo===v?' selected':''}>${l}</option>`).join('')}
-          </select>
-          <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-auto"
-            onclick="_fContatos[${i}].emails.splice(${j},1);_renderContatos()">
-            <i class="bi bi-x-circle"></i></button>
-        </div>`).join('')}
-        ${!ct.emails.length?'<div class="text-muted small" style="padding:6px 0">Nenhum e-mail.</div>':''}
-      </div>
-    </div>
-  </div>`).join('');
-  document.querySelectorAll('#contatos-list .fone-ct').forEach(maskFone);
-}
-
-function _addContato(){
-  _fContatos.push({nome:'',cargo:'',descricao:'',telefones:[{numero:'',tipo:'whatsapp'}],emails:[]});
-  _renderContatos();
 }
 
 // ── Navigation ─────────────────────────────────
@@ -1135,11 +1065,6 @@ async function renderClubeForm(id=null) {
   const v=clube||{};
   _fMembros=(v.membros||[]).map(m=>({...m}));
   _fEnderecos=(v.enderecosAdicionais||[]).map(e=>({...e}));
-  _fContatos=(v.contatos||[]).map(ct=>({
-    nome:ct.nome||'', cargo:ct.cargo||'', descricao:ct.descricao||'',
-    telefones:(ct.telefones||[]).map(t=>({...t})),
-    emails:(ct.emails||[]).map(e=>({...e})),
-  }));
 
   render(`
   <form id="clube-form" onsubmit="App.saveClube(event,${id})">
@@ -1170,7 +1095,10 @@ async function renderClubeForm(id=null) {
         </div>
         <div class="col-md-5">
           <label class="form-label">Contato Preferencial</label>
-          <input name="contatoPreferencial" class="form-control" value="${esc(v.contatoPreferencial||'')}" placeholder="Ex: WhatsApp, E-mail...">
+          <select name="contatoPreferencial" id="sel-contato-pref" class="form-select">
+            <option value="">— Nenhum —</option>
+            ${_fMembros.filter(m=>m.nome).map(m=>`<option value="${esc(m.nome)}"${v.contatoPreferencial===m.nome?' selected':''}>${esc(m.nome)}${m.cargo?' ('+m.cargo+')':''}</option>`).join('')}
+          </select>
         </div>
         <div class="col-md-3">
           <label class="form-label">Fim do Mandato</label>
@@ -1275,18 +1203,6 @@ async function renderClubeForm(id=null) {
       </div></div>
     </div>
 
-    <!-- ── Contatos Adicionais ── -->
-    <div class="card shadow-sm mb-4">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-person-lines-fill me-2"></i>Contatos Adicionais</span>
-        <button type="button" class="btn btn-sm btn-outline-primary" onclick="App._addContato()">
-          <i class="bi bi-plus-lg me-1"></i>Adicionar Contato</button>
-      </div>
-      <div class="card-body p-3">
-        <div id="contatos-list"></div>
-      </div>
-    </div>
-
     <!-- ── Observações e Status ── -->
     <div class="card shadow-sm mb-4">
       <div class="card-header"><i class="bi bi-chat-text-fill me-2"></i>Observações e Status</div>
@@ -1312,7 +1228,6 @@ async function renderClubeForm(id=null) {
   maskFone(document.getElementById('inp-fone'));
   _renderMembros();
   _renderEnderecos();
-  _renderContatos();
 }
 
 async function saveClube(e,id) {
@@ -1336,7 +1251,6 @@ async function saveClube(e,id) {
     await Promise.all([
       Api.call(`/api/clubes/${cid}/membros`,{method:'PUT',body:_fMembros}),
       Api.call(`/api/clubes/${cid}/enderecos-adicionais`,{method:'PUT',body:_fEnderecos}),
-      Api.call(`/api/clubes/${cid}/contatos`,{method:'PUT',body:_fContatos}),
     ]);
     toast(`Clube "${data.nomeClube}" ${id?'atualizado':'cadastrado'}!`);
     await go('clube-detalhe',cid);
@@ -1373,7 +1287,6 @@ async function renderClubeDetalhe(id) {
   const membros=c.membros||[];
   const docs=c.documentos||[];
   const endsAdic=c.enderecosAdicionais||[];
-  const contatos=c.contatos||[];
   const associados=c.associados||[];
 
   const tipoEndLabel=v=>({'correspondencia':'Correspondência','filial':'Filial','outro':'Outro'}[v]||v);
@@ -1448,25 +1361,6 @@ async function renderClubeDetalhe(id) {
           </div>`).join('')}`:''}
         </div>
       </div>
-
-      <!-- Contatos Adicionais -->
-      ${contatos.length?`
-      <div class="card shadow-sm mb-4">
-        <div class="card-header"><i class="bi bi-person-lines-fill me-2"></i>Contatos Adicionais</div>
-        <div class="card-body">
-          ${contatos.map(ct=>`
-          <div class="mb-3 pb-3 border-bottom last-no-border">
-            <div class="fw-semibold">${esc(ct.nome)}${ct.cargo?` <span class="badge bg-light text-dark border ms-1">${esc(ct.cargo)}</span>`:''}</div>
-            ${ct.descricao?`<div class="text-muted small">${esc(ct.descricao)}</div>`:''}
-            <div class="d-flex flex-wrap gap-2 mt-2">
-              ${(ct.telefones||[]).map(t=>`<a href="${waLink(t.numero,'')}" target="_blank" class="wa-chip" style="font-size:.72rem;padding:3px 8px">
-                <i class="bi bi-whatsapp"></i> ${esc(t.numero)} <span class="opacity-75">(${t.tipo})</span></a>`).join('')}
-              ${(ct.emails||[]).map(e=>`<a href="mailto:${esc(e.email)}" class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size:.75rem;padding:4px 8px;text-decoration:none">
-                <i class="bi bi-envelope me-1"></i>${esc(e.email)}</a>`).join('')}
-            </div>
-          </div>`).join('')}
-        </div>
-      </div>`:''}
 
       <!-- Observações -->
       ${c.observacoes?`
@@ -3653,7 +3547,7 @@ return{
   _abrirUploadDoc,_abrirUploadDocClube,_submitUploadDoc,_excluirDoc,
   _triNavAno,_editarTri,_salvarTrimestralidade,
   // Form dynamic sections
-  _addMembro,_addEndereco,_addContato,
+  _addMembro,_addEndereco,
   // Detail view actions
   _uploadDoc,_cancelDoc,_deleteDoc,
   _showAssocForm,_editAssoc,_saveAssoc,_deleteAssoc,
