@@ -864,18 +864,20 @@ async function go(view,id=null) {
 // ═════════ DASHBOARD ═════════════════════════════
 function aniversariantesDoMes(clubes) {
   const hoje=new Date(); hoje.setHours(0,0,0,0);
-  const mes=hoje.getMonth(), ano=hoje.getFullYear();
+  const anoAtual=hoje.getFullYear();
   const result=[];
   clubes.forEach(c=>{
     if(!c.dataFundacao) return;
     const d=new Date(c.dataFundacao+'T00:00:00');
-    if(d.getMonth()!==mes) return;
-    const aniv=new Date(ano,d.getMonth(),d.getDate());
+    let aniv=new Date(anoAtual,d.getMonth(),d.getDate());
+    if(aniv<hoje) aniv=new Date(anoAtual+1,d.getMonth(),d.getDate());
     const diff=Math.round((aniv-hoje)/864e5);
+    if(diff>30) return;
+    const anos=aniv.getFullYear()-d.getFullYear();
     result.push({clube:c.nomeClube,id:c.id,data:c.dataFundacao,
-      dia:d.getDate(),anos:ano-d.getFullYear(),diasRestantes:diff});
+      dia:d.getDate(),anos,diasRestantes:diff});
   });
-  return result.sort((a,b)=>a.dia-b.dia);
+  return result.sort((a,b)=>a.diasRestantes-b.diasRestantes);
 }
 
 async function renderDashboard() {
@@ -952,7 +954,7 @@ async function renderDashboard() {
     <!-- Coluna esquerda: Aniversários + Mandatos -->
     <div class="col-lg-5">
       <div class="card shadow-sm mb-4">
-        <div class="card-header"><i class="bi bi-gift-fill me-2" style="color:#e11d48"></i>Clubes Aniversariantes do Mês</div>
+        <div class="card-header"><i class="bi bi-gift-fill me-2" style="color:#e11d48"></i>Aniversários nos próximos 30 dias</div>
         <div class="card-body p-0" style="max-height:320px;overflow-y:auto">
           ${anivs.length?`<ul class="list-group list-group-flush">
             ${anivs.map(a=>`<li class="list-group-item d-flex align-items-center gap-3 py-2 px-3${a.diasRestantes<0?' opacity-50':''}">
@@ -963,15 +965,15 @@ async function renderDashboard() {
                 <div class="fw-semibold small text-truncate">${esc(a.clube)}</div>
                 <div class="text-muted" style="font-size:.71rem">Fundação: ${fmtDate(a.data)} · ${a.anos} ano${a.anos!==1?'s':''}</div>
               </div>
-              <span class="badge flex-shrink-0 ${a.diasRestantes===0?'bg-danger':a.diasRestantes>0?'bg-light text-dark border':'bg-secondary'}">
-                ${a.diasRestantes===0?'Hoje':'Dia '+a.dia}
+              <span class="badge flex-shrink-0 ${a.diasRestantes===0?'bg-danger':a.diasRestantes<=7?'bg-warning text-dark':'bg-light text-dark border'}">
+                ${a.diasRestantes===0?'Hoje':a.diasRestantes===1?'Amanhã':'Em '+a.diasRestantes+'d'}
               </span>
               <button class="btn btn-sm btn-outline-primary py-0 px-2 flex-shrink-0"
                 onclick="App.go('clube-detalhe',${a.id})"><i class="bi bi-eye-fill"></i></button>
             </li>`).join('')}
           </ul>`:`<div class="text-center py-5 text-muted">
             <i class="bi bi-calendar-check fs-1 d-block mb-2 opacity-25"></i>
-            <small>Nenhum clube faz aniversário este mês.</small>
+            <small>Nenhum clube faz aniversário nos próximos 30 dias.</small>
           </div>`}
         </div>
       </div>
