@@ -3528,13 +3528,7 @@ let _clFiltro='todas'; // 'todas' | 'nao_lidas' | keyword
 
 async function renderClipping(){
   if(!pode.comunicacao()){toast('Acesso negado.','danger');await go('dashboard');return;}
-  setTitle('<i class="bi bi-newspaper me-2"></i>Clipping de Notícias',
-    `<div class="btn-group btn-group-sm">
-      <button class="btn btn-outline-secondary" id="cl-btn-todas" onclick="App._clFiltrar('todas')">Todas</button>
-      <button class="btn btn-outline-secondary" id="cl-btn-nao" onclick="App._clFiltrar('nao_lidas')">Não lidas</button>
-    </div>
-    <button class="btn btn-primary btn-sm ms-2" id="cl-btn-buscar" onclick="App._clBuscar()">
-      <i class="bi bi-arrow-clockwise me-1"></i>Buscar novas</button>`);
+  setTitle('<i class="bi bi-newspaper me-2"></i>Clipping de Notícias');
   render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
   try {
     const res=await Api.get('/api/clipping');
@@ -3548,55 +3542,93 @@ function _clRender(){
   if(!_clData)return;
   const {noticias,ultimaBusca,naoLidas}=_clData;
   const lista=_clFiltro==='nao_lidas'?noticias.filter(n=>!n.lida):noticias;
-  const fmtDt=s=>{if(!s)return'—';const d=new Date(s);return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'});};
-  const fmtBusca=s=>{if(!s)return'nunca';const d=new Date(s);return d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});};
-  const kwColor=kw=>{const map={'carros antigos':'primary','veículos antigos':'success','automóveis clássicos':'warning','carros clássicos':'info','veículos históricos':'secondary','encontro de carros antigos':'danger','mostra de carros antigos':'dark','colecionadores de carros':'primary','FBVA federação brasileira veículos antigos':'success'};return map[kw]||'secondary';};
 
-  document.getElementById('cl-btn-todas')?.classList.toggle('active',_clFiltro==='todas');
-  document.getElementById('cl-btn-nao')?.classList.toggle('active',_clFiltro==='nao_lidas');
+  const fmtDt=s=>{
+    if(!s)return'—';
+    const d=new Date(s);
+    return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
+  };
+  const fmtBusca=s=>{
+    if(!s)return'nunca';
+    const d=new Date(s);
+    return d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  };
+  const kwLabel={
+    'carros antigos':'Carros Antigos',
+    'veículos antigos':'Veíc. Antigos',
+    'automóveis clássicos':'Automóveis Clás.',
+    'carros clássicos':'Carros Clás.',
+    'veículos históricos':'Veíc. Históricos',
+    'encontro de carros antigos':'Encontros',
+    'mostra de carros antigos':'Mostras',
+    'colecionadores de carros':'Colecionadores',
+    'FBVA federação brasileira veículos antigos':'FBVA',
+  };
+  const kwColor={
+    'carros antigos':'primary','veículos antigos':'success',
+    'automóveis clássicos':'warning','carros clássicos':'info',
+    'veículos históricos':'secondary','encontro de carros antigos':'danger',
+    'mostra de carros antigos':'dark','colecionadores de carros':'primary',
+    'FBVA federação brasileira veículos antigos':'success',
+  };
 
   render(`
-  <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-    <div class="text-muted small">
-      <i class="bi bi-clock me-1"></i>Última busca: <strong>${fmtBusca(ultimaBusca)}</strong>
-      &nbsp;·&nbsp; <span class="text-body">${noticias.length} notícia${noticias.length!==1?'s':''}</span>
-      ${naoLidas>0?`&nbsp;·&nbsp; <span class="badge bg-danger">${naoLidas} não lida${naoLidas!==1?'s':''}</span>`:''}
+  <!-- Barra de controles -->
+  <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+    <div class="btn-group btn-group-sm">
+      <button class="btn btn-outline-secondary${_clFiltro==='todas'?' active':''}" onclick="App._clFiltrar('todas')">
+        Todas <span class="badge bg-secondary ms-1">${noticias.length}</span></button>
+      <button class="btn btn-outline-secondary${_clFiltro==='nao_lidas'?' active':''}" onclick="App._clFiltrar('nao_lidas')">
+        Não lidas${naoLidas>0?` <span class="badge bg-danger ms-1">${naoLidas}</span>`:''}</button>
     </div>
-    <div class="d-flex gap-2">
+    <button class="btn btn-primary btn-sm ms-auto" id="cl-btn-buscar" onclick="App._clBuscar()">
+      <i class="bi bi-arrow-clockwise me-1"></i>Buscar novas</button>
+  </div>
+
+  <!-- Barra de status e ações secundárias -->
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <span class="text-muted" style="font-size:.78rem">
+      <i class="bi bi-clock me-1"></i>Atualizado: <strong>${fmtBusca(ultimaBusca)}</strong>
+    </span>
+    <div class="d-flex gap-2 flex-wrap">
       ${naoLidas>0?`<button class="btn btn-sm btn-outline-secondary" onclick="App._clMarcarTodasLidas()">
-        <i class="bi bi-check2-all me-1"></i>Marcar todas como lidas</button>`:''}
+        <i class="bi bi-check2-all me-1"></i><span class="d-none d-sm-inline">Marcar todas como </span>lidas</button>`:''}
       <button class="btn btn-sm btn-outline-danger" onclick="App._clLimpar()">
-        <i class="bi bi-trash me-1"></i>Limpar histórico</button>
+        <i class="bi bi-trash me-1"></i><span class="d-none d-sm-inline">Limpar </span>histórico</button>
     </div>
   </div>
 
+  <!-- Lista de notícias -->
   ${!lista.length?`
   <div class="text-center py-5 text-muted">
     <i class="bi bi-newspaper display-4 d-block mb-3 opacity-25"></i>
-    ${_clFiltro==='nao_lidas'?'Nenhuma notícia não lida.':'Nenhuma notícia coletada ainda. Clique em <strong>Buscar novas</strong>.'}
+    <p class="mb-0">${_clFiltro==='nao_lidas'?'Nenhuma notícia não lida.':'Nenhuma notícia ainda. Toque em <strong>Buscar novas</strong>.'}</p>
   </div>`:`
-  <div class="row g-3">
+  <div class="d-flex flex-column gap-2">
     ${lista.map(n=>`
-    <div class="col-12 col-lg-6" id="cl-card-${n.id}">
-      <div class="card h-100 shadow-sm${n.lida?' opacity-50':''}">
-        <div class="card-body pb-2">
-          <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
-            <span class="badge bg-${kwColor(n.palavraChave)}-subtle text-${kwColor(n.palavraChave)} border border-${kwColor(n.palavraChave)}-subtle" style="font-size:.68rem">${esc(n.palavraChave)}</span>
-            <span class="text-muted" style="font-size:.72rem;white-space:nowrap">${fmtDt(n.publicadoEm)}</span>
-          </div>
-          <a href="${esc(n.url)}" target="_blank" rel="noopener"
-            class="text-decoration-none text-body fw-semibold d-block mb-1 lh-sm"
-            onclick="App._clMarcarLida(${n.id},true)"
-            style="font-size:.9rem">${esc(n.titulo)}</a>
-          ${n.fonte?`<div class="text-muted" style="font-size:.75rem"><i class="bi bi-journal me-1"></i>${esc(n.fonte)}</div>`:''}
+    <div class="card shadow-sm${n.lida?' opacity-60':''}" id="cl-card-${n.id}" style="${n.lida?'--bs-card-border-color:#e9ecef':''}">
+      <div class="card-body py-2 px-3">
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="badge bg-${kwColor[n.palavraChave]||'secondary'}-subtle text-${kwColor[n.palavraChave]||'secondary'} border border-${kwColor[n.palavraChave]||'secondary'}-subtle"
+            style="font-size:.65rem;white-space:nowrap">${esc(kwLabel[n.palavraChave]||n.palavraChave)}</span>
+          <span class="text-muted ms-auto" style="font-size:.72rem;white-space:nowrap">${fmtDt(n.publicadoEm)}</span>
         </div>
-        <div class="card-footer bg-transparent pt-0 border-0 d-flex gap-1 justify-content-end">
-          <button class="btn btn-sm btn-link p-0 text-muted" title="${n.lida?'Marcar como não lida':'Marcar como lida'}"
-            onclick="App._clMarcarLida(${n.id},${!n.lida})">
-            <i class="bi bi-${n.lida?'envelope':'envelope-open'}" style="font-size:.85rem"></i></button>
-          <button class="btn btn-sm btn-link p-0 text-danger ms-2" title="Remover"
-            onclick="App._clDeletar(${n.id})">
-            <i class="bi bi-trash" style="font-size:.85rem"></i></button>
+        <a href="${esc(n.url)}" target="_blank" rel="noopener"
+          class="text-decoration-none text-body fw-semibold lh-sm d-block mb-1"
+          onclick="App._clMarcarLida(${n.id},true)"
+          style="font-size:.88rem">${esc(n.titulo)}</a>
+        <div class="d-flex align-items-center justify-content-between gap-2 mt-1">
+          ${n.fonte?`<span class="text-muted text-truncate" style="font-size:.72rem;max-width:65%">
+            <i class="bi bi-journal me-1"></i>${esc(n.fonte)}</span>`:'<span></span>'}
+          <div class="d-flex gap-1">
+            <button class="btn btn-sm btn-link text-muted p-1" style="line-height:1"
+              title="${n.lida?'Marcar como não lida':'Marcar como lida'}"
+              onclick="App._clMarcarLida(${n.id},${!n.lida})">
+              <i class="bi bi-${n.lida?'envelope':'envelope-open-fill'}" style="font-size:1rem"></i></button>
+            <button class="btn btn-sm btn-link text-danger p-1" style="line-height:1" title="Remover"
+              onclick="App._clDeletar(${n.id})">
+              <i class="bi bi-trash" style="font-size:1rem"></i></button>
+          </div>
         </div>
       </div>
     </div>`).join('')}
@@ -3612,9 +3644,12 @@ async function _clBuscar(){
     toast(`Busca concluída — ${r.novos} nova${r.novos!==1?'s':''} notícia${r.novos!==1?'s':''} encontrada${r.novos!==1?'s':''}.`);
     const res=await Api.get('/api/clipping');
     _clData=res;
-    _clRender();
-  } catch(e){ toast(e.message,'danger'); }
-  finally{ if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-arrow-clockwise me-1"></i>Buscar novas';} }
+    _clRender(); // re-render cria novo botão já habilitado
+  } catch(e){
+    toast(e.message,'danger');
+    const b=document.getElementById('cl-btn-buscar');
+    if(b){b.disabled=false;b.innerHTML='<i class="bi bi-arrow-clockwise me-1"></i>Buscar novas';}
+  }
 }
 
 function _clFiltrar(f){
