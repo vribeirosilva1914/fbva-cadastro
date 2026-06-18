@@ -32,6 +32,10 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;font-size:
 .wa-log-wrap{max-height:280px;overflow-y:auto}
 .wa-var-btn{font-size:.72rem;padding:2px 8px;border-radius:12px;border:1px solid #d1d5db;background:#f9fafb;cursor:pointer;transition:.15s;color:#374151}
 .wa-var-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+/* ── Atendimento WA (inbox) ── */
+.atd-item{transition:background .1s}
+.atd-item:hover{background:#f0faf4}
+.atd-item-ativa{background:#e6f9ed!important;border-left:3px solid #25D366!important}
 .brand-t{font-size:.85rem;font-weight:700;letter-spacing:.04em;display:block;line-height:1.2;color:#fff}
 .brand-s{font-size:.6rem;color:rgba(255,255,255,.45);display:block;letter-spacing:.02em}
 .sb-nav{padding:12px 8px;flex:1}
@@ -228,6 +232,7 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;font-size:
       <button class="nl" id="nav-gestao" onclick="App.go('gestao')"><i class="bi bi-folder2-open"></i><span>Documentação &amp; Financeiro</span></button>
       <div class="nav-sec mt-2" id="nav-sec-comunicacao">Comunicação</div>
       <button class="nl" id="nav-mensageiro" onclick="App.go('mensageiro')" style="color:rgba(37,211,102,.85)"><i class="bi bi-whatsapp"></i><span>Mensageiro WhatsApp</span></button>
+      <button class="nl" id="nav-atendimento" onclick="App.go('atendimento')" style="color:rgba(37,211,102,.85)"><i class="bi bi-headset"></i><span>Atendimento WA <span id="nav-badge-wa" class="badge bg-danger rounded-pill d-none" style="font-size:.65rem"></span></span></button>
       <button class="nl" id="nav-email" onclick="App.go('email')"><i class="bi bi-envelope-fill"></i><span>Mensageiro E-mail</span></button>
       <button class="nl" id="nav-clipping" onclick="App.go('clipping')"><i class="bi bi-newspaper"></i><span>Clipping de Notícias</span></button>
       <div class="nav-sec mt-2" id="nav-adm-label">Administração</div>
@@ -582,7 +587,7 @@ function showApp() {
     const el=document.getElementById(id);
     if(el) el.style.display=pode.secretaria()?'':'none';
   });
-  ['nav-sec-comunicacao','nav-mensageiro','nav-email','nav-clipping'].forEach(id=>{
+  ['nav-sec-comunicacao','nav-mensageiro','nav-atendimento','nav-email','nav-clipping'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.style.display=pode.comunicacao()?'':'none';
   });
@@ -601,8 +606,8 @@ function activateNav(v) {
   const map={dashboard:'[onclick*="dashboard"]',clubes:'[onclick*="clubes"]',
     'clube-form':'[onclick*="clube-form"]','clube-detalhe':'[onclick*="clubes"]',
     usuarios:'[onclick*="usuarios"]','usuario-form':'[onclick*="usuario-form"]',
-    mensageiro:'[onclick*="mensageiro"]',gestao:'[onclick*="gestao"]',
-    email:'[onclick*="email"]',clipping:'[onclick*="clipping"]'};
+    mensageiro:'[onclick*="mensageiro"]',atendimento:'[onclick*="atendimento"]',
+    gestao:'[onclick*="gestao"]',email:'[onclick*="email"]',clipping:'[onclick*="clipping"]'};
   const sel=map[v];
   if(sel) document.querySelector(`.sb-nav ${sel}`)?.classList.add('active');
 }
@@ -849,6 +854,7 @@ async function go(view,id=null) {
     else if(view==='alterar-senha')      renderAlterarSenha();
     else if(view==='gestao')        await renderGestao();
     else if(view==='mensageiro')    await renderMensageiro();
+    else if(view==='atendimento')   await renderAtendimento();
     else if(view==='email')         await renderMensageiroEmail();
     else if(view==='clipping')      await renderClipping();
   } catch(e) { toast(e.message,'danger'); }
@@ -2613,6 +2619,304 @@ async function limparLogWA() {
   catch(e) { toast(e.message,'danger'); }
 }
 
+// ═════════ ATENDIMENTO WA (INBOX MULTI-AGENTE) ══════════════════════════════
+let _atdConversas = [];
+let _atdConversa  = null;
+let _atdTimer     = null;
+let _atdFiltro    = 'abertas';   // abertas | nova | em_atendimento | resolvida | meu
+let _atdAgentes   = [];
+
+async function renderAtendimento() {
+  if(!pode.comunicacao()){toast('Acesso negado.','danger');await go('dashboard');return;}
+  if(_atdTimer){clearInterval(_atdTimer);_atdTimer=null;}
+  _atdConversa=null;
+  setTitle('<i class="bi bi-headset me-2" style="color:#25D366"></i>Atendimento WhatsApp');
+  render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
+  await _atdCarregar();
+  _atdTimer = setInterval(_atdPoll, 5000);
+}
+
+async function _atdCarregar() {
+  const [convs, agentes] = await Promise.all([
+    _atdFetchConversas(),
+    Api.get('/api/wa/agentes').catch(()=>[]),
+  ]);
+  _atdConversas = convs;
+  _atdAgentes   = agentes;
+  _atdRenderLayout();
+  _atualizarBadgeWA();
+}
+
+async function _atdFetchConversas() {
+  let url = '/api/wa/conversas';
+  if(_atdFiltro==='meu')          url += '?agente=meu';
+  else if(_atdFiltro==='resolvida') url += '?status=resolvida';
+  else if(_atdFiltro==='nova')     url += '?status=nova';
+  else if(_atdFiltro==='em_atendimento') url += '?status=em_atendimento';
+  // 'abertas' = sem filtro (nova + em_atendimento)
+  try { return await Api.get(url); } catch { return []; }
+}
+
+async function _atdPoll() {
+  const convs = await _atdFetchConversas();
+  _atdConversas = convs;
+  _atdRenderLista();
+  _atualizarBadgeWA();
+  // Se há conversa aberta, atualiza thread silenciosamente
+  if(_atdConversa) {
+    try {
+      const upd = await Api.get(`/api/wa/conversas/${_atdConversa.id}`);
+      if(upd && upd.mensagens) {
+        const oldCount = (_atdConversa.mensagens||[]).length;
+        _atdConversa = upd;
+        if(upd.mensagens.length !== oldCount) _atdRenderThread();
+      }
+    } catch {}
+  }
+}
+
+function _atualizarBadgeWA() {
+  const total = _atdConversas.filter(c=>c.status!=='resolvida').reduce((s,c)=>s+c.naoLidas,0);
+  const badge = document.getElementById('nav-badge-wa');
+  if(!badge) return;
+  if(total>0){badge.textContent=total>99?'99+':total;badge.classList.remove('d-none');}
+  else{badge.classList.add('d-none');}
+}
+
+function _atdRenderLayout() {
+  const filtros = [
+    {k:'abertas',      label:'Abertas',          icon:'bi-inbox'},
+    {k:'nova',         label:'Novas',             icon:'bi-bell-fill'},
+    {k:'em_atendimento',label:'Em atendimento',   icon:'bi-person-check-fill'},
+    {k:'resolvida',    label:'Resolvidas',         icon:'bi-check-circle-fill'},
+    {k:'meu',          label:'Minhas',             icon:'bi-person-fill'},
+  ];
+  render(`
+  <div class="d-flex gap-1 mb-3 flex-wrap">
+    ${filtros.map(f=>`
+    <button class="btn btn-sm ${_atdFiltro===f.k?'btn-success':'btn-outline-secondary'}"
+      onclick="App._atdSetFiltro('${f.k}')">
+      <i class="bi ${f.icon} me-1"></i>${f.label}
+    </button>`).join('')}
+  </div>
+  <div class="row g-0" style="height:calc(100vh - 200px);min-height:500px">
+    <!-- Lista conversas -->
+    <div class="col-md-4 col-lg-3 border-end d-flex flex-column" style="overflow:hidden">
+      <div id="atd-lista" class="flex-grow-1" style="overflow-y:auto"></div>
+    </div>
+    <!-- Thread -->
+    <div class="col-md-8 col-lg-9 d-flex flex-column" style="overflow:hidden">
+      <div id="atd-thread" class="flex-grow-1 d-flex flex-column"></div>
+    </div>
+  </div>`);
+  _atdRenderLista();
+  if(_atdConversa) _atdRenderThread();
+  else _atdRenderPlaceholder();
+}
+
+function _atdRenderLista() {
+  const el = document.getElementById('atd-lista');
+  if(!el) return;
+  const convs = _atdFiltro==='abertas'
+    ? _atdConversas.filter(c=>c.status!=='resolvida')
+    : _atdConversas;
+
+  if(!convs.length){
+    el.innerHTML='<div class="text-center py-5 text-muted small"><i class="bi bi-chat-dots fs-2 d-block mb-2 opacity-25"></i>Nenhuma conversa.</div>';
+    return;
+  }
+  el.innerHTML = convs.map(c=>{
+    const ativa = _atdConversa?.id===c.id;
+    const badgeColor = c.status==='nova'?'bg-danger':c.status==='em_atendimento'?'bg-warning text-dark':'bg-secondary';
+    const badgeLabel = c.status==='nova'?'Nova':c.status==='em_atendimento'?'Atendendo':'Resolvida';
+    const hora = c.ultimaMensagem ? new Date(c.ultimaMensagem.enviadoEm).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
+    const preview = (c.ultimaMensagem?.corpo||'').slice(0,60);
+    const naoLidas = c.naoLidas>0?`<span class="badge bg-success rounded-pill ms-1">${c.naoLidas}</span>`:'';
+    return `
+    <div class="p-3 border-bottom atd-item ${ativa?'atd-item-ativa':''}"
+      style="cursor:pointer" onclick="App._atdAbrirConversa(${c.id})">
+      <div class="d-flex justify-content-between align-items-start mb-1">
+        <div class="fw-semibold small text-truncate me-1">${esc(c.contato.nome)}</div>
+        <span class="text-muted" style="font-size:.7rem;white-space:nowrap">${hora}</span>
+      </div>
+      <div class="small text-muted text-truncate mb-1">${c.ultimaMensagem?.direcao==='saida'?'<i class="bi bi-arrow-return-right me-1"></i>':''}${esc(preview)}</div>
+      <div class="d-flex align-items-center gap-1">
+        <span class="badge ${badgeColor}" style="font-size:.65rem">${badgeLabel}</span>
+        ${c.agente?`<span class="badge bg-light text-dark border" style="font-size:.65rem">${esc(c.agente.nome.split(' ')[0])}</span>`:''}
+        ${naoLidas}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function _atdRenderPlaceholder() {
+  const el=document.getElementById('atd-thread');
+  if(!el) return;
+  el.innerHTML=`<div class="flex-grow-1 d-flex align-items-center justify-content-center text-muted">
+    <div class="text-center">
+      <i class="bi bi-chat-left-text fs-1 d-block mb-3 opacity-25"></i>
+      <div>Selecione uma conversa para ver as mensagens</div>
+    </div>
+  </div>`;
+}
+
+async function _atdAbrirConversa(id) {
+  try {
+    _atdConversa = await Api.get(`/api/wa/conversas/${id}`);
+    _atdRenderLista();
+    _atdRenderThread();
+  } catch(e) { toast(e.message,'danger'); }
+}
+
+function _atdRenderThread() {
+  const el = document.getElementById('atd-thread');
+  if(!el) return;
+  const c = _atdConversa;
+  if(!c){_atdRenderPlaceholder();return;}
+
+  const isMeu = c.agente?.id === state.user?.id;
+  const podeAssumir = c.status !== 'resolvida' && !isMeu;
+  const podeResolver = c.status !== 'resolvida';
+  const isConfigured = true; // backend verifica
+
+  const selectAgentes = _atdAgentes.filter(a=>a.id!==state.user?.id).map(a=>
+    `<option value="${a.id}">${esc(a.nome)}</option>`).join('');
+
+  el.innerHTML = `
+  <!-- Cabeçalho -->
+  <div class="border-bottom p-3 d-flex align-items-start justify-content-between gap-2">
+    <div>
+      <div class="fw-semibold">${esc(c.contato.nome)}</div>
+      <div class="small text-muted">${esc(c.contato.numero)}</div>
+      <div class="mt-1 d-flex gap-1 flex-wrap">
+        ${c.status==='nova'?'<span class="badge bg-danger">Nova</span>':
+          c.status==='em_atendimento'?'<span class="badge bg-warning text-dark">Em atendimento</span>':
+          '<span class="badge bg-secondary">Resolvida</span>'}
+        ${c.agente?`<span class="badge bg-light text-dark border">Agente: ${esc(c.agente.nome)}</span>`:'<span class="badge bg-light text-muted border">Sem agente</span>'}
+      </div>
+    </div>
+    <div class="d-flex gap-1 flex-wrap justify-content-end">
+      ${podeAssumir?`<button class="btn btn-sm btn-outline-success" onclick="App._atdAssumir(${c.id})">
+        <i class="bi bi-person-check me-1"></i>Assumir</button>`:''}
+      ${podeResolver?`<button class="btn btn-sm btn-outline-secondary" onclick="App._atdResolver(${c.id})">
+        <i class="bi bi-check-lg me-1"></i>Resolver</button>`:''}
+      ${selectAgentes&&podeResolver?`
+      <div class="input-group input-group-sm" style="width:auto">
+        <select class="form-select form-select-sm" id="sel-transferir-${c.id}" style="max-width:140px">
+          <option value="">Transferir para...</option>${selectAgentes}
+        </select>
+        <button class="btn btn-outline-secondary btn-sm" onclick="App._atdTransferir(${c.id})">
+          <i class="bi bi-arrow-right"></i></button>
+      </div>`:''}
+    </div>
+  </div>
+  <!-- Mensagens -->
+  <div id="atd-msgs" class="flex-grow-1 p-3" style="overflow-y:auto;background:#f0f2f5">
+    ${(c.mensagens||[]).map(m=>{
+      const isEntrada = m.direcao==='entrada';
+      const hora = new Date(m.enviadoEm).toLocaleString('pt-BR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});
+      return `
+      <div class="d-flex ${isEntrada?'justify-content-start':'justify-content-end'} mb-2">
+        <div class="p-2 rounded-3 shadow-sm" style="max-width:75%;${isEntrada?
+          'background:#fff;border:1px solid #e5e7eb':'background:#dcf8c6;border:1px solid #c8edb5'}">
+          ${!isEntrada&&m.enviadoPor?`<div style="font-size:.7rem;color:#075e54;font-weight:600;margin-bottom:2px">${esc(m.enviadoPor)}</div>`:''}
+          <div class="small" style="white-space:pre-wrap;word-break:break-word">${esc(m.corpo)}</div>
+          <div class="text-end" style="font-size:.65rem;color:#888;margin-top:2px">${hora}</div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>
+  <!-- Campo de resposta -->
+  ${c.status!=='resolvida'?`
+  <div class="border-top p-2 d-flex gap-2 align-items-end" style="background:#f7f7f7">
+    <textarea id="atd-reply" class="form-control" rows="2"
+      placeholder="Digite a resposta..."
+      style="resize:none;font-size:.88rem"
+      onkeydown="if(event.ctrlKey&&event.key==='Enter')App._atdEnviar(${c.id})"></textarea>
+    <button class="btn btn-success" onclick="App._atdEnviar(${c.id})" title="Enviar (Ctrl+Enter)">
+      <i class="bi bi-send-fill"></i>
+    </button>
+  </div>`:`
+  <div class="border-top p-3 text-center text-muted small" style="background:#f7f7f7">
+    <i class="bi bi-lock-fill me-1"></i>Conversa resolvida — reabra para responder.
+    <button class="btn btn-link btn-sm p-0 ms-2" onclick="App._atdResolver(${c.id},true)">Reabrir</button>
+  </div>`}`;
+
+  // Scroll para o final das mensagens
+  const msgs = document.getElementById('atd-msgs');
+  if(msgs) msgs.scrollTop = msgs.scrollHeight;
+}
+
+async function _atdAssumir(id) {
+  try {
+    _atdConversa = await Api.post(`/api/wa/conversas/${id}/assumir`,{});
+    _atdRenderLista();
+    _atdRenderThread();
+    toast('Conversa assumida.','success');
+  } catch(e){toast(e.message,'danger');}
+}
+
+async function _atdResolver(id, reabrir=false) {
+  try {
+    if(reabrir){
+      await Api.post(`/api/wa/conversas/${id}/assumir`,{});
+      toast('Conversa reaberta.','info');
+    } else {
+      await Api.post(`/api/wa/conversas/${id}/resolver`,{});
+      toast('Conversa marcada como resolvida.','success');
+    }
+    const upd = await Api.get(`/api/wa/conversas/${id}`);
+    _atdConversa = upd;
+    const idx = _atdConversas.findIndex(c=>c.id===id);
+    if(idx>=0) _atdConversas[idx]=upd;
+    _atdRenderLista();
+    _atdRenderThread();
+  } catch(e){toast(e.message,'danger');}
+}
+
+async function _atdTransferir(id) {
+  const sel = document.getElementById(`sel-transferir-${id}`);
+  const agenteId = sel ? parseInt(sel.value) : null;
+  if(!agenteId){toast('Selecione um agente para transferir.','warning');return;}
+  try {
+    _atdConversa = await Api.post(`/api/wa/conversas/${id}/transferir`,{agenteId});
+    const idx = _atdConversas.findIndex(c=>c.id===id);
+    if(idx>=0) _atdConversas[idx]=_atdConversa;
+    _atdRenderLista();
+    _atdRenderThread();
+    toast('Conversa transferida.','success');
+  } catch(e){toast(e.message,'danger');}
+}
+
+async function _atdEnviar(id) {
+  const ta = document.getElementById('atd-reply');
+  const corpo = (ta?.value||'').trim();
+  if(!corpo){toast('Digite uma mensagem.','warning');return;}
+  const btn = ta?.nextElementSibling;
+  if(btn) btn.disabled=true;
+  try {
+    const msg = await Api.post(`/api/wa/conversas/${id}/responder`,{corpo});
+    if(!_atdConversa.mensagens) _atdConversa.mensagens=[];
+    _atdConversa.mensagens.push(msg);
+    if(ta) ta.value='';
+    _atdRenderThread();
+    // Atualiza status na lista
+    const upd = await Api.get(`/api/wa/conversas/${id}`);
+    _atdConversa = upd;
+    const idx=_atdConversas.findIndex(c=>c.id===id);
+    if(idx>=0) _atdConversas[idx]=upd;
+    _atdRenderLista();
+  } catch(e){toast(e.message,'danger');}
+  finally{if(btn)btn.disabled=false;}
+}
+
+async function _atdSetFiltro(f) {
+  _atdFiltro=f; _atdConversa=null;
+  const convs=await _atdFetchConversas();
+  _atdConversas=convs;
+  _atdRenderLayout();
+}
+
 // ═════════ MENSAGEIRO E-MAIL ══════════════════════
 async function renderMensageiroEmail() {
   if(!pode.comunicacao()){toast('Acesso negado.','danger');await go('dashboard');return;}
@@ -3842,8 +4146,10 @@ return{
   salvarSenha,toggleSenha,
   exportarCSV,abrirImportCSV,analisarCSV,confirmarImportCSV,downloadTemplateCSV,
   handleFileSelect,handleDrop,
-  // WhatsApp
-  filtrarWA,selecionarTodosWA,_updateWASel,insereVar,previewMsg,enviarWA,limparLogWA,desconectarWA,
+  // WhatsApp mensageiro
+  filtrarWA,selecionarTodosWA,_updateWASel,insereVar,previewMsg,enviarWA,limparLogWA,
+  // WhatsApp atendimento
+  _atdSetFiltro,_atdAbrirConversa,_atdAssumir,_atdResolver,_atdTransferir,_atdEnviar,
   // Email
   _salvarEmailConfig,_testarEmail,_insereVarEmail,_previewEmail,
   _filtrarEmail,_selEmailTodos,_updateEmailSel,_enviarEmail,_limparEmailLog,_emailPreset,

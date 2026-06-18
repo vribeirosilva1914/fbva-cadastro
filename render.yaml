@@ -24,6 +24,8 @@ services:
         sync: false
       - key: WA_ACCESS_TOKEN
         sync: false
+      - key: WA_WEBHOOK_VERIFY_TOKEN
+        sync: false
 
 databases:
   - name: fbva-db

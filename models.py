@@ -260,6 +260,67 @@ class WaLog(db.Model):
     enviado_por = db.relationship('Usuario', foreign_keys=[enviado_por_id])
 
 
+class ContatoWA(db.Model):
+    """Contato externo que envia mensagens via WhatsApp."""
+    __tablename__ = 'contatos_wa'
+
+    id        = db.Column(db.Integer, primary_key=True)
+    numero    = db.Column(db.String(30), unique=True, nullable=False)  # E.164 sem '+'
+    nome      = db.Column(db.String(150))
+    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+
+    conversas = db.relationship('ConversacaoWA', backref='contato',
+                                 cascade='all, delete-orphan')
+
+
+class ConversacaoWA(db.Model):
+    """Thread de conversa entre um contato externo e um (ou mais) agentes."""
+    __tablename__ = 'conversas_wa'
+
+    STATUS = {
+        'nova':           'Nova',
+        'em_atendimento': 'Em atendimento',
+        'resolvida':      'Resolvida',
+    }
+
+    id            = db.Column(db.Integer, primary_key=True)
+    contato_id    = db.Column(db.Integer,
+                               db.ForeignKey('contatos_wa.id', ondelete='CASCADE'),
+                               nullable=False)
+    status        = db.Column(db.String(20), default='nova', nullable=False)
+    agente_id     = db.Column(db.Integer,
+                               db.ForeignKey('usuarios.id', ondelete='SET NULL'),
+                               nullable=True)
+    criada_em     = db.Column(db.DateTime, default=datetime.utcnow)
+    atualizada_em = db.Column(db.DateTime, default=datetime.utcnow,
+                               onupdate=datetime.utcnow)
+
+    agente    = db.relationship('Usuario', foreign_keys=[agente_id])
+    mensagens = db.relationship('MensagemWA', backref='conversa',
+                                 cascade='all, delete-orphan',
+                                 order_by='MensagemWA.enviado_em')
+
+
+class MensagemWA(db.Model):
+    """Mensagem individual dentro de uma ConversacaoWA."""
+    __tablename__ = 'mensagens_wa'
+
+    id             = db.Column(db.Integer, primary_key=True)
+    conversa_id    = db.Column(db.Integer,
+                                db.ForeignKey('conversas_wa.id', ondelete='CASCADE'),
+                                nullable=False)
+    direcao        = db.Column(db.String(10), nullable=False)   # entrada | saida
+    corpo          = db.Column(db.Text, nullable=False)
+    wa_message_id  = db.Column(db.String(100), nullable=True, unique=True)
+    enviado_por_id = db.Column(db.Integer,
+                                db.ForeignKey('usuarios.id', ondelete='SET NULL'),
+                                nullable=True)
+    enviado_em     = db.Column(db.DateTime, default=datetime.utcnow)
+    lida           = db.Column(db.Boolean, default=False)
+
+    enviado_por = db.relationship('Usuario', foreign_keys=[enviado_por_id])
+
+
 class ClippingNoticia(db.Model):
     __tablename__ = 'clipping_noticias'
 

@@ -10,14 +10,16 @@ from extensions import db
 from models import (Usuario, Clube, WaLog, EmailLog, Config, FinanceiroClube,
                     Trimestralidade, MembroDiretoria, Documento,
                     EnderecoAdicional, Contato, ContatoTelefone, ContatoEmail,
-                    Associado, ClippingNoticia)
+                    Associado, ClippingNoticia,
+                    ContatoWA, ConversacaoWA, MensagemWA)
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 ALLOWED_EXTENSIONS = {'.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png'}
-WA_PHONE_ID = os.environ.get('WA_PHONE_NUMBER_ID', '')
-WA_TOKEN    = os.environ.get('WA_ACCESS_TOKEN', '')
-WA_API_URL  = 'https://graph.facebook.com/v18.0'
+WA_PHONE_ID    = os.environ.get('WA_PHONE_NUMBER_ID', '')
+WA_TOKEN       = os.environ.get('WA_ACCESS_TOKEN', '')
+WA_API_URL     = 'https://graph.facebook.com/v18.0'
+WA_VERIFY_TOKEN = os.environ.get('WA_WEBHOOK_VERIFY_TOKEN', 'fbva_webhook_token')
 
 
 def _wa_format_number(raw):
@@ -832,6 +834,250 @@ def wa_send():
         return ok()
     except Exception as e:
         return err(str(e))
+
+
+# ── WHATSAPP ATENDIMENTO (INBOX MULTI-AGENTE) ────────────────────────────────
+
+def _conversa_dict(c, include_msgs=False):
+    ultima = c.mensagens[-1] if c.mensagens else None
+    nao_lidas = sum(1 for m in c.mensagens if m.direcao == 'entrada' and not m.lida)
+    d = {
+        'id':       c.id,
+        'status':   c.status,
+        'contato':  {'id': c.contato.id, 'numero': c.contato.numero,
+                     'nome': c.contato.nome or c.contato.numero},
+        'agente':   {'id': c.agente.id, 'nome': c.agente.nome} if c.agente else None,
+        'naoLidas': nao_lidas,
+        'ultimaMensagem': {
+            'corpo':     ultima.corpo,
+            'direcao':   ultima.direcao,
+            'enviadoEm': ultima.enviado_em.isoformat(),
+        } if ultima else None,
+        'criadaEm':     c.criada_em.isoformat(),
+        'atualizadaEm': c.atualizada_em.isoformat(),
+    }
+    if include_msgs:
+        d['mensagens'] = [_msg_dict(m) for m in c.mensagens]
+    return d
+
+
+def _msg_dict(m):
+    return {
+        'id':         m.id,
+        'direcao':    m.direcao,
+        'corpo':      m.corpo,
+        'enviadoEm':  m.enviado_em.isoformat(),
+        'enviadoPor': m.enviado_por.nome if m.enviado_por else None,
+        'lida':       m.lida,
+    }
+
+
+def _wa_send_message(numero, corpo):
+    """Envia mensagem via Meta Cloud API. Retorna (ok, error_msg)."""
+    r = http.post(
+        f'{WA_API_URL}/{WA_PHONE_ID}/messages',
+        headers={'Authorization': f'Bearer {WA_TOKEN}', 'Content-Type': 'application/json'},
+        json={
+            'messaging_product': 'whatsapp',
+            'recipient_type': 'individual',
+            'to': numero,
+            'type': 'text',
+            'text': {'preview_url': False, 'body': corpo},
+        },
+        timeout=15,
+    )
+    data = r.json()
+    if not r.ok:
+        return None, (data.get('error') or {}).get('message', 'Erro na Meta API.')
+    wa_id = (data.get('messages') or [{}])[0].get('id')
+    return wa_id, None
+
+
+# Webhook: verificação do endpoint (Meta envia GET na configuração)
+@api_bp.route('/wa/webhook', methods=['GET'])
+def wa_webhook_verify():
+    mode      = request.args.get('hub.mode')
+    token     = request.args.get('hub.verify_token')
+    challenge = request.args.get('hub.challenge')
+    if mode == 'subscribe' and token == WA_VERIFY_TOKEN:
+        return challenge or '', 200
+    return 'Forbidden', 403
+
+
+# Webhook: recebimento de mensagens da Meta
+@api_bp.route('/wa/webhook', methods=['POST'])
+def wa_webhook_receive():
+    data = request.get_json(silent=True) or {}
+    try:
+        for entry in data.get('entry', []):
+            for change in entry.get('changes', []):
+                value    = change.get('value', {})
+                messages = value.get('messages', [])
+                contacts = value.get('contacts', [])
+                name_map = {c['wa_id']: (c.get('profile') or {}).get('name', '')
+                            for c in contacts}
+
+                for msg in messages:
+                    if msg.get('type') != 'text':
+                        continue
+                    numero    = msg['from']
+                    corpo     = (msg.get('text') or {}).get('body', '')
+                    wa_msg_id = msg.get('id')
+
+                    if not corpo:
+                        continue
+                    if wa_msg_id and MensagemWA.query.filter_by(wa_message_id=wa_msg_id).first():
+                        continue   # dedup
+
+                    nome    = name_map.get(numero, '')
+                    contato = ContatoWA.query.filter_by(numero=numero).first()
+                    if not contato:
+                        contato = ContatoWA(numero=numero, nome=nome)
+                        db.session.add(contato)
+                        db.session.flush()
+                    elif nome and not contato.nome:
+                        contato.nome = nome
+
+                    conversa = (ConversacaoWA.query
+                                .filter_by(contato_id=contato.id)
+                                .filter(ConversacaoWA.status != 'resolvida')
+                                .order_by(ConversacaoWA.criada_em.desc())
+                                .first())
+                    if not conversa:
+                        conversa = ConversacaoWA(contato_id=contato.id, status='nova')
+                        db.session.add(conversa)
+                        db.session.flush()
+
+                    db.session.add(MensagemWA(
+                        conversa_id=conversa.id,
+                        direcao='entrada',
+                        corpo=corpo,
+                        wa_message_id=wa_msg_id,
+                    ))
+                    conversa.atualizada_em = datetime.utcnow()
+
+                db.session.commit()
+    except Exception:
+        pass  # Meta exige sempre HTTP 200
+    return '', 200
+
+
+# Listar conversas (inbox)
+@api_bp.route('/wa/conversas')
+@login_required
+def list_conversas():
+    status = request.args.get('status', '')
+    agente = request.args.get('agente', '')
+    q = ConversacaoWA.query.join(ContatoWA)
+    if status:
+        q = q.filter(ConversacaoWA.status == status)
+    if agente == 'meu':
+        q = q.filter(ConversacaoWA.agente_id == current_user.id)
+    convs = q.order_by(ConversacaoWA.atualizada_em.desc()).limit(200).all()
+    return ok([_conversa_dict(c) for c in convs])
+
+
+# Detalhe de uma conversa (marca mensagens como lidas)
+@api_bp.route('/wa/conversas/<int:cid>')
+@login_required
+def get_conversa(cid):
+    c = db.session.get(ConversacaoWA, cid)
+    if not c:
+        return err('Conversa não encontrada.', 404)
+    for m in c.mensagens:
+        if m.direcao == 'entrada' and not m.lida:
+            m.lida = True
+    db.session.commit()
+    return ok(_conversa_dict(c, include_msgs=True))
+
+
+# Agente assume a conversa
+@api_bp.route('/wa/conversas/<int:cid>/assumir', methods=['POST'])
+@login_required
+def assumir_conversa(cid):
+    c = db.session.get(ConversacaoWA, cid)
+    if not c:
+        return err('Conversa não encontrada.', 404)
+    c.agente_id = current_user.id
+    if c.status == 'nova':
+        c.status = 'em_atendimento'
+    db.session.commit()
+    return ok(_conversa_dict(c))
+
+
+# Marcar como resolvida
+@api_bp.route('/wa/conversas/<int:cid>/resolver', methods=['POST'])
+@login_required
+def resolver_conversa(cid):
+    c = db.session.get(ConversacaoWA, cid)
+    if not c:
+        return err('Conversa não encontrada.', 404)
+    c.status = 'resolvida'
+    db.session.commit()
+    return ok(_conversa_dict(c))
+
+
+# Transferir para outro agente
+@api_bp.route('/wa/conversas/<int:cid>/transferir', methods=['POST'])
+@login_required
+def transferir_conversa(cid):
+    c = db.session.get(ConversacaoWA, cid)
+    if not c:
+        return err('Conversa não encontrada.', 404)
+    d = request.get_json(silent=True) or {}
+    agente = db.session.get(Usuario, d.get('agenteId'))
+    if agente:
+        c.agente_id = agente.id
+        c.status    = 'em_atendimento'
+    db.session.commit()
+    return ok(_conversa_dict(c))
+
+
+# Responder (agente → contato)
+@api_bp.route('/wa/conversas/<int:cid>/responder', methods=['POST'])
+@login_required
+def responder_conversa(cid):
+    if not (WA_PHONE_ID and WA_TOKEN):
+        return err('API do WhatsApp não configurada.')
+    c = db.session.get(ConversacaoWA, cid)
+    if not c:
+        return err('Conversa não encontrada.', 404)
+    d = request.get_json(silent=True) or {}
+    corpo = (d.get('corpo') or '').strip()
+    if not corpo:
+        return err('Mensagem vazia.')
+    try:
+        wa_id, erro = _wa_send_message(c.contato.numero, corpo)
+        if erro:
+            return err(erro)
+        msg = MensagemWA(
+            conversa_id=c.id,
+            direcao='saida',
+            corpo=corpo,
+            wa_message_id=wa_id,
+            enviado_por_id=current_user.id,
+            lida=True,
+        )
+        db.session.add(msg)
+        if c.status == 'nova':
+            c.status    = 'em_atendimento'
+            c.agente_id = current_user.id
+        c.atualizada_em = datetime.utcnow()
+        db.session.commit()
+        return ok(_msg_dict(msg))
+    except Exception as e:
+        return err(str(e))
+
+
+# Listar agentes disponíveis para transferência
+@api_bp.route('/wa/agentes')
+@login_required
+def list_agentes_wa():
+    agentes = Usuario.query.filter(
+        Usuario.ativo == True,
+        Usuario.perfil.in_(['admin', 'secretaria', 'comunicacao']),
+    ).order_by(Usuario.nome).all()
+    return ok([{'id': a.id, 'nome': a.nome, 'perfil': a.perfil} for a in agentes])
 
 
 # ── GESTÃO: DOCUMENTOS CENTRALIZADOS ─────────────────────────────────────────
