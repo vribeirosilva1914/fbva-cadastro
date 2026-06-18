@@ -1096,23 +1096,37 @@ CLIPPING_SOURCES = [
 
     # ── RSS diretos — imprensa geral (Nível 2) ───────────────────────────────
     {'type':'gnews','query':'Valor Econômico OR Exame OR Bloomberg carro clássico colecionável','bloco':'mercado',    'nivel':2},
+
+    # ── YouTube — busca por palavra-chave (requer env YOUTUBE_API_KEY) ───────
+    {'type':'yt_search','query':'carros antigos clássicos Brasil',             'bloco':'radar',       'nivel':1},
+    {'type':'yt_search','query':'encontro exposição carros clássicos antigos', 'bloco':'eventos',     'nivel':1},
+    {'type':'yt_search','query':'restauração carro antigo clássico brasil',    'bloco':'restauracao', 'nivel':1},
+    {'type':'yt_search','query':'leilão carros clássicos antigos brasil',      'bloco':'mercado',     'nivel':1},
+    {'type':'yt_search','query':'coleção garagem carros clássicos história',   'bloco':'gente',       'nivel':1},
+    # ── YouTube — canais específicos (channel_id visível em youtube.com/channel/ID) ─
+    # {'type':'yt_channel','channel_id':'CHANNEL_ID','fonte':'Nome do Canal','bloco':'radar','nivel':1},
 ]
 
 
 def _scrape_clipping():
     import xml.etree.ElementTree as ET
-    from urllib.parse import quote
+    from urllib.parse import quote, urlencode
     from email.utils import parsedate_to_datetime
 
     novos = 0
     headers = {'User-Agent': 'Mozilla/5.0 (compatible; FBVA-Clipping/1.0)'}
 
-    def _save_item(titulo, link, desc, fonte, pub_str, bloco, nivel):
+    def _save_item(titulo, link, desc, fonte, pub, bloco, nivel):
         nonlocal novos
-        try:
-            pub_dt = parsedate_to_datetime(pub_str).replace(tzinfo=None) if pub_str else None
-        except Exception:
-            pub_dt = None
+        pub_dt = None
+        if pub:
+            try:
+                pub_dt = parsedate_to_datetime(pub).replace(tzinfo=None)
+            except Exception:
+                try:
+                    pub_dt = datetime.fromisoformat(pub.replace('Z', '+00:00')).replace(tzinfo=None)
+                except Exception:
+                    pass
         if not titulo or not link:
             return
         if not ClippingNoticia.query.filter_by(url=link).first():
@@ -1144,7 +1158,7 @@ def _scrape_clipping():
                         link=(item.findtext('link') or '').strip(),
                         desc=(item.findtext('description') or '').strip(),
                         fonte=fonte,
-                        pub_str=(item.findtext('pubDate') or '').strip(),
+                        pub=(item.findtext('pubDate') or '').strip(),
                         bloco=src['bloco'],
                         nivel=src['nivel'],
                     )
@@ -1157,7 +1171,55 @@ def _scrape_clipping():
                         link=(item.findtext('link') or '').strip(),
                         desc=(item.findtext('description') or '').strip(),
                         fonte=src['fonte'],
-                        pub_str=(item.findtext('pubDate') or '').strip(),
+                        pub=(item.findtext('pubDate') or '').strip(),
+                        bloco=src['bloco'],
+                        nivel=src['nivel'],
+                    )
+            elif src['type'] == 'yt_channel':
+                # YouTube Atom feed — sem API key, canal específico
+                url = f"https://www.youtube.com/feeds/videos.xml?channel_id={src['channel_id']}"
+                r = http.get(url, timeout=12, headers=headers)
+                NS = {
+                    'atom':  'http://www.w3.org/2005/Atom',
+                    'media': 'http://search.yahoo.com/mrss/',
+                    'yt':    'http://www.youtube.com/xml/schemas/2015',
+                }
+                root = ET.fromstring(r.content)
+                for entry in root.findall('atom:entry', NS):
+                    vid = entry.findtext('yt:videoId', '', NS)
+                    link = f'https://www.youtube.com/watch?v={vid}' if vid else ''
+                    desc_el = entry.find('media:group/media:description', NS)
+                    _save_item(
+                        titulo=(entry.findtext('atom:title', '', NS) or '').strip(),
+                        link=link,
+                        desc=(desc_el.text or '').strip() if desc_el is not None else '',
+                        fonte=src.get('fonte', 'YouTube'),
+                        pub=(entry.findtext('atom:published', '', NS) or '').strip(),
+                        bloco=src['bloco'],
+                        nivel=src['nivel'],
+                    )
+            elif src['type'] == 'yt_search':
+                # YouTube Data API v3 — requer env YOUTUBE_API_KEY
+                api_key = os.environ.get('YOUTUBE_API_KEY', '')
+                if not api_key:
+                    continue
+                params = urlencode({
+                    'part': 'snippet', 'q': src['query'], 'type': 'video',
+                    'maxResults': 15, 'order': 'date',
+                    'relevanceLanguage': 'pt', 'regionCode': 'BR',
+                    'key': api_key,
+                })
+                r = http.get(f'https://www.googleapis.com/youtube/v3/search?{params}',
+                             timeout=12, headers=headers)
+                for item in r.json().get('items', []):
+                    vid = item.get('id', {}).get('videoId', '')
+                    sn  = item.get('snippet', {})
+                    _save_item(
+                        titulo=(sn.get('title') or '').strip(),
+                        link=f'https://www.youtube.com/watch?v={vid}' if vid else '',
+                        desc=(sn.get('description') or '').strip(),
+                        fonte=(sn.get('channelTitle') or 'YouTube').strip(),
+                        pub=(sn.get('publishedAt') or '').strip(),
                         bloco=src['bloco'],
                         nivel=src['nivel'],
                     )
