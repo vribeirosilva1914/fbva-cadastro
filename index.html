@@ -2339,20 +2339,42 @@ async function renderMensageiro() {
   setTitle('<i class="bi bi-whatsapp me-2" style="color:#25D366"></i>Mensageiro WhatsApp');
   render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
 
-  const [log, todos] = await Promise.all([
+  const [log, todos, waStatus] = await Promise.all([
     Api.get('/api/wa-log'),
     Api.get('/api/clubes?status=ativos'),
+    Api.get('/api/wa/status').catch(()=>({status:'NOT_CONFIGURED'})),
   ]);
   state.clubes = todos;
   state.waLog  = log;
+  _waConnected = (waStatus.status === 'CONNECTED');
 
   render(`
   <!-- Status WhatsApp -->
-  <div id="wa-status-card" class="card shadow-sm mb-4">
+  <div id="wa-status-card" class="card shadow-sm mb-4 ${_waConnected?'border-success':'border-warning'}">
+    ${_waConnected ? `
     <div class="card-body py-3 d-flex align-items-center gap-3">
-      <div class="spinner-border spinner-border-sm text-success"></div>
-      <span class="small">Verificando serviço WhatsApp...</span>
-    </div>
+      <i class="bi bi-whatsapp fs-4" style="color:#25D366"></i>
+      <div class="flex-grow-1">
+        <div class="fw-semibold text-success">WhatsApp Conectado via Meta Cloud API</div>
+        <div class="small text-muted">Mensagens são enviadas automaticamente pelo sistema.</div>
+      </div>
+    </div>` : `
+    <div class="card-body py-3">
+      <div class="d-flex align-items-start gap-3">
+        <i class="bi bi-exclamation-triangle-fill fs-4 text-warning mt-1"></i>
+        <div>
+          <div class="fw-semibold mb-1">API do WhatsApp não configurada</div>
+          <div class="small text-muted mb-2">Para ativar o envio automático, configure as seguintes variáveis de ambiente no <strong>Render</strong>:</div>
+          <ul class="small mb-2">
+            <li><code>WA_PHONE_NUMBER_ID</code> — ID do número obtido no Meta for Developers</li>
+            <li><code>WA_ACCESS_TOKEN</code> — Token permanente do System User</li>
+          </ul>
+          <div class="small text-muted">
+            <i class="bi bi-info-circle me-1"></i>No modo atual, os envios abrem o WhatsApp Web no navegador (uma aba por clube).
+          </div>
+        </div>
+      </div>
+    </div>`}
   </div>
 
   <div class="row g-4">
@@ -2457,123 +2479,15 @@ async function renderMensageiro() {
   </div>`);
 
   _renderWALista();
-  await _pollWAStatus();
-  _waStatusTimer = setInterval(_pollWAStatus, 4000);
-}
-
-async function _pollWAStatus() {
-  try {
-    const s = await Api.get('/api/wa/status');
-    _renderWAStatusCard(s);
-    if (s.status === 'CONNECTED') {
-      if (_waStatusTimer) { clearInterval(_waStatusTimer); _waStatusTimer = null; }
-    }
-  } catch {
-    _renderWAStatusCard({ status: 'OFFLINE', hasQr: false });
-  }
-}
-
-async function _renderWAStatusCard(s) {
-  const card = document.getElementById('wa-status-card');
+  // Atualiza hint do rodapé
   const hint = document.getElementById('wa-footer-hint');
-  if (!card) return;
-
-  if (s.status === 'CONNECTED') {
-    _waConnected = true;
-    card.className = 'card shadow-sm mb-4 border-success';
-    card.innerHTML = `
-      <div class="card-body py-3 d-flex align-items-center gap-3">
-        <i class="bi bi-whatsapp fs-4" style="color:#25D366"></i>
-        <div class="flex-grow-1">
-          <div class="fw-semibold text-success">WhatsApp Conectado</div>
-          <div class="small text-muted">Mensagens serão enviadas automaticamente pelo sistema.</div>
-        </div>
-        ${current_user_can_admin()?`<button class="btn btn-outline-danger btn-sm" onclick="App.desconectarWA()">
-          <i class="bi bi-box-arrow-right me-1"></i>Desconectar</button>`:''}
-      </div>`;
-    if (hint) hint.innerHTML = '<i class="bi bi-lightning-fill me-1 text-success"></i>Envio automático ativo';
-
-  } else if (s.status === 'QR_READY' || s.hasQr) {
-    _waConnected = false;
-    card.className = 'card shadow-sm mb-4 border-warning';
-    card.innerHTML = `
-      <div class="card-body">
-        <div class="row align-items-center g-3">
-          <div class="col-auto">
-            <div id="wa-qr-wrap" style="width:160px;height:160px;display:flex;align-items:center;justify-content:center;border:1px solid #e5e7eb;border-radius:8px;background:#fff">
-              <div class="spinner-border spinner-border-sm text-success"></div>
-            </div>
-          </div>
-          <div class="col">
-            <div class="fw-semibold mb-1"><i class="bi bi-qr-code me-2"></i>Escanear QR Code</div>
-            <ol class="small text-muted mb-0 ps-3">
-              <li>Abra o WhatsApp no celular</li>
-              <li>Toque em <strong>⋮ Menu → Aparelhos conectados</strong></li>
-              <li>Toque em <strong>Conectar um aparelho</strong></li>
-              <li>Aponte a câmera para o QR Code ao lado</li>
-            </ol>
-            <div class="mt-2 small text-warning fw-semibold">
-              <i class="bi bi-arrow-clockwise me-1"></i>O QR atualiza automaticamente.
-            </div>
-          </div>
-        </div>
-      </div>`;
-    if (hint) hint.innerHTML = '<i class="bi bi-info-circle me-1"></i>Conecte o WhatsApp para envio automático';
-    // Load QR image
-    try {
-      const qd = await Api.get('/api/wa/qr');
-      const wrap = document.getElementById('wa-qr-wrap');
-      if (wrap && qd?.qr) {
-        wrap.innerHTML = `<img src="${qd.qr}" style="width:156px;height:156px;border-radius:6px">`;
-      }
-    } catch {}
-
-  } else if (s.status === 'INITIALIZING') {
-    _waConnected = false;
-    card.className = 'card shadow-sm mb-4 border-secondary';
-    card.innerHTML = `
-      <div class="card-body py-3 d-flex align-items-center gap-3">
-        <div class="spinner-border spinner-border-sm text-success"></div>
-        <div>
-          <div class="fw-semibold">Iniciando serviço WhatsApp...</div>
-          <div class="small text-muted">Aguarde — pode levar até 30 segundos na primeira vez.</div>
-        </div>
-      </div>`;
-    if (hint) hint.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Aguardando serviço...';
-
-  } else {
-    _waConnected = false;
-    card.className = 'card shadow-sm mb-4 border-secondary';
-    card.innerHTML = `
-      <div class="card-body py-3">
-        <div class="d-flex align-items-center gap-3 mb-2">
-          <i class="bi bi-whatsapp fs-4 text-muted"></i>
-          <div>
-            <div class="fw-semibold">Serviço WhatsApp inativo</div>
-            <div class="small text-muted">Para ativar o envio automático, execute <code>wa_service\\iniciar_wa.bat</code></div>
-          </div>
-        </div>
-        <div class="small text-muted">
-          <i class="bi bi-info-circle me-1"></i>
-          No modo atual os envios abrem o WhatsApp Web no navegador (uma aba por clube).
-        </div>
-      </div>`;
-    if (hint) hint.innerHTML = '<i class="bi bi-box-arrow-up-right me-1"></i>Cada envio abre o WhatsApp Web no navegador';
-  }
+  if (hint) hint.innerHTML = _waConnected
+    ? '<i class="bi bi-lightning-fill me-1 text-success"></i>Envio automático via Meta Cloud API'
+    : '<i class="bi bi-box-arrow-up-right me-1"></i>Cada envio abre o WhatsApp Web no navegador';
 }
 
 function current_user_can_admin() {
   return state.user && state.user.perfil === 'admin';
-}
-
-async function desconectarWA() {
-  try {
-    await Api.post('/api/wa/disconnect', {});
-    toast('WhatsApp desconectado.', 'info');
-    _waConnected = false;
-    await _pollWAStatus();
-    if (!_waStatusTimer) _waStatusTimer = setInterval(_pollWAStatus, 4000);
-  } catch(e) { toast(e.message, 'danger'); }
 }
 
 let _waFiltrados = [];

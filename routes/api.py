@@ -15,7 +15,20 @@ from models import (Usuario, Clube, WaLog, EmailLog, Config, FinanceiroClube,
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 ALLOWED_EXTENSIONS = {'.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png'}
-WA_SERVICE = os.environ.get('WA_SERVICE_URL', 'http://localhost:3001')
+WA_PHONE_ID = os.environ.get('WA_PHONE_NUMBER_ID', '')
+WA_TOKEN    = os.environ.get('WA_ACCESS_TOKEN', '')
+WA_API_URL  = 'https://graph.facebook.com/v18.0'
+
+
+def _wa_format_number(raw):
+    """Normaliza número para formato E.164 sem '+' (ex: 5511999999999)."""
+    import re
+    digits = re.sub(r'\D', '', raw or '')
+    if not digits:
+        return None
+    if digits.startswith('55') and len(digits) >= 12:
+        return digits
+    return '55' + digits
 
 
 # ── helpers ─────────────────────────────────────────────────────────────────
@@ -768,61 +781,55 @@ def delete_usuario(id):
     return ok()
 
 
-# ── WHATSAPP SERVICE PROXY ───────────────────────────────────────────────────
+# ── WHATSAPP CLOUD API (Meta) ─────────────────────────────────────────────────
 @api_bp.route('/wa/status')
 @login_required
 def wa_status():
-    try:
-        r = http.get(f'{WA_SERVICE}/status', timeout=3)
-        return ok(r.json())
-    except Exception:
-        return ok({'status': 'OFFLINE', 'hasQr': False})
-
-
-@api_bp.route('/wa/qr')
-@login_required
-def wa_qr():
-    try:
-        r = http.get(f'{WA_SERVICE}/qr', timeout=3)
-        if r.ok:
-            return ok(r.json())
-        return err('QR não disponível.', 404)
-    except Exception as e:
-        return err(str(e))
+    if WA_PHONE_ID and WA_TOKEN:
+        return ok({'status': 'CONNECTED'})
+    return ok({'status': 'NOT_CONFIGURED'})
 
 
 @api_bp.route('/wa/send', methods=['POST'])
 @login_required
 def wa_send():
+    if not (WA_PHONE_ID and WA_TOKEN):
+        return err('API do WhatsApp não configurada. Defina WA_PHONE_NUMBER_ID e WA_ACCESS_TOKEN no Render.')
     d = request.get_json(silent=True) or {}
+    numero = _wa_format_number(d.get('numero'))
+    if not numero:
+        return err('Número de telefone inválido.')
+    mensagem = (d.get('mensagem') or '').strip()
+    if not mensagem:
+        return err('Mensagem vazia.')
     try:
-        r = http.post(f'{WA_SERVICE}/send', json={
-            'numero':   d.get('numero'),
-            'mensagem': d.get('mensagem'),
-        }, timeout=15)
+        r = http.post(
+            f'{WA_API_URL}/{WA_PHONE_ID}/messages',
+            headers={
+                'Authorization': f'Bearer {WA_TOKEN}',
+                'Content-Type': 'application/json',
+            },
+            json={
+                'messaging_product': 'whatsapp',
+                'recipient_type': 'individual',
+                'to': numero,
+                'type': 'text',
+                'text': {'preview_url': False, 'body': mensagem},
+            },
+            timeout=15,
+        )
         data = r.json()
         if not r.ok:
-            return err(data.get('error', 'Erro ao enviar.'))
+            meta_err = (data.get('error') or {}).get('message', 'Erro ao enviar via Meta API.')
+            return err(meta_err)
         log = WaLog(
             clube_nome=d.get('clube', ''),
-            mensagem=d.get('mensagem', ''),
+            mensagem=mensagem,
             enviado_por_id=current_user.id,
         )
         db.session.add(log)
         db.session.commit()
         return ok()
-    except Exception as e:
-        return err(str(e))
-
-
-@api_bp.route('/wa/disconnect', methods=['POST'])
-@login_required
-def wa_disconnect():
-    if not current_user.pode_gerenciar_usuarios():
-        return err('Sem permissão.', 403)
-    try:
-        r = http.post(f'{WA_SERVICE}/disconnect', timeout=5)
-        return ok(r.json())
     except Exception as e:
         return err(str(e))
 
