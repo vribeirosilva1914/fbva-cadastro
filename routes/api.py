@@ -170,6 +170,33 @@ def usuario_dict(u):
         'criadoEm': u.criado_em.isoformat() if u.criado_em else None,
     }
 
+def _upsert_associado(clube_id, nome, cpf, email, whatsapp):
+    """Garante que o membro da diretoria também exista como Associado."""
+    assoc = None
+    if cpf:
+        assoc = Associado.query.filter_by(clube_id=clube_id, cpf=cpf).first()
+    if not assoc:
+        assoc = Associado.query.filter(
+            Associado.clube_id == clube_id,
+            db.func.lower(Associado.nome) == nome.lower(),
+        ).first()
+    if assoc:
+        assoc.nome    = nome
+        if cpf:      assoc.cpf      = cpf
+        if email:    assoc.email    = email
+        if whatsapp: assoc.whatsapp = whatsapp
+        assoc.ativo = True
+    else:
+        db.session.add(Associado(
+            clube_id=clube_id,
+            nome=nome,
+            cpf=cpf or None,
+            email=email or None,
+            whatsapp=whatsapp or None,
+            ativo=True,
+        ))
+
+
 def _clube_from_json(data, clube=None):
     if clube is None:
         clube = Clube()
@@ -291,6 +318,9 @@ def create_clube():
     c = _clube_from_json(d)
     c.criado_por_id = current_user.id
     db.session.add(c)
+    db.session.flush()  # garante c.id disponível
+    for m in c.membros_diretoria:
+        _upsert_associado(c.id, m.nome, m.cpf, m.email, m.whatsapp)
     db.session.commit()
     return ok(clube_full_dict(c), code=201)
 
@@ -344,6 +374,8 @@ def update_clube(id):
     if cnpj and conflito:
         return err('Já existe outro clube com este CNPJ.')
     _clube_from_json(d, c)
+    for m in c.membros_diretoria:
+        _upsert_associado(c.id, m.nome, m.cpf, m.email, m.whatsapp)
     db.session.commit()
     return ok(clube_full_dict(c))
 
@@ -452,16 +484,20 @@ def replace_membros(cid):
         nome = (m.get('nome') or '').strip()
         if not nome:
             continue
+        cpf      = m.get('cpf') or None
+        email    = m.get('email') or None
+        whatsapp = m.get('whatsapp') or None
         db.session.add(MembroDiretoria(
             clube_id=cid,
             cargo=m.get('cargo') or 'outro',
             nome=nome,
-            cpf=m.get('cpf') or None,
-            email=m.get('email') or None,
-            whatsapp=m.get('whatsapp') or None,
+            cpf=cpf,
+            email=email,
+            whatsapp=whatsapp,
             data_nascimento=parse_date(m.get('dataNascimento')),
             ordem=i,
         ))
+        _upsert_associado(cid, nome, cpf, email, whatsapp)
     db.session.commit()
     return ok([membro_dict(m) for m in c.membros_diretoria])
 
