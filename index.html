@@ -1151,7 +1151,10 @@ async function renderClubeForm(id=null) {
           <label class="form-label">Contato Preferencial</label>
           <select name="contatoPreferencial" id="sel-contato-pref" class="form-select">
             <option value="">— Nenhum —</option>
-            ${_fMembros.filter(m=>m.nome).map(m=>`<option value="${esc(m.nome)}"${v.contatoPreferencial===m.nome?' selected':''}>${esc(m.nome)}${m.cargo?' ('+m.cargo+')':''}</option>`).join('')}
+            ${(()=>{
+              const defContato=v.contatoPreferencial||(_fMembros.find(m=>m.nome&&(m.cargo||'').toLowerCase()==='presidente')?.nome||'');
+              return _fMembros.filter(m=>m.nome).map(m=>`<option value="${esc(m.nome)}"${defContato===m.nome?' selected':''}>${esc(m.nome)}${m.cargo?' ('+m.cargo+')':''}</option>`).join('');
+            })()}
           </select>
         </div>
         <div class="col-md-3">
