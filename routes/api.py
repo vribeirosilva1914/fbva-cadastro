@@ -9,7 +9,8 @@ from werkzeug.utils import secure_filename
 from extensions import db
 from models import (Usuario, Clube, WaLog, EmailLog, Config, FinanceiroClube,
                     Trimestralidade, MembroDiretoria, Documento,
-                    EnderecoAdicional, Contato, ContatoTelefone, ContatoEmail, Associado)
+                    EnderecoAdicional, Contato, ContatoTelefone, ContatoEmail,
+                    Associado, ClippingNoticia)
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -1036,5 +1037,146 @@ def add_wa_log():
 @login_required
 def clear_wa_log():
     WaLog.query.delete()
+    db.session.commit()
+    return ok()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CLIPPING DE NOTÍCIAS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+CLIPPING_KEYWORDS = [
+    'carros antigos',
+    'veículos antigos',
+    'automóveis clássicos',
+    'carros clássicos',
+    'veículos históricos',
+    'encontro de carros antigos',
+    'mostra de carros antigos',
+    'colecionadores de carros',
+    'FBVA federação brasileira veículos antigos',
+]
+
+
+def _scrape_clipping():
+    import xml.etree.ElementTree as ET
+    from urllib.parse import quote
+    from email.utils import parsedate_to_datetime
+
+    novos = 0
+    for kw in CLIPPING_KEYWORDS:
+        try:
+            url = (
+                'https://news.google.com/rss/search?q='
+                + quote(f'"{kw}"')
+                + '&hl=pt-BR&gl=BR&ceid=BR:pt-419'
+            )
+            r = http.get(url, timeout=12, headers={'User-Agent': 'Mozilla/5.0'})
+            root = ET.fromstring(r.content)
+            for item in root.findall('.//item'):
+                titulo = (item.findtext('title') or '').strip()
+                link   = (item.findtext('link')  or '').strip()
+                desc   = (item.findtext('description') or '').strip()
+                fonte_el = item.find('source')
+                fonte  = (fonte_el.text or '').strip() if fonte_el is not None else ''
+                pub    = (item.findtext('pubDate') or '').strip()
+                try:
+                    pub_dt = parsedate_to_datetime(pub).replace(tzinfo=None) if pub else None
+                except Exception:
+                    pub_dt = None
+                if not titulo or not link:
+                    continue
+                if not ClippingNoticia.query.filter_by(url=link).first():
+                    db.session.add(ClippingNoticia(
+                        titulo=titulo[:500],
+                        url=link[:1000],
+                        fonte=fonte[:200],
+                        resumo=desc[:1000],
+                        publicado_em=pub_dt,
+                        palavra_chave=kw,
+                    ))
+                    novos += 1
+        except Exception:
+            continue
+
+    db.session.commit()
+    cfg = db.session.get(Config, 'clipping_ultima_busca') or Config(chave='clipping_ultima_busca')
+    cfg.valor = datetime.utcnow().isoformat()
+    db.session.merge(cfg)
+    db.session.commit()
+    return novos
+
+
+@api_bp.route('/clipping')
+@login_required
+def list_clipping():
+    nao_lidas = request.args.get('nao_lidas') == '1'
+    q = ClippingNoticia.query.order_by(
+        ClippingNoticia.publicado_em.desc(),
+        ClippingNoticia.coletado_em.desc()
+    )
+    if nao_lidas:
+        q = q.filter_by(lida=False)
+    noticias = q.limit(200).all()
+    ultima = db.session.get(Config, 'clipping_ultima_busca')
+    return ok({
+        'noticias': [{
+            'id':          n.id,
+            'titulo':      n.titulo,
+            'url':         n.url,
+            'fonte':       n.fonte,
+            'resumo':      n.resumo,
+            'publicadoEm': n.publicado_em.isoformat() if n.publicado_em else None,
+            'coletadoEm':  n.coletado_em.isoformat() if n.coletado_em else None,
+            'palavraChave': n.palavra_chave,
+            'lida':        n.lida,
+        } for n in noticias],
+        'ultimaBusca': ultima.valor if ultima else None,
+        'total': ClippingNoticia.query.count(),
+        'naoLidas': ClippingNoticia.query.filter_by(lida=False).count(),
+    })
+
+
+@api_bp.route('/clipping/buscar', methods=['POST'])
+@login_required
+def buscar_clipping():
+    novos = _scrape_clipping()
+    return ok({'novos': novos})
+
+
+@api_bp.route('/clipping/<int:nid>/lida', methods=['PATCH'])
+@login_required
+def marcar_lida_clipping(nid):
+    n = db.session.get(ClippingNoticia, nid)
+    if not n:
+        return err('Notícia não encontrada.', 404)
+    n.lida = request.json.get('lida', True)
+    db.session.commit()
+    return ok()
+
+
+@api_bp.route('/clipping/lidas-todas', methods=['PATCH'])
+@login_required
+def marcar_todas_lidas():
+    ClippingNoticia.query.filter_by(lida=False).update({'lida': True})
+    db.session.commit()
+    return ok()
+
+
+@api_bp.route('/clipping/<int:nid>', methods=['DELETE'])
+@login_required
+def deletar_clipping(nid):
+    n = db.session.get(ClippingNoticia, nid)
+    if not n:
+        return err('Notícia não encontrada.', 404)
+    db.session.delete(n)
+    db.session.commit()
+    return ok()
+
+
+@api_bp.route('/clipping', methods=['DELETE'])
+@login_required
+def limpar_clipping():
+    ClippingNoticia.query.delete()
     db.session.commit()
     return ok()

@@ -254,6 +254,20 @@ class WaLog(db.Model):
     enviado_por = db.relationship('Usuario', foreign_keys=[enviado_por_id])
 
 
+class ClippingNoticia(db.Model):
+    __tablename__ = 'clipping_noticias'
+
+    id            = db.Column(db.Integer, primary_key=True)
+    titulo        = db.Column(db.String(500), nullable=False)
+    url           = db.Column(db.String(1000), nullable=False, unique=True)
+    fonte         = db.Column(db.String(200))
+    resumo        = db.Column(db.Text)
+    publicado_em  = db.Column(db.DateTime)
+    coletado_em   = db.Column(db.DateTime, default=datetime.utcnow)
+    palavra_chave = db.Column(db.String(100))
+    lida          = db.Column(db.Boolean, default=False)
+
+
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(Usuario, int(user_id))

@@ -212,6 +212,7 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;font-size:
       <div class="nav-sec mt-2" id="nav-sec-comunicacao">Comunicação</div>
       <button class="nl" id="nav-mensageiro" onclick="App.go('mensageiro')" style="color:rgba(37,211,102,.85)"><i class="bi bi-whatsapp"></i><span>Mensageiro WhatsApp</span></button>
       <button class="nl" id="nav-email" onclick="App.go('email')"><i class="bi bi-envelope-fill"></i><span>Mensageiro E-mail</span></button>
+      <button class="nl" id="nav-clipping" onclick="App.go('clipping')"><i class="bi bi-newspaper"></i><span>Clipping de Notícias</span></button>
       <div class="nav-sec mt-2" id="nav-adm-label">Administração</div>
       <button class="nl" id="nav-usuarios" onclick="App.go('usuarios')"><i class="bi bi-people-fill"></i><span>Usuários</span></button>
       <button class="nl" id="nav-novo-usuario" onclick="App.go('usuario-form')"><i class="bi bi-person-plus-fill"></i><span>Novo Usuário</span></button>
@@ -548,7 +549,7 @@ function showApp() {
     const el=document.getElementById(id);
     if(el) el.style.display=pode.secretaria()?'':'none';
   });
-  ['nav-sec-comunicacao','nav-mensageiro','nav-email'].forEach(id=>{
+  ['nav-sec-comunicacao','nav-mensageiro','nav-email','nav-clipping'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.style.display=pode.comunicacao()?'':'none';
   });
@@ -568,7 +569,7 @@ function activateNav(v) {
     'clube-form':'[onclick*="clube-form"]','clube-detalhe':'[onclick*="clubes"]',
     usuarios:'[onclick*="usuarios"]','usuario-form':'[onclick*="usuario-form"]',
     mensageiro:'[onclick*="mensageiro"]',gestao:'[onclick*="gestao"]',
-    email:'[onclick*="email"]'};
+    email:'[onclick*="email"]',clipping:'[onclick*="clipping"]'};
   const sel=map[v];
   if(sel) document.querySelector(`.sb-nav ${sel}`)?.classList.add('active');
 }
@@ -781,6 +782,7 @@ async function go(view,id=null) {
     else if(view==='gestao')        await renderGestao();
     else if(view==='mensageiro')    await renderMensageiro();
     else if(view==='email')         await renderMensageiroEmail();
+    else if(view==='clipping')      await renderClipping();
   } catch(e) { toast(e.message,'danger'); }
   window.scrollTo(0,0);
 }
@@ -3520,6 +3522,141 @@ function downloadTemplateCSV() {
   URL.revokeObjectURL(url);
 }
 
+// ═════════ CLIPPING DE NOTÍCIAS ══════════════════════
+let _clData=null; // {noticias, ultimaBusca, total, naoLidas}
+let _clFiltro='todas'; // 'todas' | 'nao_lidas' | keyword
+
+async function renderClipping(){
+  if(!pode.comunicacao()){toast('Acesso negado.','danger');await go('dashboard');return;}
+  setTitle('<i class="bi bi-newspaper me-2"></i>Clipping de Notícias',
+    `<div class="btn-group btn-group-sm">
+      <button class="btn btn-outline-secondary" id="cl-btn-todas" onclick="App._clFiltrar('todas')">Todas</button>
+      <button class="btn btn-outline-secondary" id="cl-btn-nao" onclick="App._clFiltrar('nao_lidas')">Não lidas</button>
+    </div>
+    <button class="btn btn-primary btn-sm ms-2" id="cl-btn-buscar" onclick="App._clBuscar()">
+      <i class="bi bi-arrow-clockwise me-1"></i>Buscar novas</button>`);
+  render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
+  try {
+    const res=await Api.get('/api/clipping');
+    _clData=res;
+    _clFiltro='todas';
+    _clRender();
+  } catch(e){ toast(e.message,'danger'); }
+}
+
+function _clRender(){
+  if(!_clData)return;
+  const {noticias,ultimaBusca,naoLidas}=_clData;
+  const lista=_clFiltro==='nao_lidas'?noticias.filter(n=>!n.lida):noticias;
+  const fmtDt=s=>{if(!s)return'—';const d=new Date(s);return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'});};
+  const fmtBusca=s=>{if(!s)return'nunca';const d=new Date(s);return d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});};
+  const kwColor=kw=>{const map={'carros antigos':'primary','veículos antigos':'success','automóveis clássicos':'warning','carros clássicos':'info','veículos históricos':'secondary','encontro de carros antigos':'danger','mostra de carros antigos':'dark','colecionadores de carros':'primary','FBVA federação brasileira veículos antigos':'success'};return map[kw]||'secondary';};
+
+  document.getElementById('cl-btn-todas')?.classList.toggle('active',_clFiltro==='todas');
+  document.getElementById('cl-btn-nao')?.classList.toggle('active',_clFiltro==='nao_lidas');
+
+  render(`
+  <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+    <div class="text-muted small">
+      <i class="bi bi-clock me-1"></i>Última busca: <strong>${fmtBusca(ultimaBusca)}</strong>
+      &nbsp;·&nbsp; <span class="text-body">${noticias.length} notícia${noticias.length!==1?'s':''}</span>
+      ${naoLidas>0?`&nbsp;·&nbsp; <span class="badge bg-danger">${naoLidas} não lida${naoLidas!==1?'s':''}</span>`:''}
+    </div>
+    <div class="d-flex gap-2">
+      ${naoLidas>0?`<button class="btn btn-sm btn-outline-secondary" onclick="App._clMarcarTodasLidas()">
+        <i class="bi bi-check2-all me-1"></i>Marcar todas como lidas</button>`:''}
+      <button class="btn btn-sm btn-outline-danger" onclick="App._clLimpar()">
+        <i class="bi bi-trash me-1"></i>Limpar histórico</button>
+    </div>
+  </div>
+
+  ${!lista.length?`
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-newspaper display-4 d-block mb-3 opacity-25"></i>
+    ${_clFiltro==='nao_lidas'?'Nenhuma notícia não lida.':'Nenhuma notícia coletada ainda. Clique em <strong>Buscar novas</strong>.'}
+  </div>`:`
+  <div class="row g-3">
+    ${lista.map(n=>`
+    <div class="col-12 col-lg-6" id="cl-card-${n.id}">
+      <div class="card h-100 shadow-sm${n.lida?' opacity-50':''}">
+        <div class="card-body pb-2">
+          <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+            <span class="badge bg-${kwColor(n.palavraChave)}-subtle text-${kwColor(n.palavraChave)} border border-${kwColor(n.palavraChave)}-subtle" style="font-size:.68rem">${esc(n.palavraChave)}</span>
+            <span class="text-muted" style="font-size:.72rem;white-space:nowrap">${fmtDt(n.publicadoEm)}</span>
+          </div>
+          <a href="${esc(n.url)}" target="_blank" rel="noopener"
+            class="text-decoration-none text-body fw-semibold d-block mb-1 lh-sm"
+            onclick="App._clMarcarLida(${n.id},true)"
+            style="font-size:.9rem">${esc(n.titulo)}</a>
+          ${n.fonte?`<div class="text-muted" style="font-size:.75rem"><i class="bi bi-journal me-1"></i>${esc(n.fonte)}</div>`:''}
+        </div>
+        <div class="card-footer bg-transparent pt-0 border-0 d-flex gap-1 justify-content-end">
+          <button class="btn btn-sm btn-link p-0 text-muted" title="${n.lida?'Marcar como não lida':'Marcar como lida'}"
+            onclick="App._clMarcarLida(${n.id},${!n.lida})">
+            <i class="bi bi-${n.lida?'envelope':'envelope-open'}" style="font-size:.85rem"></i></button>
+          <button class="btn btn-sm btn-link p-0 text-danger ms-2" title="Remover"
+            onclick="App._clDeletar(${n.id})">
+            <i class="bi bi-trash" style="font-size:.85rem"></i></button>
+        </div>
+      </div>
+    </div>`).join('')}
+  </div>`}
+  `);
+}
+
+async function _clBuscar(){
+  const btn=document.getElementById('cl-btn-buscar');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Buscando...';}
+  try {
+    const r=await Api.call('/api/clipping/buscar',{method:'POST'});
+    toast(`Busca concluída — ${r.novos} nova${r.novos!==1?'s':''} notícia${r.novos!==1?'s':''} encontrada${r.novos!==1?'s':''}.`);
+    const res=await Api.get('/api/clipping');
+    _clData=res;
+    _clRender();
+  } catch(e){ toast(e.message,'danger'); }
+  finally{ if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-arrow-clockwise me-1"></i>Buscar novas';} }
+}
+
+function _clFiltrar(f){
+  _clFiltro=f;
+  _clRender();
+}
+
+async function _clMarcarLida(id,lida){
+  try{
+    await Api.call(`/api/clipping/${id}/lida`,{method:'PATCH',body:{lida}});
+    if(_clData){const n=_clData.noticias.find(x=>x.id===id);if(n){n.lida=lida;_clData.naoLidas=_clData.noticias.filter(x=>!x.lida).length;}}
+    _clRender();
+  }catch(e){toast(e.message,'danger');}
+}
+
+async function _clMarcarTodasLidas(){
+  try{
+    await Api.call('/api/clipping/lidas-todas',{method:'PATCH'});
+    if(_clData){_clData.noticias.forEach(n=>n.lida=true);_clData.naoLidas=0;}
+    _clRender();
+  }catch(e){toast(e.message,'danger');}
+}
+
+async function _clDeletar(id){
+  try{
+    await Api.del(`/api/clipping/${id}`);
+    if(_clData){_clData.noticias=_clData.noticias.filter(n=>n.id!==id);_clData.naoLidas=_clData.noticias.filter(n=>!n.lida).length;}
+    _clRender();
+  }catch(e){toast(e.message,'danger');}
+}
+
+async function _clLimpar(){
+  showConfirm('Remover <strong>todo o histórico</strong> de notícias coletadas?',async()=>{
+    try{
+      await Api.call('/api/clipping',{method:'DELETE'});
+      if(_clData){_clData.noticias=[];_clData.naoLidas=0;}
+      _clRender();
+      toast('Histórico limpo.');
+    }catch(e){toast(e.message,'danger');}
+  });
+}
+
 // ── Init ───────────────────────────────────────
 async function init() {
   document.getElementById('l-senha').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
@@ -3546,6 +3683,8 @@ return{
   _renderGestaoTab,_filtrarGestao,
   _abrirUploadDoc,_abrirUploadDocClube,_submitUploadDoc,_excluirDoc,
   _triNavAno,_editarTri,_salvarTrimestralidade,
+  // Clipping
+  _clBuscar,_clFiltrar,_clMarcarLida,_clMarcarTodasLidas,_clDeletar,_clLimpar,
   // Form dynamic sections
   _addMembro,_addEndereco,
   // Detail view actions
