@@ -47,12 +47,13 @@ def fmt_size(n):
 
 def clube_dict(c):
     criador = c.criado_por
+    presidente = next((m for m in c.membros_diretoria if (m.cargo or '').lower() == 'presidente'), None)
     return {
         'id':                  c.id,
         'nomeClube':           c.nome_clube,
         'cnpj':                c.cnpj,
-        'nomePresidente':      c.nome_presidente,
-        'dataNascimentoPresidente': c.data_nascimento_presidente.isoformat() if c.data_nascimento_presidente else None,
+        'nomePresidente':      presidente.nome if presidente else None,
+        'dataNascimentoPresidente': presidente.data_nascimento.isoformat() if presidente and presidente.data_nascimento else None,
         'dataFundacao':        c.data_fundacao.isoformat() if c.data_fundacao else None,
         'contatoPreferencial': c.contato_preferencial,
         'fimMandato':          c.fim_mandato.isoformat() if c.fim_mandato else None,
@@ -156,25 +157,36 @@ def usuario_dict(u):
 def _clube_from_json(data, clube=None):
     if clube is None:
         clube = Clube()
-    clube.nome_clube                  = (data.get('nomeClube') or '').strip()
-    clube.cnpj                        = data.get('cnpj') or None
-    clube.nome_presidente             = data.get('nomePresidente') or None
-    clube.data_nascimento_presidente  = parse_date(data.get('dataNascimentoPresidente'))
-    clube.data_fundacao               = parse_date(data.get('dataFundacao'))
-    clube.contato_preferencial        = data.get('contatoPreferencial') or None
-    clube.fim_mandato                 = parse_date(data.get('fimMandato'))
-    clube.endereco                    = data.get('endereco') or None
-    clube.cidade                      = data.get('cidade') or None
-    clube.estado                      = data.get('estado') or None
-    clube.telefone_celular            = data.get('telefoneCelular') or None
-    clube.email                       = data.get('email') or None
-    clube.instagram                   = data.get('instagram') or None
-    clube.facebook                    = data.get('facebook') or None
-    clube.site                        = data.get('site') or None
-    clube.youtube                     = data.get('youtube') or None
-    clube.tiktok                      = data.get('tiktok') or None
-    clube.observacoes                 = data.get('observacoes') or None
-    clube.ativo                       = bool(data.get('ativo', True))
+    clube.nome_clube           = (data.get('nomeClube') or '').strip()
+    clube.cnpj                 = data.get('cnpj') or None
+    clube.data_fundacao        = parse_date(data.get('dataFundacao'))
+    clube.contato_preferencial = data.get('contatoPreferencial') or None
+    clube.fim_mandato          = parse_date(data.get('fimMandato'))
+    clube.endereco             = data.get('endereco') or None
+    clube.cidade               = data.get('cidade') or None
+    clube.estado               = data.get('estado') or None
+    clube.telefone_celular     = data.get('telefoneCelular') or None
+    clube.email                = data.get('email') or None
+    clube.instagram            = data.get('instagram') or None
+    clube.facebook             = data.get('facebook') or None
+    clube.site                 = data.get('site') or None
+    clube.youtube              = data.get('youtube') or None
+    clube.tiktok               = data.get('tiktok') or None
+    clube.observacoes          = data.get('observacoes') or None
+    clube.ativo                = bool(data.get('ativo', True))
+    # Se vier nomePresidente (ex: importação CSV), upsert no membro Presidente
+    nome_pres = (data.get('nomePresidente') or '').strip()
+    if nome_pres:
+        nasc_pres = parse_date(data.get('dataNascimentoPresidente'))
+        pres = next((m for m in clube.membros_diretoria if (m.cargo or '').lower() == 'presidente'), None)
+        if pres:
+            pres.nome = nome_pres
+            if nasc_pres is not None:
+                pres.data_nascimento = nasc_pres
+        else:
+            clube.membros_diretoria.append(MembroDiretoria(
+                cargo='Presidente', nome=nome_pres, data_nascimento=nasc_pres, ordem=0,
+            ))
     return clube
 
 
@@ -238,7 +250,7 @@ def list_clubes():
         like = f'%{q}%'
         query = query.filter(db.or_(
             Clube.nome_clube.ilike(like),
-            Clube.nome_presidente.ilike(like),
+            Clube.membros_diretoria.any(MembroDiretoria.nome.ilike(like)),
             Clube.cidade.ilike(like),
             Clube.cnpj.ilike(like),
         ))

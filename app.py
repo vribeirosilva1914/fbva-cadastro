@@ -107,6 +107,19 @@ def _migrate_db():
                     if col_name not in clip_cols:
                         conn.execute(text(f'ALTER TABLE clipping_noticias ADD COLUMN {col_name} {col_def}'))
 
+            # Migrar nome_presidente → membros_diretoria (cargo Presidente)
+            if 'membros_diretoria' in inspector.get_table_names():
+                conn.execute(text("""
+                    INSERT INTO membros_diretoria (clube_id, cargo, nome, data_nascimento, ordem)
+                    SELECT c.id, 'Presidente', c.nome_presidente, c.data_nascimento_presidente, 0
+                    FROM clubes c
+                    WHERE c.nome_presidente IS NOT NULL AND c.nome_presidente != ''
+                      AND NOT EXISTS (
+                        SELECT 1 FROM membros_diretoria m
+                        WHERE m.clube_id = c.id AND lower(m.cargo) = 'presidente'
+                      )
+                """))
+
             conn.commit()
     except Exception:
         pass

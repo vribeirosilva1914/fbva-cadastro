@@ -844,13 +844,13 @@ async function renderDashboard() {
   const cl=await Api.get('/api/clubes?status=todos');
   state.clubes=cl;
   const hoje=new Date().toISOString().slice(0,10);
-  const em60=new Date(Date.now()+60*864e5).toISOString().slice(0,10);
+  const em60=new Date(Date.now()+30*864e5).toISOString().slice(0,10);
   const total=cl.length, ativos=cl.filter(c=>c.ativo).length;
   const vencidos=cl.filter(c=>c.ativo&&c.fimMandato&&c.fimMandato<hoje).length;
   const proximos=cl.filter(c=>c.ativo&&c.fimMandato&&c.fimMandato>=hoje&&c.fimMandato<=em60).length;
   const totalAssociados=cl.reduce((s,c)=>s+(c.numAssociados||0),0);
   const totalMembros=cl.reduce((s,c)=>s+(c.numMembros||0),0);
-  const totalDocs=cl.reduce((s,c)=>s+(c.numDocs||0),0);
+
   const recentes=[...cl].sort((a,b)=>b.id-a.id).slice(0,5);
   const anivs=aniversariantesDoMes(cl);
   const mandatosAlerta=cl.filter(c=>c.ativo&&c.fimMandato&&c.fimMandato<=em60)
@@ -869,7 +869,7 @@ async function renderDashboard() {
     </div></div>
     <div class="col-6 col-xl-3"><div class="stat-card sc-yellow">
       <div class="sc-icon"><i class="bi bi-clock-history"></i></div>
-      <div class="sc-val">${proximos}</div><div class="sc-lbl">Mandatos Vencendo (60 dias)</div>
+      <div class="sc-val">${proximos}</div><div class="sc-lbl">Mandatos Vencendo (30 dias)</div>
     </div></div>
     <div class="col-6 col-xl-3"><div class="stat-card sc-red">
       <div class="sc-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
@@ -879,17 +879,13 @@ async function renderDashboard() {
 
   <!-- Stat cards secundários -->
   <div class="row g-3 mb-4">
-    <div class="col-6 col-sm-4"><div class="stat-card sc-blue">
+    <div class="col-6"><div class="stat-card sc-blue">
       <div class="sc-icon"><i class="bi bi-people-fill"></i></div>
       <div class="sc-val">${totalAssociados}</div><div class="sc-lbl">Total de Associados</div>
     </div></div>
-    <div class="col-6 col-sm-4"><div class="stat-card sc-indigo">
+    <div class="col-6"><div class="stat-card sc-indigo">
       <div class="sc-icon"><i class="bi bi-person-badge-fill"></i></div>
       <div class="sc-val">${totalMembros}</div><div class="sc-lbl">Membros de Diretoria</div>
-    </div></div>
-    <div class="col-6 col-sm-4"><div class="stat-card sc-purple">
-      <div class="sc-icon"><i class="bi bi-file-earmark-fill"></i></div>
-      <div class="sc-val">${totalDocs}</div><div class="sc-lbl">Documentos Arquivados</div>
     </div></div>
   </div>
 
@@ -1139,14 +1135,6 @@ async function renderClubeForm(id=null) {
           <input name="dataFundacao" type="date" class="form-control" value="${v.dataFundacao||''}" title="Data de criação do clube">
         </div>
         <div class="col-md-5">
-          <label class="form-label">Nome do Presidente</label>
-          <input name="nomePresidente" class="form-control" value="${esc(v.nomePresidente||'')}" placeholder="Nome completo">
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Data de Nasc. do Presidente</label>
-          <input name="dataNascimentoPresidente" type="date" class="form-control" value="${v.dataNascimentoPresidente||''}">
-        </div>
-        <div class="col-md-5">
           <label class="form-label">Contato Preferencial</label>
           <select name="contatoPreferencial" id="sel-contato-pref" class="form-select">
             <option value="">— Nenhum —</option>
@@ -1386,8 +1374,7 @@ async function renderClubeDetalhe(id) {
           <div class="col-sm-6"><div class="d-lbl">Nome do Clube</div><div class="d-val">${esc(c.nomeClube)}</div></div>
           <div class="col-sm-3"><div class="d-lbl">CNPJ</div><div class="d-val">${optStr(esc(c.cnpj))}</div></div>
           <div class="col-sm-3"><div class="d-lbl">Fundação</div><div class="d-val">${c.dataFundacao?fmtDate(c.dataFundacao):'<span class="text-muted">—</span>'}</div></div>
-          <div class="col-sm-5"><div class="d-lbl">Presidente</div><div class="d-val">${optStr(esc(c.nomePresidente))}</div></div>
-          <div class="col-sm-4"><div class="d-lbl">Nasc. Presidente</div><div class="d-val">${c.dataNascimentoPresidente?fmtDate(c.dataNascimentoPresidente):'<span class="text-muted">—</span>'}</div></div>
+          <div class="col-sm-6"><div class="d-lbl">Presidente</div><div class="d-val">${optStr(esc(c.nomePresidente))}</div></div>
           <div class="col-sm-3"><div class="d-lbl">Fim do Mandato</div>
             <div class="d-val">${c.fimMandato?badgeDate(c.fimMandato):'<span class="text-muted">—</span>'}</div></div>
           <div class="col-sm-6"><div class="d-lbl">Contato Preferencial</div><div class="d-val">${optStr(esc(c.contatoPreferencial))}</div></div>
@@ -3364,15 +3351,16 @@ async function salvarSenha() {
 async function exportarCSV() {
   const cl=await Api.get('/api/clubes?status=todos');
   if(!cl.length){toast('Nenhum clube para exportar.','warning');return;}
-  const headers=['Nome do Clube','CNPJ','Nome do Presidente','Contato Preferencial',
-    'Fim do Mandato','Endereço','Cidade','Estado','Telefone Celular',
-    'E-mail','Instagram','Facebook','Observações','Ativo'];
-  const fields=['nomeClube','cnpj','nomePresidente','contatoPreferencial',
-    'fimMandato','endereco','cidade','estado','telefoneCelular',
-    'email','instagram','facebook','observacoes','ativo'];
+  const headers=['Nome do Clube','CNPJ','Nome do Presidente','Data de Fundação',
+    'Fim do Mandato','Endereço','Cidade','Estado',
+    'Telefone Celular','E-mail','Instagram','Facebook','Site','YouTube','TikTok','Observações','Ativo'];
+  const fields=['nomeClube','cnpj','nomePresidente','dataFundacao',
+    'fimMandato','endereco','cidade','estado',
+    'telefoneCelular','email','instagram','facebook','site','youtube','tiktok','observacoes','ativo'];
+  const dateFlds=new Set(['dataFundacao','fimMandato']);
   const rows=cl.map(c=>fields.map(f=>{
     let v=c[f]??'';
-    if(f==='fimMandato'&&v) v=fmtDate(v);
+    if(dateFlds.has(f)&&v) v=fmtDate(v);
     if(f==='ativo') v=v?'Sim':'Não';
     v=String(v);
     return v.includes(';')||v.includes('"')||v.includes('\n')?`"${v.replace(/"/g,'""')}"`:v;
@@ -3391,7 +3379,8 @@ const CSV_FIELD_MAP = {
   nomeClube:    ['nome do clube','nome clube','clube','club'],
   cnpj:         ['cnpj'],
   nomePresidente:['nome do presidente','presidente'],
-  contatoPreferencial:['contato preferencial','contato'],
+  dataNascimentoPresidente:['data nasc. presidente','data nascimento presidente','nasc. presidente','nascimento presidente','data nasc presidente','nasc presidente'],
+  dataFundacao: ['data de fundação','data de fundacao','data fundação','data fundacao','fundação','fundacao'],
   fimMandato:   ['fim do mandato','fim mandato','mandato','fim'],
   endereco:     ['endereço','endereco','rua','logradouro'],
   cidade:       ['cidade'],
@@ -3400,6 +3389,9 @@ const CSV_FIELD_MAP = {
   email:        ['e-mail','email','correio'],
   instagram:    ['instagram','insta'],
   facebook:     ['facebook','fb'],
+  site:         ['site','website','web','homepage'],
+  youtube:      ['youtube','yt','canal youtube'],
+  tiktok:       ['tiktok','tik tok'],
   observacoes:  ['observações','observacoes','obs','observação'],
 };
 
@@ -3557,6 +3549,8 @@ async function confirmarImportCSV() {
     const obj={}; headers.forEach((h,i)=>{if(mapping[i])obj[mapping[i]]=(row[i]||'').trim();});
     if(!obj.nomeClube) return;
     if(obj.fimMandato) obj.fimMandato=parseDateBR(obj.fimMandato);
+    if(obj.dataFundacao) obj.dataFundacao=parseDateBR(obj.dataFundacao);
+    if(obj.dataNascimentoPresidente) obj.dataNascimentoPresidente=parseDateBR(obj.dataNascimentoPresidente);
     obj.ativo = obj.ativo ? !['não','nao','false','0','inativo'].includes(obj.ativo.toLowerCase()) : true;
     registros.push(obj);
   });
@@ -3596,8 +3590,8 @@ async function confirmarImportCSV() {
 }
 
 function downloadTemplateCSV() {
-  const headers='Nome do Clube;CNPJ;Nome do Presidente;Contato Preferencial;Fim do Mandato;Endereço;Cidade;Estado;Telefone Celular;E-mail;Instagram;Facebook;Observações';
-  const ex='Clube Veículos Antigos SP;12.345.678/0001-90;João da Silva;WhatsApp;31/12/2025;Av. Paulista 1000;São Paulo;SP;(11) 99999-9999;clube@exemplo.com.br;@clubeexemplo;facebook.com/clubeexemplo;Clube fundado em 1985';
+  const headers='Nome do Clube;CNPJ;Nome do Presidente;Data Nasc. Presidente;Data de Fundação;Fim do Mandato;Endereço;Cidade;Estado;Telefone Celular;E-mail;Instagram;Facebook;Site;YouTube;TikTok;Observações';
+  const ex='Clube Veículos Antigos SP;12.345.678/0001-90;João da Silva;15/03/1965;10/04/1985;31/12/2025;Av. Paulista 1000;São Paulo;SP;(11) 99999-9999;clube@exemplo.com.br;@clubeexemplo;facebook.com/clubeexemplo;www.clube.org.br;youtube.com/@clube;@clubetiktok;Fundado em 1985';
   const csv='﻿'+headers+'\r\n'+ex;
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
   const url=URL.createObjectURL(blob);
