@@ -876,15 +876,27 @@ async function renderDashboard() {
       <i class="bi bi-plus-lg me-1"></i>Novo Clube</button>`:''
   );
   render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
-  const cl=await Api.get('/api/clubes?status=todos');
+  const anoAtual=new Date().getFullYear();
+  const [cl, tris]=await Promise.all([
+    Api.get('/api/clubes?status=todos'),
+    Api.get(`/api/trimestralidades?ano=${anoAtual}`),
+  ]);
   state.clubes=cl;
   const hoje=new Date().toISOString().slice(0,10);
   const em60=new Date(Date.now()+30*864e5).toISOString().slice(0,10);
-  const total=cl.length, ativos=cl.filter(c=>c.ativo).length;
+  const total=cl.length;
   const vencidos=cl.filter(c=>c.ativo&&c.fimMandato&&c.fimMandato<hoje).length;
   const proximos=cl.filter(c=>c.ativo&&c.fimMandato&&c.fimMandato>=hoje&&c.fimMandato<=em60).length;
   const totalAssociados=cl.reduce((s,c)=>s+(c.numAssociados||0),0);
   const totalMembros=cl.reduce((s,c)=>s+(c.numMembros||0),0);
+  const ativosIds=new Set(cl.filter(c=>c.ativo).map(c=>c.id));
+  const inadimpSet=new Set();
+  tris.forEach(r=>{
+    if(!ativosIds.has(r.clubeId)) return;
+    if(r.status==='vencido'||(r.status==='pendente'&&r.dataVencimento&&r.dataVencimento<hoje))
+      inadimpSet.add(r.clubeId);
+  });
+  const inadimplentes=inadimpSet.size;
 
   const recentes=[...cl].sort((a,b)=>b.id-a.id).slice(0,5);
   const anivs=aniversariantesDoMes(cl);
@@ -898,9 +910,9 @@ async function renderDashboard() {
       <div class="sc-icon"><i class="bi bi-building-fill"></i></div>
       <div class="sc-val">${total}</div><div class="sc-lbl">Total de Clubes</div>
     </div></div>
-    <div class="col-6 col-xl-3"><div class="stat-card sc-teal">
-      <div class="sc-icon"><i class="bi bi-check-circle-fill"></i></div>
-      <div class="sc-val">${ativos}</div><div class="sc-lbl">Clubes Ativos</div>
+    <div class="col-6 col-xl-3"><div class="stat-card sc-purple">
+      <div class="sc-icon"><i class="bi bi-exclamation-circle-fill"></i></div>
+      <div class="sc-val">${inadimplentes}</div><div class="sc-lbl">Inadimplentes (Tri.)</div>
     </div></div>
     <div class="col-6 col-xl-3"><div class="stat-card sc-yellow">
       <div class="sc-icon"><i class="bi bi-clock-history"></i></div>
