@@ -1045,16 +1045,57 @@ def clear_wa_log():
 # CLIPPING DE NOTÍCIAS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-CLIPPING_KEYWORDS = [
-    'carros antigos',
-    'veículos antigos',
-    'automóveis clássicos',
-    'carros clássicos',
-    'veículos históricos',
-    'encontro de carros antigos',
-    'mostra de carros antigos',
-    'colecionadores de carros',
-    'FBVA federação brasileira veículos antigos',
+# ── Fontes de clipping organizadas por bloco ─────────────────────────────────
+# type='gnews' → busca no Google News RSS
+# type='rss'   → feed RSS direto do site
+CLIPPING_SOURCES = [
+    # ── Bloco RADAR (grandes manchetes gerais) ───────────────────────────────
+    {'type':'gnews','query':'"carros antigos" OR "veículos antigos"',                           'bloco':'radar',       'nivel':1},
+    {'type':'gnews','query':'"carros clássicos" OR "automóveis clássicos"',                     'bloco':'radar',       'nivel':1},
+    {'type':'gnews','query':'FBVA "federação brasileira veículos antigos"',                      'bloco':'radar',       'nivel':1},
+    {'type':'gnews','query':'"veículos históricos" Brasil',                                      'bloco':'radar',       'nivel':1},
+    # ── Bloco MERCADO & LEILÕES ──────────────────────────────────────────────
+    {'type':'gnews','query':'"leilão carros antigos" OR "leilão clássicos"',                    'bloco':'mercado',     'nivel':1},
+    {'type':'gnews','query':'"valorização carros clássicos" OR "preço Fusca" OR "preço Opala"', 'bloco':'mercado',     'nivel':1},
+    {'type':'gnews','query':'classic car auction record "RM Sotheby" OR "Gooding" OR "Bonhams"','bloco':'mercado',     'nivel':1},
+    {'type':'gnews','query':'"Bring a Trailer" OR "BaT" classic car auction',                   'bloco':'mercado',     'nivel':1},
+    {'type':'gnews','query':'Hagerty index classic car price market',                            'bloco':'mercado',     'nivel':1},
+    {'type':'gnews','query':'"ZOOM leilões" OR "Sodré Santoro" carro clássico',                 'bloco':'mercado',     'nivel':1},
+    # ── Bloco EVENTOS ────────────────────────────────────────────────────────
+    {'type':'gnews','query':'"encontro carros antigos" OR "exposição clássicos"',               'bloco':'eventos',     'nivel':1},
+    {'type':'gnews','query':'ExpoClassic OR "Águas de Lindoia" veículos',                       'bloco':'eventos',     'nivel':1},
+    {'type':'gnews','query':'"Cars Coffee" clássicos OR antigos Brasil',                        'bloco':'eventos',     'nivel':1},
+    {'type':'gnews','query':'concours elegance OR "classic car show" OR "rally clássicos"',     'bloco':'eventos',     'nivel':1},
+    {'type':'gnews','query':'Pebble Beach OR Goodwood "Festival of Speed" classic',             'bloco':'eventos',     'nivel':1},
+    # ── Bloco RESTAURAÇÃO ────────────────────────────────────────────────────
+    {'type':'gnews','query':'"restauração carros" clássicos OR antigos',                        'bloco':'restauracao', 'nivel':1},
+    {'type':'gnews','query':'"peças reposição" carro clássico OR antigo',                       'bloco':'restauracao', 'nivel':1},
+    {'type':'gnews','query':'motor elétrico conversão carro clássico OR antigo',                'bloco':'restauracao', 'nivel':1},
+    # ── Bloco GENTE & CULTURA ────────────────────────────────────────────────
+    {'type':'gnews','query':'"colecionador carros" OR "garagem de sonho" clássicos',            'bloco':'gente',       'nivel':1},
+    {'type':'gnews','query':'documentário OR série carros clássicos OR antigos',                'bloco':'gente',       'nivel':1},
+    {'type':'gnews','query':'Petrolicious OR "Jay Leno Garage" classic car story',              'bloco':'gente',       'nivel':1},
+    # ── Bloco JURÍDICO ───────────────────────────────────────────────────────
+    {'type':'gnews','query':'"placa preta" lei OR projeto OR regulamento',                      'bloco':'juridico',    'nivel':3},
+    {'type':'gnews','query':'"IPVA veículos antigos" OR "isenção IPVA clássicos"',              'bloco':'juridico',    'nivel':3},
+    {'type':'gnews','query':'"importação carros antigos" lei OR regulamento Brasil',            'bloco':'juridico',    'nivel':3},
+    {'type':'gnews','query':'FIVA "veículos históricos" regulamento OR legislação',             'bloco':'juridico',    'nivel':3},
+    {'type':'gnews','query':'"Diário Oficial" carro clássico OR veículo histórico',             'bloco':'juridico',    'nivel':3},
+
+    # ── RSS diretos — mídia especializada internacional (Nível 1) ────────────
+    {'type':'rss','url':'https://www.hemmings.com/feed/',             'fonte':'Hemmings Daily',         'bloco':'mercado',     'nivel':1},
+    {'type':'rss','url':'https://www.hagerty.com/media/feed/',        'fonte':'Hagerty Media',          'bloco':'mercado',     'nivel':1},
+    {'type':'rss','url':'https://petrolicious.com/articles/feed',     'fonte':'Petrolicious',           'bloco':'gente',       'nivel':1},
+    {'type':'rss','url':'https://www.theautopian.com/feed/',          'fonte':'The Autopian',           'bloco':'gente',       'nivel':1},
+    {'type':'rss','url':'https://www.goodwood.com/media/feed/',       'fonte':'Goodwood Road & Racing', 'bloco':'eventos',     'nivel':1},
+    {'type':'rss','url':'https://bringatrailer.com/feed/',            'fonte':'Bring a Trailer',        'bloco':'mercado',     'nivel':1},
+
+    # ── RSS diretos — mídia brasileira (Nível 1) ─────────────────────────────
+    {'type':'rss','url':'https://www.motortudo.com.br/feed/',         'fonte':'Motor Tudo',             'bloco':'radar',       'nivel':1},
+    {'type':'rss','url':'https://autoentusiastas.com.br/feed/',       'fonte':'Autoentusiastas',        'bloco':'radar',       'nivel':1},
+
+    # ── RSS diretos — imprensa geral (Nível 2) ───────────────────────────────
+    {'type':'gnews','query':'Valor Econômico OR Exame OR Bloomberg carro clássico colecionável','bloco':'mercado',    'nivel':2},
 ]
 
 
@@ -1064,38 +1105,62 @@ def _scrape_clipping():
     from email.utils import parsedate_to_datetime
 
     novos = 0
-    for kw in CLIPPING_KEYWORDS:
+    headers = {'User-Agent': 'Mozilla/5.0 (compatible; FBVA-Clipping/1.0)'}
+
+    def _save_item(titulo, link, desc, fonte, pub_str, bloco, nivel):
+        nonlocal novos
         try:
-            url = (
-                'https://news.google.com/rss/search?q='
-                + quote(f'"{kw}"')
-                + '&hl=pt-BR&gl=BR&ceid=BR:pt-419'
-            )
-            r = http.get(url, timeout=12, headers={'User-Agent': 'Mozilla/5.0'})
-            root = ET.fromstring(r.content)
-            for item in root.findall('.//item'):
-                titulo = (item.findtext('title') or '').strip()
-                link   = (item.findtext('link')  or '').strip()
-                desc   = (item.findtext('description') or '').strip()
-                fonte_el = item.find('source')
-                fonte  = (fonte_el.text or '').strip() if fonte_el is not None else ''
-                pub    = (item.findtext('pubDate') or '').strip()
-                try:
-                    pub_dt = parsedate_to_datetime(pub).replace(tzinfo=None) if pub else None
-                except Exception:
-                    pub_dt = None
-                if not titulo or not link:
-                    continue
-                if not ClippingNoticia.query.filter_by(url=link).first():
-                    db.session.add(ClippingNoticia(
-                        titulo=titulo[:500],
-                        url=link[:1000],
-                        fonte=fonte[:200],
-                        resumo=desc[:1000],
-                        publicado_em=pub_dt,
-                        palavra_chave=kw,
-                    ))
-                    novos += 1
+            pub_dt = parsedate_to_datetime(pub_str).replace(tzinfo=None) if pub_str else None
+        except Exception:
+            pub_dt = None
+        if not titulo or not link:
+            return
+        if not ClippingNoticia.query.filter_by(url=link).first():
+            db.session.add(ClippingNoticia(
+                titulo=titulo[:500],
+                url=link[:1000],
+                fonte=(fonte or '')[:200],
+                resumo=(desc or '')[:1000],
+                publicado_em=pub_dt,
+                palavra_chave=bloco,
+                bloco=bloco,
+                nivel=nivel,
+            ))
+            novos += 1
+
+    for src in CLIPPING_SOURCES:
+        try:
+            if src['type'] == 'gnews':
+                url = ('https://news.google.com/rss/search?q='
+                       + quote(src['query'])
+                       + '&hl=pt-BR&gl=BR&ceid=BR:pt-419')
+                r = http.get(url, timeout=12, headers=headers)
+                root = ET.fromstring(r.content)
+                for item in root.findall('.//item'):
+                    fonte_el = item.find('source')
+                    fonte = (fonte_el.text or '').strip() if fonte_el is not None else ''
+                    _save_item(
+                        titulo=(item.findtext('title') or '').strip(),
+                        link=(item.findtext('link') or '').strip(),
+                        desc=(item.findtext('description') or '').strip(),
+                        fonte=fonte,
+                        pub_str=(item.findtext('pubDate') or '').strip(),
+                        bloco=src['bloco'],
+                        nivel=src['nivel'],
+                    )
+            elif src['type'] == 'rss':
+                r = http.get(src['url'], timeout=12, headers=headers)
+                root = ET.fromstring(r.content)
+                for item in root.findall('.//item'):
+                    _save_item(
+                        titulo=(item.findtext('title') or '').strip(),
+                        link=(item.findtext('link') or '').strip(),
+                        desc=(item.findtext('description') or '').strip(),
+                        fonte=src['fonte'],
+                        pub_str=(item.findtext('pubDate') or '').strip(),
+                        bloco=src['bloco'],
+                        nivel=src['nivel'],
+                    )
         except Exception:
             continue
 
@@ -1129,6 +1194,8 @@ def list_clipping():
             'publicadoEm': n.publicado_em.isoformat() if n.publicado_em else None,
             'coletadoEm':  n.coletado_em.isoformat() if n.coletado_em else None,
             'palavraChave': n.palavra_chave,
+            'bloco':       n.bloco or 'radar',
+            'nivel':       n.nivel or 1,
             'lida':        n.lida,
         } for n in noticias],
         'ultimaBusca': ultima.valor if ultima else None,

@@ -94,6 +94,18 @@ def _migrate_db():
             for col_name, col_type in new_cols:
                 if col_name not in existing:
                     conn.execute(text(f'ALTER TABLE clubes ADD COLUMN {col_name} {col_type}'))
+
+            # clipping_noticias — novas colunas
+            if 'clipping_noticias' in inspector.get_table_names():
+                clip_cols = {c['name'] for c in inspector.get_columns('clipping_noticias')}
+                clip_new = [
+                    ('bloco', "VARCHAR(30) DEFAULT 'radar'"),
+                    ('nivel', 'INTEGER DEFAULT 1'),
+                ]
+                for col_name, col_def in clip_new:
+                    if col_name not in clip_cols:
+                        conn.execute(text(f'ALTER TABLE clipping_noticias ADD COLUMN {col_name} {col_def}'))
+
             conn.commit()
     except Exception:
         pass

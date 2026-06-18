@@ -265,6 +265,8 @@ class ClippingNoticia(db.Model):
     publicado_em  = db.Column(db.DateTime)
     coletado_em   = db.Column(db.DateTime, default=datetime.utcnow)
     palavra_chave = db.Column(db.String(100))
+    bloco         = db.Column(db.String(30), default='radar')   # radar|mercado|eventos|restauracao|gente|juridico
+    nivel         = db.Column(db.Integer, default=1)            # 1=especializada 2=geral 3=tecnica
     lida          = db.Column(db.Boolean, default=False)
 
 
