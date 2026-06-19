@@ -228,6 +228,7 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;font-size:
       <div class="nav-sec">Cadastro</div>
       <button class="nl" onclick="App.go('dashboard')"><i class="bi bi-grid-1x2-fill"></i><span>Dashboard</span></button>
       <button class="nl" onclick="App.go('clubes')"><i class="bi bi-building-fill"></i><span>Clubes</span></button>
+      <button class="nl" onclick="App.go('eventos')"><i class="bi bi-calendar-event-fill"></i><span>Eventos</span></button>
       <div class="nav-sec mt-2" id="nav-sec-secretaria">Secretaria</div>
       <button class="nl" id="nav-gestao" onclick="App.go('gestao')"><i class="bi bi-folder2-open"></i><span>Documentação &amp; Financeiro</span></button>
       <div class="nav-sec mt-2" id="nav-sec-comunicacao">Comunicação</div>
@@ -607,7 +608,8 @@ function activateNav(v) {
     'clube-form':'[onclick*="clube-form"]','clube-detalhe':'[onclick*="clubes"]',
     usuarios:'[onclick*="usuarios"]','usuario-form':'[onclick*="usuario-form"]',
     mensageiro:'[onclick*="mensageiro"]',atendimento:'[onclick*="atendimento"]',
-    gestao:'[onclick*="gestao"]',email:'[onclick*="email"]',clipping:'[onclick*="clipping"]'};
+    gestao:'[onclick*="gestao"]',email:'[onclick*="email"]',clipping:'[onclick*="clipping"]',
+    eventos:'[onclick*="eventos"]','evento-form':'[onclick*="eventos"]'};
   const sel=map[v];
   if(sel) document.querySelector(`.sb-nav ${sel}`)?.classList.add('active');
 }
@@ -848,6 +850,8 @@ async function go(view,id=null) {
     if(view==='dashboard')          await renderDashboard();
     else if(view==='clubes')        await renderClubes();
     else if(view==='clube-form')    await renderClubeForm(id);
+    else if(view==='eventos')       await renderEventos();
+    else if(view==='evento-form')   await renderEventoForm(id);
     else if(view==='clube-detalhe') await renderClubeDetalhe(id);
     else if(view==='usuarios')      await renderUsuarios();
     else if(view==='usuario-form')  await renderUsuarioForm(id);
@@ -3923,6 +3927,267 @@ function downloadTemplateCSV() {
   URL.revokeObjectURL(url);
 }
 
+// ═════════ EVENTOS ════════════════════════════════════
+
+function fmtDate(iso) {
+  if(!iso) return '—';
+  const [y,m,d]=iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+async function renderEventos() {
+  setTitle('<i class="bi bi-calendar-event-fill me-2"></i>Eventos',
+    pode.editar()?`<button class="btn btn-primary btn-sm" onclick="App.go('evento-form')">
+      <i class="bi bi-plus-lg me-1"></i>Novo Evento</button>`:''
+  );
+  render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
+  const eventos = await Api.get('/api/eventos');
+  const clubes  = await Api.get('/api/clubes?status=ativos');
+
+  const clubeOpts = `<option value="">Todos os clubes</option>`
+    + clubes.map(c=>`<option value="${c.id}">${esc(c.nomeClube)}</option>`).join('');
+
+  render(`
+  <div class="card shadow-sm mb-3">
+    <div class="card-body py-2 px-3">
+      <div class="row g-2 align-items-center">
+        <div class="col-12 col-md-4">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" id="ev-q" class="form-control" placeholder="Buscar por nome, local ou cidade..."
+              oninput="App._filtrarEventos(this.value)" value="">
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <select id="ev-estado" class="form-select form-select-sm" onchange="App._filtrarEventos()">
+            <option value="">Todos os estados</option>
+            ${ESTADOS.map(([s,n])=>`<option value="${s}">${s} — ${n}</option>`).join('')}
+          </select>
+        </div>
+        <div class="col-6 col-md-4">
+          <select id="ev-clube" class="form-select form-select-sm" onchange="App._filtrarEventos()">
+            ${clubeOpts}
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <div id="ev-table-wrap"></div>
+    </div>
+  </div>`);
+
+  window._evAll = eventos;
+  _renderEventosTabela(eventos);
+}
+
+function _renderEventosTabela(eventos) {
+  const wrap = document.getElementById('ev-table-wrap');
+  if(!wrap) return;
+  if(!eventos.length) {
+    wrap.innerHTML=`<div class="sec-empty m-3"><i class="bi bi-calendar-x fs-4 d-block mb-2"></i>Nenhum evento encontrado.</div>`;
+    return;
+  }
+  wrap.innerHTML=`
+  <div class="table-responsive">
+  <table class="table table-hover mb-0">
+    <thead><tr>
+      <th>Evento</th>
+      <th>Clube Organizador</th>
+      <th>Data Início</th>
+      <th>Data Fim</th>
+      <th>Local / Cidade / UF</th>
+      ${pode.editar()?'<th class="text-end">Ações</th>':''}
+    </tr></thead>
+    <tbody>
+    ${eventos.map(e=>`
+      <tr>
+        <td class="fw-semibold">
+          ${e.imagemUrl?`<img src="${e.imagemUrl}" style="width:36px;height:36px;object-fit:cover;border-radius:4px;margin-right:8px;vertical-align:middle" loading="lazy">`:''}
+          ${esc(e.nome)}
+        </td>
+        <td>${esc(e.clubeNome||'—')}</td>
+        <td>${fmtDate(e.dataInicio)}</td>
+        <td>${fmtDate(e.dataFim)}</td>
+        <td>
+          ${[e.local,e.cidade,e.estado].filter(Boolean).map(esc).join(' · ')||'—'}
+        </td>
+        ${pode.editar()?`<td class="text-end">
+          <button class="btn btn-sm btn-outline-secondary me-1" onclick="App.go('evento-form',${e.id})" title="Editar">
+            <i class="bi bi-pencil"></i></button>
+          <button class="btn btn-sm btn-outline-danger" onclick="App.confirmarExcluirEvento(${e.id},${JSON.stringify(e.nome)})" title="Excluir">
+            <i class="bi bi-trash"></i></button>
+        </td>`:''}
+      </tr>`).join('')}
+    </tbody>
+  </table>
+  </div>`;
+}
+
+function _filtrarEventos() {
+  const q      = (document.getElementById('ev-q')?.value||'').toLowerCase();
+  const estado = document.getElementById('ev-estado')?.value||'';
+  const clubeId= document.getElementById('ev-clube')?.value||'';
+  let list = (window._evAll||[]);
+  if(q)      list = list.filter(e=>(e.nome+' '+(e.local||'')+' '+(e.cidade||'')).toLowerCase().includes(q));
+  if(estado) list = list.filter(e=>e.estado===estado);
+  if(clubeId)list = list.filter(e=>String(e.clubeId)===clubeId);
+  _renderEventosTabela(list);
+}
+
+async function renderEventoForm(id) {
+  const editing = !!id;
+  let evento = null;
+  if(editing) {
+    render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
+    evento = await Api.get(`/api/eventos/${id}`);
+    if(!evento){await go('eventos');return;}
+  }
+  setTitle(`<i class="bi bi-pencil-square me-2"></i>${editing?'Editar':'Novo'} Evento`,
+    `<button class="btn btn-outline-secondary btn-sm" onclick="App.go('eventos')">
+      <i class="bi bi-arrow-left me-1"></i>Voltar</button>`);
+
+  const clubes = await Api.get('/api/clubes?status=ativos');
+  const v = evento||{};
+  const clubeOpts = `<option value="">— Nenhum —</option>`
+    + clubes.map(c=>`<option value="${c.id}"${v.clubeId===c.id?' selected':''}>${esc(c.nomeClube)}</option>`).join('');
+
+  render(`
+  <form id="evento-form" onsubmit="App.saveEvento(event,${id||'null'})">
+    <div class="card shadow-sm mb-4">
+      <div class="card-header"><i class="bi bi-calendar-event-fill me-2"></i>Dados do Evento</div>
+      <div class="card-body">
+
+        <!-- Imagem de divulgação -->
+        <div class="d-flex align-items-center gap-3 p-3 rounded mb-3" style="background:#f8f9fb;border:1px solid #e8ebf0">
+          <div id="ev-img-wrap" style="width:100px;height:100px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#fff;border-radius:8px;border:1px dashed #ccc;overflow:hidden">
+            ${v.imagemUrl
+              ?`<img src="${v.imagemUrl}" style="width:100px;height:100px;object-fit:cover">`
+              :`<i class="bi bi-image text-muted" style="font-size:2.5rem"></i>`}
+          </div>
+          <div>
+            <div class="fw-semibold small mb-1">Imagem de Divulgação</div>
+            <div class="text-muted mb-2" style="font-size:.75rem">PNG, JPG ou WebP</div>
+            ${pode.editar()?`<div class="d-flex gap-2 flex-wrap">
+              <button type="button" class="btn btn-sm btn-outline-secondary"
+                onclick="document.getElementById('ev-img-inp').click()">
+                <i class="bi bi-upload me-1"></i>${v.imagemUrl?'Trocar imagem':'Carregar imagem'}</button>
+              ${v.imagemUrl&&v.id?`<button type="button" class="btn btn-sm btn-outline-danger"
+                onclick="App._removeEventoImagem(${v.id})"><i class="bi bi-trash me-1"></i>Remover</button>`:''}
+              <input type="file" id="ev-img-inp" style="display:none" accept=".png,.jpg,.jpeg,.webp"
+                onchange="App._previewEventoImagem(this)">
+            </div>`:''}
+          </div>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label req">Nome do Evento</label>
+            <input name="nome" class="form-control" required value="${esc(v.nome||'')}" placeholder="Nome completo do evento">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label req">Data de Início</label>
+            <input name="dataInicio" type="date" class="form-control" required value="${v.dataInicio||''}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Data de Término</label>
+            <input name="dataFim" type="date" class="form-control" value="${v.dataFim||''}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Clube Organizador</label>
+            <select name="clubeId" class="form-select">${clubeOpts}</select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Local</label>
+            <input name="local" class="form-control" value="${esc(v.local||'')}" placeholder="Ex.: Parque das Exposições">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Estado</label>
+            <select name="estado" class="form-select">
+              ${statesOpts(v.estado||'')}
+            </select>
+          </div>
+          <div class="col-md-8">
+            <label class="form-label">Cidade</label>
+            <input name="cidade" class="form-control" value="${esc(v.cidade||'')}" placeholder="Cidade do evento">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2 justify-content-end">
+      <button type="button" class="btn btn-outline-secondary" onclick="App.go('eventos')">Cancelar</button>
+      ${pode.editar()?`<button type="submit" class="btn btn-primary">
+        <i class="bi bi-check-lg me-1"></i>Salvar</button>`:''}
+    </div>
+  </form>`);
+}
+
+async function saveEvento(e, id) {
+  e.preventDefault();
+  const fd  = new FormData(e.target);
+  const data = Object.fromEntries(fd.entries());
+  data.nome = (data.nome||'').trim();
+  if(!data.nome){toast('Informe o nome do evento.','danger');return;}
+  if(!data.dataInicio){toast('Informe a data de início.','danger');return;}
+  if(!data.clubeId) delete data.clubeId;
+  if(!data.estado)  delete data.estado;
+  const btn = e.target.querySelector('[type=submit]');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Salvando...';
+  try {
+    let resultado;
+    if(id) {
+      resultado = await Api.put(`/api/eventos/${id}`, data);
+    } else {
+      resultado = await Api.post('/api/eventos', data);
+    }
+    const eid = resultado.id;
+    const imgInp = document.getElementById('ev-img-inp');
+    if(imgInp && imgInp.files[0]) {
+      const ifd = new FormData();
+      ifd.append('file', imgInp.files[0]);
+      await fetch(`/api/eventos/${eid}/imagem`,{method:'POST',body:ifd,credentials:'include'});
+    }
+    toast(`Evento "${data.nome}" ${id?'atualizado':'cadastrado'}!`);
+    await go('eventos');
+  } catch(err2) {
+    toast(err2.message,'danger');
+    btn.disabled=false;
+    btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Salvar';
+  }
+}
+
+function confirmarExcluirEvento(id, nome) {
+  showConfirm(`Tem certeza que deseja excluir o evento <strong>${nome}</strong>?<br>
+    <span class="text-muted small">Esta ação não pode ser desfeita.</span>`,async()=>{
+    try {
+      await Api.del(`/api/eventos/${id}`);
+      toast(`Evento "${nome}" excluído.`);
+      await go('eventos');
+    } catch(e){ toast(e.message,'danger'); }
+  });
+}
+
+function _previewEventoImagem(inp) {
+  if(!inp.files[0]) return;
+  const wrap = document.getElementById('ev-img-wrap');
+  if(!wrap) return;
+  const url = URL.createObjectURL(inp.files[0]);
+  wrap.innerHTML=`<img src="${url}" style="width:100px;height:100px;object-fit:cover">`;
+}
+
+async function _removeEventoImagem(id) {
+  try {
+    await Api.call(`/api/eventos/${id}/imagem`,{method:'DELETE'});
+    const wrap = document.getElementById('ev-img-wrap');
+    if(wrap) wrap.innerHTML='<i class="bi bi-image text-muted" style="font-size:2.5rem"></i>';
+    toast('Imagem removida.');
+  } catch(e){ toast(e.message,'danger'); }
+}
+
 // ═════════ CLIPPING DE NOTÍCIAS ══════════════════════
 let _clData=null;
 let _clFiltro='todas';   // 'todas' | 'nao_lidas'
@@ -4159,6 +4424,9 @@ return{
   _emailSetMode,_emPaletteDragStart,_emCanvasDrop,_emCanvasDragOver,_emCanvasDragLeave,
   _emDragStart,_emDragOver,_emDrop,_emDragEnd,
   _emBlockClick,_emDelete,_emMoveUp,_emMoveDown,_emUpdate,
+  // Eventos
+  renderEventos,renderEventoForm,saveEvento,confirmarExcluirEvento,
+  _filtrarEventos,_previewEventoImagem,_removeEventoImagem,
   // Gestão (Documentação & Trimestralidades)
   _renderGestaoTab,_filtrarGestao,
   _abrirUploadDoc,_abrirUploadDocClube,_submitUploadDoc,_excluirDoc,

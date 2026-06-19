@@ -11,7 +11,7 @@ from models import (Usuario, Clube, WaLog, EmailLog, Config, FinanceiroClube,
                     Trimestralidade, MembroDiretoria, Documento,
                     EnderecoAdicional, Contato, ContatoTelefone, ContatoEmail,
                     Associado, ClippingNoticia,
-                    ContatoWA, ConversacaoWA, MensagemWA)
+                    ContatoWA, ConversacaoWA, MensagemWA, Evento)
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -1737,4 +1737,180 @@ def deletar_clipping(nid):
 def limpar_clipping():
     ClippingNoticia.query.delete()
     db.session.commit()
+    return ok()
+
+
+# ── EVENTOS ───────────────────────────────────────────────────────────────────
+
+def evento_dict(e):
+    return {
+        'id':           e.id,
+        'nome':         e.nome,
+        'dataInicio':   e.data_inicio.isoformat() if e.data_inicio else None,
+        'dataFim':      e.data_fim.isoformat() if e.data_fim else None,
+        'imagemUrl':    f'/api/eventos/{e.id}/imagem' if e.imagem_filename else None,
+        'local':        e.local,
+        'cidade':       e.cidade,
+        'estado':       e.estado,
+        'clubeId':      e.clube_id,
+        'clubeNome':    e.clube.nome_clube if e.clube else None,
+        'criadoEm':     e.criado_em.isoformat() if e.criado_em else None,
+        'atualizadoEm': e.atualizado_em.isoformat() if e.atualizado_em else None,
+    }
+
+
+@api_bp.route('/eventos')
+@login_required
+def list_eventos():
+    q        = request.args.get('q', '').strip()
+    estado   = request.args.get('estado', '').strip()
+    clube_id = request.args.get('clube_id', type=int)
+    query    = Evento.query
+    if q:
+        like = f'%{q}%'
+        query = query.filter(db.or_(
+            Evento.nome.ilike(like),
+            Evento.cidade.ilike(like),
+            Evento.local.ilike(like),
+        ))
+    if estado:
+        query = query.filter_by(estado=estado)
+    if clube_id:
+        query = query.filter_by(clube_id=clube_id)
+    eventos = query.order_by(Evento.data_inicio.desc()).all()
+    return ok([evento_dict(e) for e in eventos])
+
+
+@api_bp.route('/eventos', methods=['POST'])
+@login_required
+def create_evento():
+    if not current_user.pode_editar():
+        return err('Sem permissão.', 403)
+    d = request.get_json(silent=True) or {}
+    nome = (d.get('nome') or '').strip()
+    if not nome:
+        return err('O nome do evento é obrigatório.')
+    data_inicio = parse_date(d.get('dataInicio'))
+    if not data_inicio:
+        return err('A data de início é obrigatória.')
+    e = Evento(
+        nome=nome,
+        data_inicio=data_inicio,
+        data_fim=parse_date(d.get('dataFim')),
+        local=d.get('local') or None,
+        cidade=d.get('cidade') or None,
+        estado=d.get('estado') or None,
+        clube_id=d.get('clubeId') or None,
+        criado_por_id=current_user.id,
+    )
+    db.session.add(e)
+    db.session.commit()
+    return ok(evento_dict(e), code=201)
+
+
+@api_bp.route('/eventos/<int:id>', methods=['GET'])
+@login_required
+def get_evento(id):
+    e = db.session.get(Evento, id)
+    if not e:
+        return err('Evento não encontrado.', 404)
+    return ok(evento_dict(e))
+
+
+@api_bp.route('/eventos/<int:id>', methods=['PUT'])
+@login_required
+def update_evento(id):
+    if not current_user.pode_editar():
+        return err('Sem permissão.', 403)
+    e = db.session.get(Evento, id)
+    if not e:
+        return err('Evento não encontrado.', 404)
+    d = request.get_json(silent=True) or {}
+    nome = (d.get('nome') or '').strip()
+    if not nome:
+        return err('O nome do evento é obrigatório.')
+    data_inicio = parse_date(d.get('dataInicio'))
+    if not data_inicio:
+        return err('A data de início é obrigatória.')
+    e.nome        = nome
+    e.data_inicio = data_inicio
+    e.data_fim    = parse_date(d.get('dataFim'))
+    e.local       = d.get('local') or None
+    e.cidade      = d.get('cidade') or None
+    e.estado      = d.get('estado') or None
+    e.clube_id    = d.get('clubeId') or None
+    db.session.commit()
+    return ok(evento_dict(e))
+
+
+@api_bp.route('/eventos/<int:id>', methods=['DELETE'])
+@login_required
+def delete_evento(id):
+    if not current_user.pode_editar():
+        return err('Sem permissão.', 403)
+    e = db.session.get(Evento, id)
+    if not e:
+        return err('Evento não encontrado.', 404)
+    if e.imagem_filename:
+        try:
+            os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], e.imagem_filename))
+        except OSError:
+            pass
+    db.session.delete(e)
+    db.session.commit()
+    return ok()
+
+
+@api_bp.route('/eventos/<int:id>/imagem')
+@login_required
+def get_evento_imagem(id):
+    e = db.session.get(Evento, id)
+    if not e or not e.imagem_filename:
+        return err('Imagem não encontrada.', 404)
+    return send_from_directory(current_app.config['UPLOAD_FOLDER'], e.imagem_filename)
+
+
+@api_bp.route('/eventos/<int:id>/imagem', methods=['POST'])
+@login_required
+def upload_evento_imagem(id):
+    if not current_user.pode_editar():
+        return err('Sem permissão.', 403)
+    e = db.session.get(Evento, id)
+    if not e:
+        return err('Evento não encontrado.', 404)
+    if 'file' not in request.files:
+        return err('Nenhum arquivo enviado.')
+    f = request.files['file']
+    if not f.filename:
+        return err('Arquivo inválido.')
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in {'.png', '.jpg', '.jpeg', '.webp'}:
+        return err('Use PNG, JPG ou WebP para a imagem.')
+    if e.imagem_filename:
+        try:
+            os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], e.imagem_filename))
+        except OSError:
+            pass
+    unique = f'evento_{id}_{uuid.uuid4().hex[:8]}{ext}'
+    f.save(os.path.join(current_app.config['UPLOAD_FOLDER'], unique))
+    e.imagem_filename = unique
+    db.session.commit()
+    return ok({'imagemUrl': f'/api/eventos/{id}/imagem'})
+
+
+@api_bp.route('/eventos/<int:id>/imagem', methods=['DELETE'])
+@login_required
+def delete_evento_imagem(id):
+    if not current_user.pode_editar():
+        return err('Sem permissão.', 403)
+    e = db.session.get(Evento, id)
+    if not e:
+        return err('Evento não encontrado.', 404)
+    if e.imagem_filename:
+        try:
+            os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], e.imagem_filename))
+        except OSError:
+            pass
+        e.imagem_filename = None
+        db.session.commit()
     return ok()

@@ -337,6 +337,26 @@ class ClippingNoticia(db.Model):
     lida          = db.Column(db.Boolean, default=False)
 
 
+class Evento(db.Model):
+    __tablename__ = 'eventos'
+
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(200), nullable=False)
+    data_inicio = db.Column(db.Date, nullable=False)
+    data_fim = db.Column(db.Date, nullable=True)
+    imagem_filename = db.Column(db.String(300), nullable=True)
+    local = db.Column(db.String(200), nullable=True)
+    cidade = db.Column(db.String(100), nullable=True)
+    estado = db.Column(db.String(2), nullable=True)
+    clube_id = db.Column(db.Integer, db.ForeignKey('clubes.id', ondelete='SET NULL'), nullable=True)
+    criado_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
+    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+    atualizado_em = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    clube = db.relationship('Clube', backref=db.backref('eventos', lazy='dynamic'))
+    criado_por = db.relationship('Usuario', foreign_keys=[criado_por_id])
+
+
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(Usuario, int(user_id))
