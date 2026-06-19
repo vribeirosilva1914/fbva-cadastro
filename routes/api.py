@@ -245,7 +245,10 @@ def login():
     d = request.get_json(silent=True) or {}
     email = (d.get('email') or '').strip().lower()
     senha = d.get('senha') or ''
-    u = Usuario.query.filter_by(email=email).first()
+    try:
+        u = Usuario.query.filter_by(email=email).first()
+    except Exception as ex:
+        return err(f'Erro de banco de dados: {ex}', 503)
     if not u or not check_password_hash(u.senha_hash, senha):
         return err('E-mail ou senha incorretos.', 401)
     if not u.ativo:
