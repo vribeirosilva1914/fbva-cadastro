@@ -4695,8 +4695,8 @@ function _agRenderRecorrencias() {
         <tbody>${rows}</tbody></table></div>`
         :`<div class="text-muted p-3 small">Nenhuma recorrência cadastrada.</div>`}
       ${pode.editar()?`<div class="card-footer d-flex gap-2 align-items-center flex-wrap">
-        <button class="btn btn-sm btn-outline-primary" onclick="App._agNovaRec()">
-          <i class="bi bi-plus-lg me-1"></i>Nova recorrência</button>
+        ${state.user?.perfil==='admin'?`<button class="btn btn-sm btn-outline-primary" onclick="App._agNovaRec()">
+          <i class="bi bi-plus-lg me-1"></i>Nova recorrência</button>`:''}
         <div class="d-flex align-items-center gap-2 ms-auto">
           <label class="mb-0 small fw-semibold text-nowrap">Gerar para:</label>
           <input type="month" id="ag-mes-gerar" class="form-control form-control-sm" style="width:160px" value="${mesAtualRec}">

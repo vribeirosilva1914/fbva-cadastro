@@ -2162,8 +2162,8 @@ def list_recorrencias():
 @api_bp.route('/recorrencias-conteudo', methods=['POST'])
 @login_required
 def create_recorrencia():
-    if not current_user.pode_editar():
-        return err('Sem permissão.', 403)
+    if current_user.perfil != 'admin':
+        return err('Apenas administradores podem criar recorrências.', 403)
     d = request.get_json(silent=True) or {}
     titulo = (d.get('titulo') or '').strip()
     if not titulo:
