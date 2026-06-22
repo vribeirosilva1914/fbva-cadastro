@@ -1,7 +1,8 @@
 import os
 import uuid
+import secrets
 import requests as http
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request, current_app, send_from_directory
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -255,6 +256,64 @@ def login():
         return err('Conta desativada. Contate o administrador.', 403)
     login_user(u, remember=bool(d.get('lembrar', False)))
     return ok(usuario_dict(u))
+
+
+@api_bp.route('/reset-senha/solicitar', methods=['POST'])
+def solicitar_reset():
+    d = request.get_json(silent=True) or {}
+    email = (d.get('email') or '').strip().lower()
+    if not email:
+        return err('Informe seu e-mail.')
+    try:
+        u = Usuario.query.filter_by(email=email, ativo=True).first()
+    except Exception as ex:
+        return err(f'Erro de banco de dados: {ex}', 503)
+    cfg = _cfg_email()
+    smtp_ok = all([cfg.get('smtp_host'), cfg.get('smtp_usuario'), cfg.get('smtp_senha')])
+    if not smtp_ok:
+        return ok({'email_enviado': False, 'sem_smtp': True})
+    if u:
+        token = secrets.token_urlsafe(32)
+        u.reset_token = token
+        u.reset_token_expiry = datetime.utcnow() + timedelta(hours=2)
+        db.session.commit()
+        try:
+            _send_email(
+                to=email,
+                subject='FBVA — Redefinição de senha',
+                body=(
+                    f'Olá {u.nome},\n\n'
+                    f'Seu código de redefinição de senha é:\n\n{token}\n\n'
+                    f'Ele expira em 2 horas.\n\n'
+                    f'Se você não solicitou a redefinição, ignore este e-mail.'
+                ),
+                cfg=cfg,
+            )
+        except Exception as ex:
+            return err(f'Erro ao enviar e-mail: {ex}')
+    return ok({'email_enviado': True})
+
+
+@api_bp.route('/reset-senha/confirmar', methods=['POST'])
+def confirmar_reset():
+    d = request.get_json(silent=True) or {}
+    token = (d.get('token') or '').strip()
+    nova = d.get('nova') or ''
+    if not token:
+        return err('Informe o código de redefinição.')
+    if len(nova) < 6:
+        return err('A nova senha deve ter no mínimo 6 caracteres.')
+    try:
+        u = Usuario.query.filter_by(reset_token=token).first()
+    except Exception as ex:
+        return err(f'Erro de banco de dados: {ex}', 503)
+    if not u or not u.reset_token_expiry or u.reset_token_expiry < datetime.utcnow():
+        return err('Código inválido ou expirado. Solicite um novo.')
+    u.senha_hash = generate_password_hash(nova)
+    u.reset_token = None
+    u.reset_token_expiry = None
+    db.session.commit()
+    return ok()
 
 
 @api_bp.route('/logout', methods=['POST'])

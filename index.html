@@ -103,8 +103,8 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;font-size:
 .d-val{font-size:.9rem;color:#111827}
 .av-sm{width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;flex-shrink:0}
 
-/* ── Login ── */
-#screen-login{background:linear-gradient(135deg,#0f1c2e 0%,#0d2a1a 50%,#0f1c2e 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+/* ── Login / Reset ── */
+#screen-login,#screen-reset{background:linear-gradient(135deg,#0f1c2e 0%,#0d2a1a 50%,#0f1c2e 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
 .login-card{background:#fff;border-radius:16px;padding:40px 36px;box-shadow:0 24px 60px rgba(0,0,0,.35);width:100%;max-width:420px}
 .login-title{font-size:1.5rem;font-weight:800;color:#0f1c2e;margin-bottom:2px;letter-spacing:.03em}
 .login-sub{font-size:.8rem;font-weight:500;color:#6b7280;margin-bottom:0}
@@ -208,6 +208,66 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;font-size:
     <button class="btn btn-primary w-100 py-2 fw-semibold" onclick="App.login()">
       <i class="bi bi-box-arrow-in-right me-2"></i>Entrar
     </button>
+    <div class="text-center mt-3">
+      <a href="#" class="text-muted small" onclick="App.showReset();return false;">Esqueceu a senha?</a>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ RESET DE SENHA ════════ -->
+<div id="screen-reset" style="display:none">
+  <div class="login-card">
+    <div class="text-center mb-4">
+      <img src="logo.png" height="100" style="display:block;margin:0 auto 16px;object-fit:contain" alt="FBVA">
+      <h1 class="login-title">Redefinir Senha</h1>
+    </div>
+    <div id="reset-alert"></div>
+
+    <div id="reset-step1">
+      <p class="text-muted small mb-3">Informe seu e-mail cadastrado e enviaremos um código de redefinição.</p>
+      <div class="mb-4">
+        <label class="form-label fw-semibold">E-mail</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-envelope-fill"></i></span>
+          <input type="email" id="r-email" class="form-control" placeholder="seu@email.com.br">
+        </div>
+      </div>
+      <button class="btn btn-primary w-100 py-2 fw-semibold mb-3" onclick="App.solicitarReset()">
+        <i class="bi bi-send me-2"></i>Enviar código
+      </button>
+      <div class="text-center">
+        <a href="#" class="text-muted small" onclick="App.cancelReset();return false;">Voltar ao login</a>
+        <span class="text-muted small mx-2">·</span>
+        <a href="#" class="text-muted small" onclick="App.showResetStep2();return false;">Já tenho um código</a>
+      </div>
+    </div>
+
+    <div id="reset-step2" style="display:none">
+      <p class="text-muted small mb-3">Insira o código recebido por e-mail e crie uma nova senha.</p>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Código de redefinição</label>
+        <input type="text" id="r-token" class="form-control font-monospace" placeholder="Cole o código aqui">
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Nova senha</label>
+        <div class="input-group">
+          <input type="password" id="r-nova" class="form-control" placeholder="Mínimo 6 caracteres">
+          <button class="btn btn-outline-secondary" type="button" onclick="App.toggleSenha('r-nova','r-olho')">
+            <i class="bi bi-eye-fill" id="r-olho"></i>
+          </button>
+        </div>
+      </div>
+      <div class="mb-4">
+        <label class="form-label fw-semibold">Confirmar nova senha</label>
+        <input type="password" id="r-conf" class="form-control" placeholder="Repita a nova senha">
+      </div>
+      <button class="btn btn-primary w-100 py-2 fw-semibold mb-3" onclick="App.confirmarReset()">
+        <i class="bi bi-check-lg me-2"></i>Redefinir senha
+      </button>
+      <div class="text-center">
+        <a href="#" class="text-muted small" onclick="App.cancelReset();return false;">Voltar ao login</a>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -528,7 +588,11 @@ const Api = {
     try { resp = await fetch(path, o); }
     catch { throw new Error('Sem conexão com o servidor. Verifique se o servidor está rodando.'); }
     const json = await resp.json();
-    if (!json.ok) throw new Error(json.error || `Erro ${resp.status}`);
+    if (!json.ok) {
+      const e = new Error(json.error || `Erro ${resp.status}`);
+      e.status = resp.status;
+      throw e;
+    }
     return json.data;
   },
   get(p)   { return Api.call(p); },
@@ -541,12 +605,22 @@ const Api = {
 async function login() {
   const email=document.getElementById('l-email').value.trim().toLowerCase();
   const senha=document.getElementById('l-senha').value;
-  if(!email||!senha){showLoginAlert('Preencha e-mail e senha.','danger');return;}
+  if(!email||!senha){showLoginAlert('<i class="bi bi-exclamation-circle-fill me-2"></i>Preencha e-mail e senha.','danger');return;}
   try {
     const u=await Api.post('/api/login',{email,senha,lembrar:document.getElementById('l-lembrar').checked});
     state.user=u;
     showApp(); await go('dashboard');
-  } catch(e) { showLoginAlert(e.message,'danger'); }
+  } catch(e) {
+    if(!e.status){
+      showLoginAlert('<i class="bi bi-wifi-off me-2"></i>Sem conexão com o servidor. Verifique se ele está ativo.','warning');
+    } else if(e.status===503){
+      showLoginAlert('<i class="bi bi-database-x me-2"></i>Erro no banco de dados. Tente novamente em instantes.','warning');
+    } else if(e.status===403){
+      showLoginAlert('<i class="bi bi-person-x-fill me-2"></i>Conta desativada. Entre em contato com o administrador.','warning');
+    } else {
+      showLoginAlert('<i class="bi bi-lock-fill me-2"></i>E-mail ou senha incorretos. <a href="#" class="alert-link" onclick="App.showReset();return false;">Esqueceu a senha?</a>','danger');
+    }
+  }
 }
 async function logout() {
   try { await Api.post('/api/logout',{}); } catch {}
@@ -559,6 +633,60 @@ async function logout() {
 function showLoginAlert(msg,type) {
   document.getElementById('login-alert').innerHTML=
     `<div class="alert alert-${type} mb-3">${msg}</div>`;
+}
+// ── Reset de Senha ──────────────────────────────
+function showReset() {
+  document.getElementById('screen-login').style.display='none';
+  document.getElementById('screen-reset').style.display='flex';
+  document.getElementById('reset-step1').style.display='block';
+  document.getElementById('reset-step2').style.display='none';
+  document.getElementById('reset-alert').innerHTML='';
+  document.getElementById('r-email').value=document.getElementById('l-email').value||'';
+}
+function showResetStep2() {
+  document.getElementById('reset-step1').style.display='none';
+  document.getElementById('reset-step2').style.display='block';
+  document.getElementById('reset-alert').innerHTML='';
+}
+function cancelReset() {
+  document.getElementById('screen-reset').style.display='none';
+  document.getElementById('screen-login').style.display='flex';
+  document.getElementById('reset-alert').innerHTML='';
+}
+function showResetAlert(msg, type='danger') {
+  document.getElementById('reset-alert').innerHTML=`<div class="alert alert-${type} mb-3">${msg}</div>`;
+}
+async function solicitarReset() {
+  const email=document.getElementById('r-email').value.trim().toLowerCase();
+  if(!email){showResetAlert('<i class="bi bi-exclamation-circle-fill me-2"></i>Informe seu e-mail.');return;}
+  try {
+    const r=await Api.post('/api/reset-senha/solicitar',{email});
+    if(r.sem_smtp){
+      showResetAlert('<i class="bi bi-info-circle-fill me-2"></i>O sistema não está configurado para envio de e-mails. Solicite a redefinição ao administrador, ou use <a href="#" class="alert-link" onclick="App.showResetStep2();return false;">Já tenho um código</a>.','warning');
+    } else {
+      showResetAlert('<i class="bi bi-check-circle-fill me-2"></i>Código enviado! Verifique seu e-mail e cole o código abaixo.','success');
+      showResetStep2();
+    }
+  } catch(e) {
+    if(!e.status){showResetAlert('<i class="bi bi-wifi-off me-2"></i>Sem conexão com o servidor.','warning');}
+    else {showResetAlert(`<i class="bi bi-exclamation-circle-fill me-2"></i>${e.message}`);}
+  }
+}
+async function confirmarReset() {
+  const token=document.getElementById('r-token').value.trim();
+  const nova=document.getElementById('r-nova').value;
+  const conf=document.getElementById('r-conf').value;
+  if(!token){showResetAlert('<i class="bi bi-exclamation-circle-fill me-2"></i>Informe o código de redefinição.');return;}
+  if(nova.length<6){showResetAlert('<i class="bi bi-exclamation-circle-fill me-2"></i>A nova senha deve ter mínimo 6 caracteres.');return;}
+  if(nova!==conf){showResetAlert('<i class="bi bi-exclamation-circle-fill me-2"></i>As senhas não conferem.');return;}
+  try {
+    await Api.post('/api/reset-senha/confirmar',{token,nova});
+    cancelReset();
+    showLoginAlert('<i class="bi bi-check-circle-fill me-2"></i>Senha redefinida com sucesso! Faça login com a nova senha.','success');
+  } catch(e) {
+    if(!e.status){showResetAlert('<i class="bi bi-wifi-off me-2"></i>Sem conexão com o servidor.','warning');}
+    else {showResetAlert(`<i class="bi bi-exclamation-circle-fill me-2"></i>${e.message}`);}
+  }
 }
 async function tryAutoLogin() {
   try { state.user=await Api.get('/api/me'); return true; }
@@ -4411,6 +4539,7 @@ return{
   saveClube,confirmarExcluirClube,_previewLogo,_removeLogo,
   saveUsuario,confirmarExcluirUsuario,renderUsuarios,
   salvarSenha,toggleSenha,
+  showReset,showResetStep2,cancelReset,solicitarReset,confirmarReset,
   exportarCSV,abrirImportCSV,analisarCSV,confirmarImportCSV,downloadTemplateCSV,
   handleFileSelect,handleDrop,
   // WhatsApp mensageiro

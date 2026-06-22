@@ -14,6 +14,8 @@ class Usuario(UserMixin, db.Model):
     ativo = db.Column(db.Boolean, default=True, nullable=False)
     criado_em = db.Column(db.DateTime, default=datetime.utcnow)
     atualizado_em = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    reset_token = db.Column(db.String(64), nullable=True)
+    reset_token_expiry = db.Column(db.DateTime, nullable=True)
 
     PERFIS = {
         'admin':        'Administrador',
