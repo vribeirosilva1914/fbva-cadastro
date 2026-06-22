@@ -4236,13 +4236,16 @@ async function renderEventoForm(id) {
           </div>
           <div class="col-md-4">
             <label class="form-label">Estado</label>
-            <select name="estado" class="form-select">
+            <select name="estado" class="form-select"
+              onchange="App._onEstadoMudou(this.value,'dl-cidades-evento')">
               ${statesOpts(v.estado||'')}
             </select>
           </div>
           <div class="col-md-8">
             <label class="form-label">Cidade</label>
-            <input name="cidade" class="form-control" value="${esc(v.cidade||'')}" placeholder="Cidade do evento">
+            <input name="cidade" class="form-control" list="dl-cidades-evento"
+              value="${esc(v.cidade||'')}" placeholder="Selecione o estado e digite a cidade" autocomplete="off">
+            <datalist id="dl-cidades-evento"></datalist>
           </div>
         </div>
       </div>
@@ -4286,6 +4289,7 @@ async function renderEventoForm(id) {
         <i class="bi bi-check-lg me-1"></i>Salvar</button>`:''}
     </div>
   </form>`);
+  if(v.estado) _onEstadoMudou(v.estado, 'dl-cidades-evento');
 }
 
 async function saveEvento(e, id) {
