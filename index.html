@@ -4057,12 +4057,6 @@ function downloadTemplateCSV() {
 
 // ═════════ EVENTOS ════════════════════════════════════
 
-function fmtDate(iso) {
-  if(!iso) return '—';
-  const [y,m,d]=iso.split('-');
-  return `${d}/${m}/${y}`;
-}
-
 async function renderEventos() {
   setTitle('<i class="bi bi-calendar-event-fill me-2"></i>Eventos',
     pode.editar()?`<button class="btn btn-primary btn-sm" onclick="App.go('evento-form')">
