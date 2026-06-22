@@ -133,7 +133,7 @@ def _migrate_db():
             # usuarios — reset de senha
             if 'usuarios' in inspector.get_table_names():
                 usr_cols = {c['name'] for c in inspector.get_columns('usuarios')}
-                for col_name, col_def in [('reset_token', 'VARCHAR(64)'), ('reset_token_expiry', 'DATETIME')]:
+                for col_name, col_def in [('reset_token', 'VARCHAR(64)'), ('reset_token_expiry', 'TIMESTAMP')]:
                     if col_name not in usr_cols:
                         conn.execute(text(f'ALTER TABLE usuarios ADD COLUMN {col_name} {col_def}'))
 
