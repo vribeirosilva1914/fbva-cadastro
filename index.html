@@ -4615,6 +4615,7 @@ function _agPlataformaBadge(v){
 
 let _agAll = [];
 let _agRecs = [];
+let _agVizMode = 'calendario';
 
 const _DIAS_SEMANA = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
 
@@ -4632,13 +4633,14 @@ async function renderAgendaConteudo() {
   const stOpts   = _STATUS_AGENDA.map(s=>`<option value="${s.v}">${s.l}</option>`).join('');
   const hoje = new Date();
   const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+  const isCal = _agVizMode === 'calendario';
 
   render(`
   ${_agRenderRecorrencias()}
   <div class="card shadow-sm mb-3">
     <div class="card-body py-2">
       <div class="row g-2 align-items-center">
-        <div class="col-12 col-md-4">
+        <div class="col-12 col-md-3">
           <input type="text" id="ag-q" class="form-control form-control-sm"
             placeholder="Buscar por título..." oninput="App._agFiltrar()">
         </div>
@@ -4652,20 +4654,34 @@ async function renderAgendaConteudo() {
             <option value="">Todos os status</option>${stOpts}
           </select>
         </div>
-        <div class="col-6 col-md-2">
-          <input type="month" id="ag-mes" class="form-control form-control-sm"
+        <div class="col-auto d-flex align-items-center gap-1">
+          <button class="btn btn-sm btn-outline-secondary" onclick="App._agNavMes(-1)" title="Mês anterior">
+            <i class="bi bi-chevron-left"></i></button>
+          <input type="month" id="ag-mes" class="form-control form-control-sm" style="width:145px"
             value="${mesAtual}" onchange="App._agFiltrar()">
+          <button class="btn btn-sm btn-outline-secondary" onclick="App._agNavMes(1)" title="Próximo mês">
+            <i class="bi bi-chevron-right"></i></button>
         </div>
-        <div class="col-6 col-md-2">
-          <button class="btn btn-sm btn-outline-secondary w-100" onclick="document.getElementById('ag-mes').value='';App._agFiltrar()">
+        ${!isCal?`<div class="col-auto">
+          <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('ag-mes').value='';App._agFiltrar()">
             Ver tudo</button>
+        </div>`:''}
+        <div class="col-auto ms-auto">
+          <div class="btn-group btn-group-sm">
+            <button class="btn ${isCal?'btn-secondary':'btn-outline-secondary'}"
+              onclick="App._agSetViz('calendario')" title="Calendário">
+              <i class="bi bi-calendar3"></i></button>
+            <button class="btn ${!isCal?'btn-secondary':'btn-outline-secondary'}"
+              onclick="App._agSetViz('lista')" title="Lista">
+              <i class="bi bi-list-ul"></i></button>
+          </div>
         </div>
       </div>
     </div>
   </div>
   <div id="ag-table-wrap"></div>`);
 
-  _agRenderTabela(_agAll);
+  _agFiltrar();
 }
 
 function _agRenderRecorrencias() {
@@ -4877,17 +4893,124 @@ function _agRenderTabela(lista) {
   </div>`;
 }
 
+function _agSetViz(mode) {
+  _agVizMode = mode;
+  renderAgendaConteudo();
+}
+
+function _agNavMes(delta) {
+  const inp = document.getElementById('ag-mes');
+  if(!inp) return;
+  let val = inp.value;
+  if(!val) {
+    const hoje = new Date();
+    val = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+  }
+  const [ano, m] = val.split('-').map(Number);
+  const nova = new Date(ano, m - 1 + delta, 1);
+  inp.value = `${nova.getFullYear()}-${String(nova.getMonth()+1).padStart(2,'0')}`;
+  _agFiltrar();
+}
+
 function _agFiltrar() {
   const q    = (document.getElementById('ag-q')?.value||'').toLowerCase();
   const plat = document.getElementById('ag-plat')?.value||'';
   const st   = document.getElementById('ag-status')?.value||'';
-  const mes  = document.getElementById('ag-mes')?.value||'';
-  let lista  = _agAll;
+  const inp  = document.getElementById('ag-mes');
+  let mes    = inp?.value||'';
+  // Calendário sempre precisa de um mês — usa o atual se vazio
+  if(_agVizMode === 'calendario' && !mes) {
+    const hoje = new Date();
+    mes = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+    if(inp) inp.value = mes;
+  }
+  let lista = _agAll;
   if(q)    lista = lista.filter(a=>a.titulo.toLowerCase().includes(q));
   if(plat) lista = lista.filter(a=>a.plataforma===plat);
   if(st)   lista = lista.filter(a=>a.status===st);
   if(mes)  lista = lista.filter(a=>(a.dataPublicacao||'').startsWith(mes));
-  _agRenderTabela(lista);
+  if(_agVizMode === 'calendario') _agRenderCalendario(mes, lista);
+  else _agRenderTabela(lista);
+}
+
+function _agRenderCalendario(mes, lista) {
+  const wrap = document.getElementById('ag-table-wrap');
+  if(!wrap) return;
+
+  const [ano, m] = mes.split('-').map(Number);
+  const primeiroDia  = new Date(ano, m - 1, 1);
+  const ultimoDia    = new Date(ano, m, 0).getDate();
+  // Segunda-feira = 0 (getDay: 0=Dom,1=Seg,...,6=Sab → offset = (getDay+6)%7)
+  const offsetInicio = (primeiroDia.getDay() + 6) % 7;
+
+  const hoje    = new Date();
+  const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}-${String(hoje.getDate()).padStart(2,'0')}`;
+
+  // Mapa data → itens
+  const mapa = {};
+  lista.forEach(a => {
+    if(!a.dataPublicacao) return;
+    (mapa[a.dataPublicacao] = mapa[a.dataPublicacao]||[]).push(a);
+  });
+
+  const CABECALHO = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+  const totalCels = Math.ceil((offsetInicio + ultimoDia) / 7) * 7;
+  let rows = '';
+  let cells = '';
+
+  for(let i = 0; i < totalCels; i++) {
+    const diaNum    = i - offsetInicio + 1;
+    const fora      = diaNum < 1 || diaNum > ultimoDia;
+    const dateStr   = fora ? null : `${ano}-${String(m).padStart(2,'0')}-${String(diaNum).padStart(2,'0')}`;
+    const isHoje    = dateStr === hojeStr;
+    const items     = (dateStr ? mapa[dateStr] : null) || [];
+    const MAX       = 3;
+    const vis       = items.slice(0, MAX);
+    const extra     = items.length - MAX;
+
+    const bgCell  = isHoje ? '#e8f5e9' : fora ? '#f5f5f5' : '#fff';
+    const corDia  = isHoje ? '#2e7d32' : fora ? '#ccc' : '#555';
+
+    const badgesHtml = vis.map(a => {
+      const p = _agPlataforma(a.plataforma);
+      return `<div onclick="App.go('agenda-form',${a.id})" title="${esc(a.titulo)}"
+        style="background:${p.cor};color:#fff;padding:1px 5px;border-radius:3px;font-size:.62rem;
+               margin-bottom:2px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        <i class="bi ${p.icon}"></i> ${esc(a.titulo)}</div>`;
+    }).join('');
+    const extraHtml = extra > 0
+      ? `<div style="font-size:.6rem;color:#888;text-align:right;margin-top:1px">+${extra} mais</div>` : '';
+
+    cells += `<td style="border:1px solid #e4e4e4;vertical-align:top;padding:4px 5px;
+                         background:${bgCell};width:14.28%;height:90px;overflow:hidden">
+      ${fora ? '' : `
+        <div style="font-size:.72rem;font-weight:${isHoje?700:500};color:${corDia};margin-bottom:3px;line-height:1">
+          ${diaNum}${isHoje?` <span style="font-size:.55rem;background:#2e7d32;color:#fff;border-radius:8px;padding:0 4px">hoje</span>`:''}
+        </div>
+        ${badgesHtml}${extraHtml}
+      `}
+    </td>`;
+
+    if((i + 1) % 7 === 0) {
+      rows += `<tr>${cells}</tr>`;
+      cells = '';
+    }
+  }
+
+  const header = CABECALHO.map(d =>
+    `<th style="text-align:center;padding:7px 2px;font-size:.75rem;font-weight:600;
+                color:#555;border-bottom:2px solid #dee2e6;background:#f8f9fa">${d}</th>`
+  ).join('');
+
+  wrap.innerHTML = `
+  <div class="card shadow-sm">
+    <div class="card-body p-2" style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;table-layout:fixed;min-width:560px">
+        <thead><tr>${header}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
 }
 
 async function renderAgendaConteudoForm(id) {
@@ -5029,7 +5152,7 @@ function confirmarExcluirAgenda(id, titulo) {
       await Api.del(`/api/agenda-conteudo/${id}`);
       toast('Conteúdo excluído.');
       _agAll = _agAll.filter(a=>a.id!==id);
-      _agRenderTabela(_agAll);
+      _agFiltrar();
     } catch(err2){ toast(err2.message,'danger'); }
   });
 }
@@ -5069,7 +5192,8 @@ return{
   // Clipping
   _clBuscar,_clFiltrar,_clSetViz,_clMarcarLida,_clMarcarTodasLidas,_clDeletar,_clLimpar,
   // Agenda de Conteúdo
-  renderAgendaConteudo,renderAgendaConteudoForm,saveAgendaConteudo,confirmarExcluirAgenda,_agFiltrar,
+  renderAgendaConteudo,renderAgendaConteudoForm,saveAgendaConteudo,confirmarExcluirAgenda,
+  _agFiltrar,_agSetViz,_agNavMes,
   _agNovaRec,_agEditarRec,_agExcluirRec,_agSalvarRec,_agFecharRec,_agGerarMes,
   // Form dynamic sections
   _addMembro,_addEndereco,_onEstadoMudou,
