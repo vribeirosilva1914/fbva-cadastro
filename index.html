@@ -4614,6 +4614,9 @@ function _agPlataformaBadge(v){
 }
 
 let _agAll = [];
+let _agRecs = [];
+
+const _DIAS_SEMANA = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
 
 async function renderAgendaConteudo() {
   setTitle('<i class="bi bi-calendar2-week-fill me-2"></i>Agenda de Conteúdo',
@@ -4621,13 +4624,17 @@ async function renderAgendaConteudo() {
       <i class="bi bi-plus-lg me-1"></i>Novo Conteúdo</button>`:''
   );
   render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
-  _agAll = await Api.get('/api/agenda-conteudo');
+  [_agAll, _agRecs] = await Promise.all([
+    Api.get('/api/agenda-conteudo'),
+    Api.get('/api/recorrencias-conteudo'),
+  ]);
   const platOpts = _PLATAFORMAS.map(p=>`<option value="${p.v}">${p.l}</option>`).join('');
   const stOpts   = _STATUS_AGENDA.map(s=>`<option value="${s.v}">${s.l}</option>`).join('');
   const hoje = new Date();
   const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
 
   render(`
+  ${_agRenderRecorrencias()}
   <div class="card shadow-sm mb-3">
     <div class="card-body py-2">
       <div class="row g-2 align-items-center">
@@ -4659,6 +4666,165 @@ async function renderAgendaConteudo() {
   <div id="ag-table-wrap"></div>`);
 
   _agRenderTabela(_agAll);
+}
+
+function _agRenderRecorrencias() {
+  const hoje = new Date();
+  const mesAtualRec = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+  const rows = _agRecs.map(r=>`
+    <tr>
+      <td><span class="badge bg-secondary">${_DIAS_SEMANA[r.diaSemana]||r.diaSemana}</span></td>
+      <td>${_agPlataformaBadge(r.plataforma)}</td>
+      <td>${esc(r.titulo)}${r.tipoConteudo?` <span class="text-muted small">· ${esc(_TIPOS_CONTEUDO.find(t=>t.v===r.tipoConteudo)?.l||r.tipoConteudo)}</span>`:''}</td>
+      <td>${r.ativa?'<span class="badge bg-success">Ativa</span>':'<span class="badge bg-secondary">Inativa</span>'}</td>
+      ${pode.editar()?`<td class="text-end text-nowrap">
+        <button class="btn btn-sm btn-outline-secondary me-1" onclick="App._agEditarRec(${r.id})" title="Editar"><i class="bi bi-pencil"></i></button>
+        <button class="btn btn-sm btn-outline-danger" onclick="App._agExcluirRec(${r.id},${JSON.stringify(r.titulo)})" title="Excluir"><i class="bi bi-trash"></i></button>
+      </td>`:''}
+    </tr>`).join('');
+
+  return `<div class="card shadow-sm mb-3">
+    <div class="card-header d-flex align-items-center justify-content-between"
+      style="cursor:pointer" onclick="this.parentElement.querySelector('.rec-body').classList.toggle('d-none')">
+      <span><i class="bi bi-arrow-repeat me-2"></i>Recorrências <span class="badge bg-secondary ms-1">${_agRecs.length}</span></span>
+      <i class="bi bi-chevron-down"></i>
+    </div>
+    <div class="rec-body">
+      ${_agRecs.length?`<div class="table-responsive"><table class="table table-sm mb-0 align-middle">
+        <thead><tr><th>Dia</th><th>Plataforma</th><th>Conteúdo</th><th>Status</th>${pode.editar()?'<th></th>':''}</tr></thead>
+        <tbody>${rows}</tbody></table></div>`
+        :`<div class="text-muted p-3 small">Nenhuma recorrência cadastrada.</div>`}
+      ${pode.editar()?`<div class="card-footer d-flex gap-2 align-items-center flex-wrap">
+        <button class="btn btn-sm btn-outline-primary" onclick="App._agNovaRec()">
+          <i class="bi bi-plus-lg me-1"></i>Nova recorrência</button>
+        <div class="d-flex align-items-center gap-2 ms-auto">
+          <label class="mb-0 small fw-semibold text-nowrap">Gerar para:</label>
+          <input type="month" id="ag-mes-gerar" class="form-control form-control-sm" style="width:160px" value="${mesAtualRec}">
+          <button class="btn btn-sm btn-success" onclick="App._agGerarMes()">
+            <i class="bi bi-magic me-1"></i>Gerar</button>
+        </div>
+      </div>`:''}
+    </div>
+  </div>`;
+}
+
+function _agNovaRec() {
+  _agAbrirModalRec(null);
+}
+
+async function _agEditarRec(id) {
+  const r = _agRecs.find(x=>x.id===id);
+  if(r) _agAbrirModalRec(r);
+}
+
+function _agAbrirModalRec(r) {
+  const titulo  = r?.titulo||'';
+  const dia     = r?.diaSemana??'';
+  const plat    = r?.plataforma||'';
+  const tipo    = r?.tipoConteudo||'';
+  const status  = r?.statusPadrao||'agendado';
+  const ativa   = r?.ativa!==false;
+  const id      = r?.id||null;
+
+  const diasOpts = _DIAS_SEMANA.map((n,i)=>
+    `<option value="${i}"${Number(dia)===i?' selected':''}>${n}</option>`).join('');
+  const platOpts = _PLATAFORMAS.map(p=>
+    `<option value="${p.v}"${plat===p.v?' selected':''}>${p.l}</option>`).join('');
+  const tipoOpts = `<option value="">— Nenhum —</option>`
+    +_TIPOS_CONTEUDO.map(t=>`<option value="${t.v}"${tipo===t.v?' selected':''}>${t.l}</option>`).join('');
+  const stOpts = _STATUS_AGENDA.map(s=>
+    `<option value="${s.v}"${status===s.v?' selected':''}>${s.l}</option>`).join('');
+
+  const html=`<div id="ag-rec-modal-backdrop" onclick="if(event.target===this)App._agFecharRec()"
+    style="position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1050;display:flex;align-items:center;justify-content:center">
+    <div class="card shadow" style="width:100%;max-width:500px;margin:1rem">
+      <div class="card-header fw-semibold">${id?'Editar':'Nova'} Recorrência</div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label req">Título</label>
+            <input id="rec-titulo" class="form-control" value="${esc(titulo)}" placeholder="Ex.: Stories de eventos">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label req">Dia da semana</label>
+            <select id="rec-dia" class="form-select">${diasOpts}</select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label req">Plataforma</label>
+            <select id="rec-plat" class="form-select">${platOpts}</select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Tipo de conteúdo</label>
+            <select id="rec-tipo" class="form-select">${tipoOpts}</select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Status padrão</label>
+            <select id="rec-status" class="form-select">${stOpts}</select>
+          </div>
+          <div class="col-12">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="rec-ativa"${ativa?' checked':''}>
+              <label class="form-check-label" for="rec-ativa">Recorrência ativa</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer d-flex justify-content-end gap-2">
+        <button class="btn btn-outline-secondary" onclick="App._agFecharRec()">Cancelar</button>
+        <button class="btn btn-primary" onclick="App._agSalvarRec(${id||'null'})">
+          <i class="bi bi-check-lg me-1"></i>Salvar</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function _agFecharRec() {
+  document.getElementById('ag-rec-modal-backdrop')?.remove();
+}
+
+async function _agSalvarRec(id) {
+  const titulo = (document.getElementById('rec-titulo')?.value||'').trim();
+  const dia    = document.getElementById('rec-dia')?.value;
+  const plat   = document.getElementById('rec-plat')?.value;
+  const tipo   = document.getElementById('rec-tipo')?.value||null;
+  const status = document.getElementById('rec-status')?.value||'agendado';
+  const ativa  = document.getElementById('rec-ativa')?.checked!==false;
+  if(!titulo){toast('Informe o título.','danger');return;}
+  if(!plat)  {toast('Selecione a plataforma.','danger');return;}
+  const payload = {titulo, diaSemana:Number(dia), plataforma:plat, tipoConteudo:tipo||undefined, statusPadrao:status, ativa};
+  try {
+    if(id) await Api.put(`/api/recorrencias-conteudo/${id}`, payload);
+    else   await Api.post('/api/recorrencias-conteudo', payload);
+    _agFecharRec();
+    toast(`Recorrência "${titulo}" ${id?'atualizada':'criada'}!`);
+    await renderAgendaConteudo();
+  } catch(e2){toast(e2.message,'danger');}
+}
+
+function _agExcluirRec(id, titulo) {
+  showConfirm(`Excluir a recorrência <strong>${esc(titulo)}</strong>?`, async()=>{
+    try {
+      await Api.del(`/api/recorrencias-conteudo/${id}`);
+      toast('Recorrência excluída.');
+      await renderAgendaConteudo();
+    } catch(e2){toast(e2.message,'danger');}
+  });
+}
+
+async function _agGerarMes() {
+  const mes = document.getElementById('ag-mes-gerar')?.value;
+  if(!mes){toast('Selecione o mês.','danger');return;}
+  try {
+    const res = await Api.post('/api/agenda-conteudo/gerar-mes', {mes});
+    toast(res.criados>0
+      ? `${res.criados} item(ns) criado(s) para ${mes.split('-').reverse().join('/')}.`
+      : `Todos os itens já existiam para ${mes.split('-').reverse().join('/')}.`
+    );
+    _agAll = await Api.get('/api/agenda-conteudo');
+    document.getElementById('ag-mes')?.dispatchEvent(new Event('change'));
+    _agFiltrar();
+  } catch(e2){toast(e2.message,'danger');}
 }
 
 function _agRenderTabela(lista) {
@@ -4904,6 +5070,7 @@ return{
   _clBuscar,_clFiltrar,_clSetViz,_clMarcarLida,_clMarcarTodasLidas,_clDeletar,_clLimpar,
   // Agenda de Conteúdo
   renderAgendaConteudo,renderAgendaConteudoForm,saveAgendaConteudo,confirmarExcluirAgenda,_agFiltrar,
+  _agNovaRec,_agEditarRec,_agExcluirRec,_agSalvarRec,_agFecharRec,_agGerarMes,
   // Form dynamic sections
   _addMembro,_addEndereco,_onEstadoMudou,
   // Detail view actions

@@ -364,6 +364,25 @@ class Evento(db.Model):
     criado_por = db.relationship('Usuario', foreign_keys=[criado_por_id])
 
 
+class RecorrenciaConteudo(db.Model):
+    __tablename__ = 'recorrencias_conteudo'
+
+    DIAS = [
+        (0, 'Segunda-feira'), (1, 'Terça-feira'), (2, 'Quarta-feira'),
+        (3, 'Quinta-feira'),  (4, 'Sexta-feira'), (5, 'Sábado'), (6, 'Domingo'),
+    ]
+
+    id            = db.Column(db.Integer, primary_key=True)
+    titulo        = db.Column(db.String(200), nullable=False)
+    dia_semana    = db.Column(db.Integer,     nullable=False)   # 0=seg … 6=dom
+    plataforma    = db.Column(db.String(30),  nullable=False)
+    tipo_conteudo = db.Column(db.String(30),  nullable=True)
+    descricao     = db.Column(db.Text,        nullable=True)
+    status_padrao = db.Column(db.String(20),  nullable=False, default='agendado')
+    ativa         = db.Column(db.Boolean,     nullable=False, default=True)
+    criado_em     = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 class AgendaConteudo(db.Model):
     __tablename__ = 'agenda_conteudo'
 

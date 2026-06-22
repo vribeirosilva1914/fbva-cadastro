@@ -12,7 +12,8 @@ from models import (Usuario, Clube, WaLog, EmailLog, Config, FinanceiroClube,
                     Trimestralidade, MembroDiretoria, Documento,
                     EnderecoAdicional, Contato, ContatoTelefone, ContatoEmail,
                     Associado, ClippingNoticia,
-                    ContatoWA, ConversacaoWA, MensagemWA, Evento, AgendaConteudo)
+                    ContatoWA, ConversacaoWA, MensagemWA, Evento,
+                    AgendaConteudo, RecorrenciaConteudo)
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -2131,3 +2132,140 @@ def delete_agenda(id):
     db.session.delete(a)
     db.session.commit()
     return ok()
+
+
+# ── RECORRÊNCIAS DE CONTEÚDO ──────────────────────────────────────────────────
+
+_NOMES_DIA = ['Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado','Domingo']
+
+def recorrencia_dict(r):
+    return {
+        'id':           r.id,
+        'titulo':       r.titulo,
+        'diaSemana':    r.dia_semana,
+        'diaNome':      _NOMES_DIA[r.dia_semana] if 0 <= r.dia_semana <= 6 else '',
+        'plataforma':   r.plataforma,
+        'tipoConteudo': r.tipo_conteudo,
+        'descricao':    r.descricao,
+        'statusPadrao': r.status_padrao,
+        'ativa':        r.ativa,
+    }
+
+
+@api_bp.route('/recorrencias-conteudo')
+@login_required
+def list_recorrencias():
+    items = RecorrenciaConteudo.query.order_by(RecorrenciaConteudo.dia_semana).all()
+    return ok([recorrencia_dict(r) for r in items])
+
+
+@api_bp.route('/recorrencias-conteudo', methods=['POST'])
+@login_required
+def create_recorrencia():
+    if not current_user.pode_editar():
+        return err('Sem permissão.', 403)
+    d = request.get_json(silent=True) or {}
+    titulo = (d.get('titulo') or '').strip()
+    if not titulo:
+        return err('O título é obrigatório.')
+    dia = d.get('diaSemana')
+    if dia is None or not (0 <= int(dia) <= 6):
+        return err('Dia da semana inválido.')
+    plataforma = (d.get('plataforma') or '').strip()
+    if not plataforma:
+        return err('Selecione a plataforma.')
+    r = RecorrenciaConteudo(
+        titulo=titulo,
+        dia_semana=int(dia),
+        plataforma=plataforma,
+        tipo_conteudo=d.get('tipoConteudo') or None,
+        descricao=d.get('descricao') or None,
+        status_padrao=d.get('statusPadrao') or 'agendado',
+        ativa=bool(d.get('ativa', True)),
+    )
+    db.session.add(r)
+    db.session.commit()
+    return ok(recorrencia_dict(r), code=201)
+
+
+@api_bp.route('/recorrencias-conteudo/<int:id>', methods=['PUT'])
+@login_required
+def update_recorrencia(id):
+    if not current_user.pode_editar():
+        return err('Sem permissão.', 403)
+    r = db.session.get(RecorrenciaConteudo, id)
+    if not r:
+        return err('Recorrência não encontrada.', 404)
+    d = request.get_json(silent=True) or {}
+    titulo = (d.get('titulo') or '').strip()
+    if not titulo:
+        return err('O título é obrigatório.')
+    dia = d.get('diaSemana')
+    if dia is None or not (0 <= int(dia) <= 6):
+        return err('Dia da semana inválido.')
+    r.titulo        = titulo
+    r.dia_semana    = int(dia)
+    r.plataforma    = (d.get('plataforma') or '').strip()
+    r.tipo_conteudo = d.get('tipoConteudo') or None
+    r.descricao     = d.get('descricao') or None
+    r.status_padrao = d.get('statusPadrao') or 'agendado'
+    r.ativa         = bool(d.get('ativa', True))
+    db.session.commit()
+    return ok(recorrencia_dict(r))
+
+
+@api_bp.route('/recorrencias-conteudo/<int:id>', methods=['DELETE'])
+@login_required
+def delete_recorrencia(id):
+    if not current_user.pode_editar():
+        return err('Sem permissão.', 403)
+    r = db.session.get(RecorrenciaConteudo, id)
+    if not r:
+        return err('Recorrência não encontrada.', 404)
+    db.session.delete(r)
+    db.session.commit()
+    return ok()
+
+
+@api_bp.route('/agenda-conteudo/gerar-mes', methods=['POST'])
+@login_required
+def gerar_mes():
+    if not current_user.pode_editar():
+        return err('Sem permissão.', 403)
+    from datetime import date, timedelta
+    import calendar as cal
+    d = request.get_json(silent=True) or {}
+    mes = (d.get('mes') or '').strip()   # YYYY-MM
+    try:
+        ano, m = int(mes[:4]), int(mes[5:7])
+        first  = date(ano, m, 1)
+        last   = date(ano, m, cal.monthrange(ano, m)[1])
+    except (ValueError, IndexError):
+        return err('Formato de mês inválido. Use YYYY-MM.')
+
+    recorrencias = RecorrenciaConteudo.query.filter_by(ativa=True).all()
+    criados = 0
+    for rec in recorrencias:
+        # primeiro dia do mês com o dia da semana alvo
+        delta = (rec.dia_semana - first.weekday()) % 7
+        dia   = first + timedelta(days=delta)
+        while dia <= last:
+            existe = AgendaConteudo.query.filter_by(
+                titulo=rec.titulo,
+                data_publicacao=dia,
+            ).first()
+            if not existe:
+                db.session.add(AgendaConteudo(
+                    titulo=rec.titulo,
+                    plataforma=rec.plataforma,
+                    tipo_conteudo=rec.tipo_conteudo,
+                    data_publicacao=dia,
+                    status=rec.status_padrao,
+                    descricao=rec.descricao,
+                    criado_por_id=current_user.id,
+                ))
+                criados += 1
+            dia += timedelta(weeks=1)
+
+    db.session.commit()
+    return ok({'criados': criados, 'mes': mes})

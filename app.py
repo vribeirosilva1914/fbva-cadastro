@@ -75,6 +75,7 @@ def create_app():
         db.create_all()
         _migrate_db()
         _seed_admin()
+        _seed_recorrencias()
 
     return app
 
@@ -169,6 +170,21 @@ def _seed_admin():
         )
         db.session.add(admin)
         db.session.commit()
+
+
+def _seed_recorrencias():
+    from models import RecorrenciaConteudo
+    defaults = [
+        dict(titulo='Stories de eventos', dia_semana=5, plataforma='instagram', tipo_conteudo='story',   status_padrao='agendado'),
+        dict(titulo='Resumo dos eventos', dia_semana=1, plataforma='instagram', tipo_conteudo='post',    status_padrao='agendado'),
+    ]
+    for item in defaults:
+        existe = RecorrenciaConteudo.query.filter_by(
+            titulo=item['titulo'], dia_semana=item['dia_semana']
+        ).first()
+        if not existe:
+            db.session.add(RecorrenciaConteudo(**item))
+    db.session.commit()
 
 
 if __name__ == '__main__':
