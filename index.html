@@ -296,6 +296,7 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;font-size:
       <button class="nl" id="nav-atendimento" onclick="App.go('atendimento')" style="color:rgba(37,211,102,.85)"><i class="bi bi-headset"></i><span>Atendimento WA <span id="nav-badge-wa" class="badge bg-danger rounded-pill d-none" style="font-size:.65rem"></span></span></button>
       <button class="nl" id="nav-email" onclick="App.go('email')"><i class="bi bi-envelope-fill"></i><span>Mensageiro E-mail</span></button>
       <button class="nl" id="nav-clipping" onclick="App.go('clipping')"><i class="bi bi-newspaper"></i><span>Clipping de Notícias</span></button>
+      <button class="nl" id="nav-agenda" onclick="App.go('agenda')"><i class="bi bi-calendar2-week-fill"></i><span>Agenda de Conteúdo</span></button>
       <div class="nav-sec mt-2" id="nav-adm-label">Administração</div>
       <button class="nl" id="nav-usuarios" onclick="App.go('usuarios')"><i class="bi bi-people-fill"></i><span>Usuários</span></button>
       <button class="nl" id="nav-novo-usuario" onclick="App.go('usuario-form')"><i class="bi bi-person-plus-fill"></i><span>Novo Usuário</span></button>
@@ -716,7 +717,7 @@ function showApp() {
     const el=document.getElementById(id);
     if(el) el.style.display=pode.secretaria()?'':'none';
   });
-  ['nav-sec-comunicacao','nav-mensageiro','nav-atendimento','nav-email','nav-clipping'].forEach(id=>{
+  ['nav-sec-comunicacao','nav-mensageiro','nav-atendimento','nav-email','nav-clipping','nav-agenda'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.style.display=pode.comunicacao()?'':'none';
   });
@@ -737,6 +738,7 @@ function activateNav(v) {
     usuarios:'[onclick*="usuarios"]','usuario-form':'[onclick*="usuario-form"]',
     mensageiro:'[onclick*="mensageiro"]',atendimento:'[onclick*="atendimento"]',
     gestao:'[onclick*="gestao"]',email:'[onclick*="email"]',clipping:'[onclick*="clipping"]',
+    agenda:'[onclick*="agenda"]','agenda-form':'[onclick*="agenda"]',
     eventos:'[onclick*="eventos"]','evento-form':'[onclick*="eventos"]'};
   const sel=map[v];
   if(sel) document.querySelector(`.sb-nav ${sel}`)?.classList.add('active');
@@ -989,6 +991,8 @@ async function go(view,id=null) {
     else if(view==='atendimento')   await renderAtendimento();
     else if(view==='email')         await renderMensageiroEmail();
     else if(view==='clipping')      await renderClipping();
+    else if(view==='agenda')        await renderAgendaConteudo();
+    else if(view==='agenda-form')   await renderAgendaConteudoForm(id);
   } catch(e) { toast(e.message,'danger'); }
   window.scrollTo(0,0);
 }
@@ -4570,6 +4574,300 @@ async function _clLimpar(){
   });
 }
 
+// ── AGENDA DE CONTEÚDO ─────────────────────────────────────────────────────
+
+const _PLATAFORMAS = [
+  {v:'instagram',l:'Instagram', icon:'bi-instagram',    cor:'#E1306C'},
+  {v:'facebook', l:'Facebook',  icon:'bi-facebook',     cor:'#1877F2'},
+  {v:'whatsapp', l:'WhatsApp',  icon:'bi-whatsapp',     cor:'#25D366'},
+  {v:'youtube',  l:'YouTube',   icon:'bi-youtube',      cor:'#FF0000'},
+  {v:'email',    l:'E-mail',    icon:'bi-envelope-fill',cor:'#495057'},
+  {v:'site',     l:'Site',      icon:'bi-globe',        cor:'#0d9488'},
+  {v:'outro',    l:'Outro',     icon:'bi-broadcast',    cor:'#6c757d'},
+];
+const _TIPOS_CONTEUDO = [
+  {v:'post',             l:'Post'},
+  {v:'story',            l:'Story'},
+  {v:'reels',            l:'Reels'},
+  {v:'carrossel',        l:'Carrossel'},
+  {v:'video',            l:'Vídeo'},
+  {v:'email_newsletter', l:'E-mail / Newsletter'},
+  {v:'mensagem',         l:'Mensagem'},
+  {v:'artigo',           l:'Artigo / Notícia'},
+  {v:'outro',            l:'Outro'},
+];
+const _STATUS_AGENDA = [
+  {v:'rascunho', l:'Rascunho', cls:'secondary'},
+  {v:'agendado', l:'Agendado', cls:'warning text-dark'},
+  {v:'publicado',l:'Publicado',cls:'success'},
+  {v:'cancelado',l:'Cancelado',cls:'danger'},
+];
+
+function _agPlataforma(v){return _PLATAFORMAS.find(p=>p.v===v)||{v,l:v,icon:'bi-broadcast',cor:'#6c757d'};}
+function _agStatusBadge(v){
+  const s=_STATUS_AGENDA.find(x=>x.v===v)||{l:v,cls:'secondary'};
+  return `<span class="badge bg-${s.cls}">${s.l}</span>`;
+}
+function _agPlataformaBadge(v){
+  const p=_agPlataforma(v);
+  return `<span style="color:${p.cor};white-space:nowrap"><i class="bi ${p.icon} me-1"></i>${p.l}</span>`;
+}
+
+let _agAll = [];
+
+async function renderAgendaConteudo() {
+  setTitle('<i class="bi bi-calendar2-week-fill me-2"></i>Agenda de Conteúdo',
+    pode.editar()?`<button class="btn btn-primary btn-sm" onclick="App.go('agenda-form')">
+      <i class="bi bi-plus-lg me-1"></i>Novo Conteúdo</button>`:''
+  );
+  render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
+  _agAll = await Api.get('/api/agenda-conteudo');
+  const platOpts = _PLATAFORMAS.map(p=>`<option value="${p.v}">${p.l}</option>`).join('');
+  const stOpts   = _STATUS_AGENDA.map(s=>`<option value="${s.v}">${s.l}</option>`).join('');
+  const hoje = new Date();
+  const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+
+  render(`
+  <div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-12 col-md-4">
+          <input type="text" id="ag-q" class="form-control form-control-sm"
+            placeholder="Buscar por título..." oninput="App._agFiltrar()">
+        </div>
+        <div class="col-6 col-md-2">
+          <select id="ag-plat" class="form-select form-select-sm" onchange="App._agFiltrar()">
+            <option value="">Todas as plataformas</option>${platOpts}
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <select id="ag-status" class="form-select form-select-sm" onchange="App._agFiltrar()">
+            <option value="">Todos os status</option>${stOpts}
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <input type="month" id="ag-mes" class="form-control form-control-sm"
+            value="${mesAtual}" onchange="App._agFiltrar()">
+        </div>
+        <div class="col-6 col-md-2">
+          <button class="btn btn-sm btn-outline-secondary w-100" onclick="document.getElementById('ag-mes').value='';App._agFiltrar()">
+            Ver tudo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="ag-table-wrap"></div>`);
+
+  _agRenderTabela(_agAll);
+}
+
+function _agRenderTabela(lista) {
+  const wrap = document.getElementById('ag-table-wrap');
+  if(!wrap) return;
+  if(!lista.length) {
+    wrap.innerHTML=`<div class="sec-empty m-3"><i class="bi bi-calendar2-x fs-4 d-block mb-2"></i>Nenhum conteúdo encontrado.</div>`;
+    return;
+  }
+  wrap.innerHTML=`
+  <div class="table-responsive">
+  <table class="table table-hover align-middle mb-0">
+    <thead><tr>
+      <th style="min-width:110px">Data / Hora</th>
+      <th>Plataforma</th>
+      <th>Título / Tipo</th>
+      <th>Status</th>
+      <th>Responsável</th>
+      <th>Vínculo</th>
+      ${pode.editar()?'<th class="text-end">Ações</th>':''}
+    </tr></thead>
+    <tbody>
+    ${lista.map(a=>`
+      <tr>
+        <td class="text-nowrap">
+          <div class="fw-semibold">${fmtDate(a.dataPublicacao)}</div>
+          ${a.horaPublicacao?`<div class="text-muted small">${a.horaPublicacao}</div>`:''}
+        </td>
+        <td>${_agPlataformaBadge(a.plataforma)}</td>
+        <td>
+          <div class="fw-semibold">${esc(a.titulo)}</div>
+          ${a.tipoConteudo?`<div class="text-muted small">${esc(_TIPOS_CONTEUDO.find(t=>t.v===a.tipoConteudo)?.l||a.tipoConteudo)}</div>`:''}
+        </td>
+        <td>${_agStatusBadge(a.status)}</td>
+        <td>${esc(a.responsavelNome||'—')}</td>
+        <td class="small text-muted">
+          ${a.eventoNome?`<div><i class="bi bi-calendar-event me-1"></i>${esc(a.eventoNome)}</div>`:''}
+          ${a.clubeNome?`<div><i class="bi bi-building me-1"></i>${esc(a.clubeNome)}</div>`:''}
+          ${!a.eventoNome&&!a.clubeNome?'—':''}
+        </td>
+        ${pode.editar()?`<td class="text-end text-nowrap">
+          <button class="btn btn-sm btn-outline-secondary me-1" onclick="App.go('agenda-form',${a.id})" title="Editar">
+            <i class="bi bi-pencil"></i></button>
+          <button class="btn btn-sm btn-outline-danger" onclick="App.confirmarExcluirAgenda(${a.id},${JSON.stringify(a.titulo)})" title="Excluir">
+            <i class="bi bi-trash"></i></button>
+        </td>`:''}
+      </tr>`).join('')}
+    </tbody>
+  </table>
+  </div>`;
+}
+
+function _agFiltrar() {
+  const q    = (document.getElementById('ag-q')?.value||'').toLowerCase();
+  const plat = document.getElementById('ag-plat')?.value||'';
+  const st   = document.getElementById('ag-status')?.value||'';
+  const mes  = document.getElementById('ag-mes')?.value||'';
+  let lista  = _agAll;
+  if(q)    lista = lista.filter(a=>a.titulo.toLowerCase().includes(q));
+  if(plat) lista = lista.filter(a=>a.plataforma===plat);
+  if(st)   lista = lista.filter(a=>a.status===st);
+  if(mes)  lista = lista.filter(a=>(a.dataPublicacao||'').startsWith(mes));
+  _agRenderTabela(lista);
+}
+
+async function renderAgendaConteudoForm(id) {
+  const editing = !!id;
+  let item = null;
+  if(editing) {
+    render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
+    item = await Api.get(`/api/agenda-conteudo/${id}`);
+    if(!item){await go('agenda');return;}
+  }
+  setTitle(`<i class="bi bi-pencil-square me-2"></i>${editing?'Editar':'Novo'} Conteúdo`,
+    `<button class="btn btn-outline-secondary btn-sm" onclick="App.go('agenda')">
+      <i class="bi bi-arrow-left me-1"></i>Voltar</button>`);
+
+  const [usuarios, eventos, clubes] = await Promise.all([
+    Api.get('/api/usuarios'),
+    Api.get('/api/eventos'),
+    Api.get('/api/clubes?status=ativos'),
+  ]);
+  const v = item||{};
+
+  const platOpts = _PLATAFORMAS.map(p=>
+    `<option value="${p.v}"${v.plataforma===p.v?' selected':''}>${p.l}</option>`).join('');
+  const tipoOpts = `<option value="">— Nenhum —</option>`
+    + _TIPOS_CONTEUDO.map(t=>`<option value="${t.v}"${v.tipoConteudo===t.v?' selected':''}>${t.l}</option>`).join('');
+  const statusOpts = _STATUS_AGENDA.map(s=>
+    `<option value="${s.v}"${(v.status||'rascunho')===s.v?' selected':''}>${s.l}</option>`).join('');
+  const respOpts = `<option value="">— Nenhum —</option>`
+    + usuarios.map(u=>`<option value="${u.id}"${v.responsavelId===u.id?' selected':''}>${esc(u.nome)}</option>`).join('');
+  const evOpts = `<option value="">— Nenhum —</option>`
+    + eventos.map(e=>`<option value="${e.id}"${v.eventoId===e.id?' selected':''}>${esc(e.nome)}</option>`).join('');
+  const clOpts = `<option value="">— Nenhum —</option>`
+    + clubes.map(c=>`<option value="${c.id}"${v.clubeId===c.id?' selected':''}>${esc(c.nomeClube)}</option>`).join('');
+
+  render(`
+  <form id="agenda-form" onsubmit="App.saveAgendaConteudo(event,${id||'null'})">
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-header"><i class="bi bi-calendar2-week-fill me-2"></i>Publicação</div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label req">Título</label>
+            <input name="titulo" class="form-control" required
+              value="${esc(v.titulo||'')}" placeholder="Ex.: Post sobre ExpoClassic SP — junho">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label req">Plataforma</label>
+            <select name="plataforma" class="form-select" required>${platOpts}</select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Tipo de Conteúdo</label>
+            <select name="tipoConteudo" class="form-select">${tipoOpts}</select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label req">Status</label>
+            <select name="status" class="form-select">${statusOpts}</select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label req">Data de Publicação</label>
+            <input name="dataPublicacao" type="date" class="form-control" required value="${v.dataPublicacao||''}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Hora</label>
+            <input name="horaPublicacao" type="time" class="form-control" value="${v.horaPublicacao||''}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Responsável</label>
+            <select name="responsavelId" class="form-select">${respOpts}</select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-header"><i class="bi bi-card-text me-2"></i>Conteúdo / Legenda</div>
+      <div class="card-body">
+        <textarea name="descricao" class="form-control" rows="5"
+          placeholder="Texto, legenda ou briefing do conteúdo...">${esc(v.descricao||'')}</textarea>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-header"><i class="bi bi-link-45deg me-2"></i>Vínculos</div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Evento relacionado</label>
+            <select name="eventoId" class="form-select">${evOpts}</select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Clube relacionado</label>
+            <select name="clubeId" class="form-select">${clOpts}</select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2 justify-content-end">
+      <button type="button" class="btn btn-outline-secondary" onclick="App.go('agenda')">Cancelar</button>
+      ${pode.editar()?`<button type="submit" class="btn btn-primary">
+        <i class="bi bi-check-lg me-1"></i>Salvar</button>`:''}
+    </div>
+  </form>`);
+}
+
+async function saveAgendaConteudo(e, id) {
+  e.preventDefault();
+  const fd   = new FormData(e.target);
+  const data = Object.fromEntries(fd.entries());
+  data.titulo = (data.titulo||'').trim();
+  if(!data.titulo)          {toast('Informe o título.','danger');return;}
+  if(!data.plataforma)      {toast('Selecione a plataforma.','danger');return;}
+  if(!data.dataPublicacao)  {toast('Informe a data de publicação.','danger');return;}
+  if(!data.tipoConteudo)    delete data.tipoConteudo;
+  if(!data.horaPublicacao)  delete data.horaPublicacao;
+  if(!data.descricao)       delete data.descricao;
+  if(!data.responsavelId)   delete data.responsavelId;
+  if(!data.eventoId)        delete data.eventoId;
+  if(!data.clubeId)         delete data.clubeId;
+  const btn = e.target.querySelector('[type=submit]');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Salvando...';
+  try {
+    if(id) await Api.put(`/api/agenda-conteudo/${id}`, data);
+    else   await Api.post('/api/agenda-conteudo', data);
+    toast(`Conteúdo "${data.titulo}" ${id?'atualizado':'cadastrado'}!`);
+    await go('agenda');
+  } catch(err2) {
+    toast(err2.message,'danger');
+    btn.disabled=false;
+    btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Salvar';
+  }
+}
+
+function confirmarExcluirAgenda(id, titulo) {
+  showConfirm(`Excluir o conteúdo <strong>${esc(titulo)}</strong>?`, async()=>{
+    try {
+      await Api.del(`/api/agenda-conteudo/${id}`);
+      toast('Conteúdo excluído.');
+      _agAll = _agAll.filter(a=>a.id!==id);
+      _agRenderTabela(_agAll);
+    } catch(err2){ toast(err2.message,'danger'); }
+  });
+}
+
 // ── Init ───────────────────────────────────────
 async function init() {
   document.getElementById('l-senha').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
@@ -4604,6 +4902,8 @@ return{
   _triNavAno,_editarTri,_salvarTrimestralidade,_triPreviewComprovante,_triRemoverComprovante,
   // Clipping
   _clBuscar,_clFiltrar,_clSetViz,_clMarcarLida,_clMarcarTodasLidas,_clDeletar,_clLimpar,
+  // Agenda de Conteúdo
+  renderAgendaConteudo,renderAgendaConteudoForm,saveAgendaConteudo,confirmarExcluirAgenda,_agFiltrar,
   // Form dynamic sections
   _addMembro,_addEndereco,_onEstadoMudou,
   // Detail view actions

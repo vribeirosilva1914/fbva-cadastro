@@ -364,6 +364,57 @@ class Evento(db.Model):
     criado_por = db.relationship('Usuario', foreign_keys=[criado_por_id])
 
 
+class AgendaConteudo(db.Model):
+    __tablename__ = 'agenda_conteudo'
+
+    PLATAFORMAS = [
+        ('instagram', 'Instagram'),
+        ('facebook',  'Facebook'),
+        ('whatsapp',  'WhatsApp'),
+        ('youtube',   'YouTube'),
+        ('email',     'E-mail'),
+        ('site',      'Site'),
+        ('outro',     'Outro'),
+    ]
+    TIPOS = [
+        ('post',              'Post'),
+        ('story',             'Story'),
+        ('reels',             'Reels'),
+        ('carrossel',         'Carrossel'),
+        ('video',             'Vídeo'),
+        ('email_newsletter',  'E-mail / Newsletter'),
+        ('mensagem',          'Mensagem'),
+        ('artigo',            'Artigo / Notícia'),
+        ('outro',             'Outro'),
+    ]
+    STATUS = [
+        ('rascunho',  'Rascunho'),
+        ('agendado',  'Agendado'),
+        ('publicado', 'Publicado'),
+        ('cancelado', 'Cancelado'),
+    ]
+
+    id              = db.Column(db.Integer, primary_key=True)
+    titulo          = db.Column(db.String(200), nullable=False)
+    plataforma      = db.Column(db.String(30),  nullable=False)
+    tipo_conteudo   = db.Column(db.String(30),  nullable=True)
+    data_publicacao = db.Column(db.Date,        nullable=False)
+    hora_publicacao = db.Column(db.String(5),   nullable=True)   # HH:MM
+    status          = db.Column(db.String(20),  nullable=False, default='rascunho')
+    descricao       = db.Column(db.Text,        nullable=True)
+    responsavel_id  = db.Column(db.Integer, db.ForeignKey('usuarios.id', ondelete='SET NULL'), nullable=True)
+    evento_id       = db.Column(db.Integer, db.ForeignKey('eventos.id',  ondelete='SET NULL'), nullable=True)
+    clube_id        = db.Column(db.Integer, db.ForeignKey('clubes.id',   ondelete='SET NULL'), nullable=True)
+    criado_por_id   = db.Column(db.Integer, db.ForeignKey('usuarios.id', ondelete='SET NULL'), nullable=True)
+    criado_em       = db.Column(db.DateTime, default=datetime.utcnow)
+    atualizado_em   = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    responsavel = db.relationship('Usuario', foreign_keys=[responsavel_id])
+    evento      = db.relationship('Evento',  foreign_keys=[evento_id])
+    clube       = db.relationship('Clube',   foreign_keys=[clube_id])
+    criado_por  = db.relationship('Usuario', foreign_keys=[criado_por_id])
+
+
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(Usuario, int(user_id))

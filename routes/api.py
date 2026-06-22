@@ -12,7 +12,7 @@ from models import (Usuario, Clube, WaLog, EmailLog, Config, FinanceiroClube,
                     Trimestralidade, MembroDiretoria, Documento,
                     EnderecoAdicional, Contato, ContatoTelefone, ContatoEmail,
                     Associado, ClippingNoticia,
-                    ContatoWA, ConversacaoWA, MensagemWA, Evento)
+                    ContatoWA, ConversacaoWA, MensagemWA, Evento, AgendaConteudo)
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -1987,4 +1987,147 @@ def delete_evento_imagem(id):
             pass
         e.imagem_filename = None
         db.session.commit()
+    return ok()
+
+
+# ── AGENDA DE CONTEÚDO ────────────────────────────────────────────────────────
+
+def agenda_dict(a):
+    return {
+        'id':             a.id,
+        'titulo':         a.titulo,
+        'plataforma':     a.plataforma,
+        'tipoConteudo':   a.tipo_conteudo,
+        'dataPublicacao': a.data_publicacao.isoformat() if a.data_publicacao else None,
+        'horaPublicacao': a.hora_publicacao,
+        'status':         a.status,
+        'descricao':      a.descricao,
+        'responsavelId':  a.responsavel_id,
+        'responsavelNome': a.responsavel.nome if a.responsavel else None,
+        'eventoId':       a.evento_id,
+        'eventoNome':     a.evento.nome if a.evento else None,
+        'clubeId':        a.clube_id,
+        'clubeNome':      a.clube.nome_clube if a.clube else None,
+        'criadoEm':       a.criado_em.isoformat() if a.criado_em else None,
+        'atualizadoEm':   a.atualizado_em.isoformat() if a.atualizado_em else None,
+    }
+
+
+@api_bp.route('/agenda-conteudo')
+@login_required
+def list_agenda():
+    from datetime import date
+    q          = request.args.get('q', '').strip()
+    plataforma = request.args.get('plataforma', '').strip()
+    status     = request.args.get('status', '').strip()
+    mes        = request.args.get('mes', '').strip()   # YYYY-MM
+
+    query = AgendaConteudo.query
+    if q:
+        query = query.filter(AgendaConteudo.titulo.ilike(f'%{q}%'))
+    if plataforma:
+        query = query.filter_by(plataforma=plataforma)
+    if status:
+        query = query.filter_by(status=status)
+    if mes:
+        try:
+            ano, m = int(mes[:4]), int(mes[5:7])
+            import calendar
+            ultimo = calendar.monthrange(ano, m)[1]
+            query = query.filter(
+                AgendaConteudo.data_publicacao >= date(ano, m, 1),
+                AgendaConteudo.data_publicacao <= date(ano, m, ultimo),
+            )
+        except (ValueError, IndexError):
+            pass
+
+    itens = query.order_by(AgendaConteudo.data_publicacao.asc(),
+                           AgendaConteudo.hora_publicacao.asc()).all()
+    return ok([agenda_dict(a) for a in itens])
+
+
+@api_bp.route('/agenda-conteudo', methods=['POST'])
+@login_required
+def create_agenda():
+    if not current_user.pode_editar():
+        return err('Sem permissão.', 403)
+    d = request.get_json(silent=True) or {}
+    titulo = (d.get('titulo') or '').strip()
+    if not titulo:
+        return err('O título é obrigatório.')
+    plataforma = (d.get('plataforma') or '').strip()
+    if not plataforma:
+        return err('Selecione a plataforma.')
+    data_pub = parse_date(d.get('dataPublicacao'))
+    if not data_pub:
+        return err('A data de publicação é obrigatória.')
+    a = AgendaConteudo(
+        titulo=titulo,
+        plataforma=plataforma,
+        tipo_conteudo=d.get('tipoConteudo') or None,
+        data_publicacao=data_pub,
+        hora_publicacao=d.get('horaPublicacao') or None,
+        status=d.get('status') or 'rascunho',
+        descricao=d.get('descricao') or None,
+        responsavel_id=d.get('responsavelId') or None,
+        evento_id=d.get('eventoId') or None,
+        clube_id=d.get('clubeId') or None,
+        criado_por_id=current_user.id,
+    )
+    db.session.add(a)
+    db.session.commit()
+    return ok(agenda_dict(a), code=201)
+
+
+@api_bp.route('/agenda-conteudo/<int:id>', methods=['GET'])
+@login_required
+def get_agenda(id):
+    a = db.session.get(AgendaConteudo, id)
+    if not a:
+        return err('Item não encontrado.', 404)
+    return ok(agenda_dict(a))
+
+
+@api_bp.route('/agenda-conteudo/<int:id>', methods=['PUT'])
+@login_required
+def update_agenda(id):
+    if not current_user.pode_editar():
+        return err('Sem permissão.', 403)
+    a = db.session.get(AgendaConteudo, id)
+    if not a:
+        return err('Item não encontrado.', 404)
+    d = request.get_json(silent=True) or {}
+    titulo = (d.get('titulo') or '').strip()
+    if not titulo:
+        return err('O título é obrigatório.')
+    plataforma = (d.get('plataforma') or '').strip()
+    if not plataforma:
+        return err('Selecione a plataforma.')
+    data_pub = parse_date(d.get('dataPublicacao'))
+    if not data_pub:
+        return err('A data de publicação é obrigatória.')
+    a.titulo          = titulo
+    a.plataforma      = plataforma
+    a.tipo_conteudo   = d.get('tipoConteudo') or None
+    a.data_publicacao = data_pub
+    a.hora_publicacao = d.get('horaPublicacao') or None
+    a.status          = d.get('status') or 'rascunho'
+    a.descricao       = d.get('descricao') or None
+    a.responsavel_id  = d.get('responsavelId') or None
+    a.evento_id       = d.get('eventoId') or None
+    a.clube_id        = d.get('clubeId') or None
+    db.session.commit()
+    return ok(agenda_dict(a))
+
+
+@api_bp.route('/agenda-conteudo/<int:id>', methods=['DELETE'])
+@login_required
+def delete_agenda(id):
+    if not current_user.pode_editar():
+        return err('Sem permissão.', 403)
+    a = db.session.get(AgendaConteudo, id)
+    if not a:
+        return err('Item não encontrado.', 404)
+    db.session.delete(a)
+    db.session.commit()
     return ok()
