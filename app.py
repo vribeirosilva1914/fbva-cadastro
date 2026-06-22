@@ -36,6 +36,10 @@ def create_app():
     app.config['SECRET_KEY']                  = _get_secret_key()
     app.config['SQLALCHEMY_DATABASE_URI']     = _get_db_uri()
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['SQLALCHEMY_ENGINE_OPTIONS']   = {
+        'pool_pre_ping': True,   # testa a conexão antes de usá-la
+        'pool_recycle':  280,    # recicla conexões a cada ~4,5 min (antes do timeout do Render)
+    }
     app.config['WTF_CSRF_ENABLED']            = False
     app.config['SESSION_COOKIE_SAMESITE']     = 'Lax'
     app.config['SESSION_COOKIE_SECURE']       = os.environ.get('HTTPS', '0') == '1'
