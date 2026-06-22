@@ -130,6 +130,18 @@ def _migrate_db():
                       )
                 """))
 
+            # eventos — diretor representante e troféu
+            if 'eventos' in inspector.get_table_names():
+                ev_cols = {c['name'] for c in inspector.get_columns('eventos')}
+                for col_name, col_def in [
+                    ('diretor_representante', 'VARCHAR(150)'),
+                    ('trofeu_status',         "VARCHAR(20) DEFAULT 'nao_enviado'"),
+                    ('trofeu_enviado_em',      'DATE'),
+                    ('trofeu_observacoes',     'TEXT'),
+                ]:
+                    if col_name not in ev_cols:
+                        conn.execute(text(f'ALTER TABLE eventos ADD COLUMN {col_name} {col_def}'))
+
             # usuarios — reset de senha
             if 'usuarios' in inspector.get_table_names():
                 usr_cols = {c['name'] for c in inspector.get_columns('usuarios')}

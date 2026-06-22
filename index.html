@@ -4112,6 +4112,11 @@ function _renderEventosTabela(eventos) {
     wrap.innerHTML=`<div class="sec-empty m-3"><i class="bi bi-calendar-x fs-4 d-block mb-2"></i>Nenhum evento encontrado.</div>`;
     return;
   }
+  const trofeuBadge = s => {
+    if(s==='entregue') return '<span class="badge bg-success">Entregue</span>';
+    if(s==='enviado')  return '<span class="badge bg-info text-dark">Enviado</span>';
+    return '<span class="badge bg-secondary">Não enviado</span>';
+  };
   wrap.innerHTML=`
   <div class="table-responsive">
   <table class="table table-hover mb-0">
@@ -4121,6 +4126,8 @@ function _renderEventosTabela(eventos) {
       <th>Data Início</th>
       <th>Data Fim</th>
       <th>Local / Cidade / UF</th>
+      <th>Dir. Representante</th>
+      <th>Troféu</th>
       ${pode.editar()?'<th class="text-end">Ações</th>':''}
     </tr></thead>
     <tbody>
@@ -4136,6 +4143,8 @@ function _renderEventosTabela(eventos) {
         <td>
           ${[e.local,e.cidade,e.estado].filter(Boolean).map(esc).join(' · ')||'—'}
         </td>
+        <td>${esc(e.diretorRepresentante||'—')}</td>
+        <td>${trofeuBadge(e.trofeuStatus)}</td>
         ${pode.editar()?`<td class="text-end">
           <button class="btn btn-sm btn-outline-secondary me-1" onclick="App.go('evento-form',${e.id})" title="Editar">
             <i class="bi bi-pencil"></i></button>
@@ -4239,6 +4248,38 @@ async function renderEventoForm(id) {
       </div>
     </div>
 
+    <div class="card shadow-sm mb-4">
+      <div class="card-header"><i class="bi bi-person-badge me-2"></i>Representação & Troféu</div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label">Diretor Representante FBVA</label>
+            <input name="diretorRepresentante" class="form-control"
+              value="${esc(v.diretorRepresentante||'')}"
+              placeholder="Nome do diretor que representará a FBVA no evento">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Status do Troféu</label>
+            <select name="trofeuStatus" class="form-select">
+              <option value="nao_enviado"${(v.trofeuStatus||'nao_enviado')==='nao_enviado'?' selected':''}>Não enviado</option>
+              <option value="enviado"${v.trofeuStatus==='enviado'?' selected':''}>Enviado</option>
+              <option value="entregue"${v.trofeuStatus==='entregue'?' selected':''}>Entregue</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Data de Envio do Troféu</label>
+            <input name="trofeuEnviadoEm" type="date" class="form-control"
+              value="${v.trofeuEnviadoEm||''}">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Observações sobre o Troféu</label>
+            <textarea name="trofeuObservacoes" class="form-control" rows="2"
+              placeholder="Ex.: enviado via Correios, rastreio XYZ...">${esc(v.trofeuObservacoes||'')}</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="d-flex gap-2 justify-content-end">
       <button type="button" class="btn btn-outline-secondary" onclick="App.go('eventos')">Cancelar</button>
       ${pode.editar()?`<button type="submit" class="btn btn-primary">
@@ -4254,8 +4295,11 @@ async function saveEvento(e, id) {
   data.nome = (data.nome||'').trim();
   if(!data.nome){toast('Informe o nome do evento.','danger');return;}
   if(!data.dataInicio){toast('Informe a data de início.','danger');return;}
-  if(!data.clubeId) delete data.clubeId;
-  if(!data.estado)  delete data.estado;
+  if(!data.clubeId)           delete data.clubeId;
+  if(!data.estado)            delete data.estado;
+  if(!data.diretorRepresentante) delete data.diretorRepresentante;
+  if(!data.trofeuEnviadoEm)   delete data.trofeuEnviadoEm;
+  if(!data.trofeuObservacoes) delete data.trofeuObservacoes;
   const btn = e.target.querySelector('[type=submit]');
   btn.disabled=true;
   btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Salvando...';

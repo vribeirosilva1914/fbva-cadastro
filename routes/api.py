@@ -1806,18 +1806,22 @@ def limpar_clipping():
 
 def evento_dict(e):
     return {
-        'id':           e.id,
-        'nome':         e.nome,
-        'dataInicio':   e.data_inicio.isoformat() if e.data_inicio else None,
-        'dataFim':      e.data_fim.isoformat() if e.data_fim else None,
-        'imagemUrl':    f'/api/eventos/{e.id}/imagem' if e.imagem_filename else None,
-        'local':        e.local,
-        'cidade':       e.cidade,
-        'estado':       e.estado,
-        'clubeId':      e.clube_id,
-        'clubeNome':    e.clube.nome_clube if e.clube else None,
-        'criadoEm':     e.criado_em.isoformat() if e.criado_em else None,
-        'atualizadoEm': e.atualizado_em.isoformat() if e.atualizado_em else None,
+        'id':                   e.id,
+        'nome':                 e.nome,
+        'dataInicio':           e.data_inicio.isoformat() if e.data_inicio else None,
+        'dataFim':              e.data_fim.isoformat() if e.data_fim else None,
+        'imagemUrl':            f'/api/eventos/{e.id}/imagem' if e.imagem_filename else None,
+        'local':                e.local,
+        'cidade':               e.cidade,
+        'estado':               e.estado,
+        'clubeId':              e.clube_id,
+        'clubeNome':            e.clube.nome_clube if e.clube else None,
+        'diretorRepresentante': e.diretor_representante,
+        'trofeuStatus':         e.trofeu_status or 'nao_enviado',
+        'trofeuEnviadoEm':      e.trofeu_enviado_em.isoformat() if e.trofeu_enviado_em else None,
+        'trofeuObservacoes':    e.trofeu_observacoes,
+        'criadoEm':             e.criado_em.isoformat() if e.criado_em else None,
+        'atualizadoEm':         e.atualizado_em.isoformat() if e.atualizado_em else None,
     }
 
 
@@ -1864,6 +1868,10 @@ def create_evento():
         estado=d.get('estado') or None,
         clube_id=d.get('clubeId') or None,
         criado_por_id=current_user.id,
+        diretor_representante=d.get('diretorRepresentante') or None,
+        trofeu_status=d.get('trofeuStatus') or 'nao_enviado',
+        trofeu_enviado_em=parse_date(d.get('trofeuEnviadoEm')),
+        trofeu_observacoes=d.get('trofeuObservacoes') or None,
     )
     db.session.add(e)
     db.session.commit()
@@ -1894,13 +1902,17 @@ def update_evento(id):
     data_inicio = parse_date(d.get('dataInicio'))
     if not data_inicio:
         return err('A data de início é obrigatória.')
-    e.nome        = nome
-    e.data_inicio = data_inicio
-    e.data_fim    = parse_date(d.get('dataFim'))
-    e.local       = d.get('local') or None
-    e.cidade      = d.get('cidade') or None
-    e.estado      = d.get('estado') or None
-    e.clube_id    = d.get('clubeId') or None
+    e.nome                  = nome
+    e.data_inicio           = data_inicio
+    e.data_fim              = parse_date(d.get('dataFim'))
+    e.local                 = d.get('local') or None
+    e.cidade                = d.get('cidade') or None
+    e.estado                = d.get('estado') or None
+    e.clube_id              = d.get('clubeId') or None
+    e.diretor_representante = d.get('diretorRepresentante') or None
+    e.trofeu_status         = d.get('trofeuStatus') or 'nao_enviado'
+    e.trofeu_enviado_em     = parse_date(d.get('trofeuEnviadoEm'))
+    e.trofeu_observacoes    = d.get('trofeuObservacoes') or None
     db.session.commit()
     return ok(evento_dict(e))
 

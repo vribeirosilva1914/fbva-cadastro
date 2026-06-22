@@ -355,6 +355,11 @@ class Evento(db.Model):
     criado_em = db.Column(db.DateTime, default=datetime.utcnow)
     atualizado_em = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    diretor_representante = db.Column(db.String(150), nullable=True)
+    trofeu_status         = db.Column(db.String(20),  nullable=True, default='nao_enviado')
+    trofeu_enviado_em     = db.Column(db.Date,        nullable=True)
+    trofeu_observacoes    = db.Column(db.Text,        nullable=True)
+
     clube = db.relationship('Clube', backref=db.backref('eventos', lazy='dynamic'))
     criado_por = db.relationship('Usuario', foreign_keys=[criado_por_id])
 
