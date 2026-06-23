@@ -547,13 +547,14 @@ class DocumentoFBVA(db.Model):
     __tablename__ = 'documentos_fbva'
 
     TIPOS = [
-        ('estatuto',  'Estatuto'),
-        ('ata',       'Ata'),
-        ('regimento', 'Regimento Interno'),
-        ('resolucao', 'Resolução'),
-        ('portaria',  'Portaria'),
-        ('convenio',  'Convênio'),
-        ('outro',     'Outro'),
+        ('estatuto',    'Estatuto'),
+        ('ata',         'Ata'),
+        ('regimento',   'Carta de São Paulo'),
+        ('resolucao',   'Documentos Legislativos'),
+        ('portaria',    'Manual do Vistoriador'),
+        ('convenio',    'Contratos'),
+        ('manual_proc', 'Manual de Procedimento Administrativo'),
+        ('outro',       'Outro'),
     ]
 
     id             = db.Column(db.Integer, primary_key=True)
