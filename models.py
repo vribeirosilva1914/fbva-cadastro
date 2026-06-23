@@ -572,6 +572,30 @@ class DocumentoFBVA(db.Model):
     enviado_por = db.relationship('Usuario', foreign_keys=[enviado_por_id])
 
 
+class RelatorioFinanceiro(db.Model):
+    __tablename__ = 'relatorios_financeiros'
+
+    STATUS = [
+        ('rascunho',  'Rascunho'),
+        ('aprovado',  'Aprovado'),
+        ('publicado', 'Publicado'),
+    ]
+
+    id            = db.Column(db.Integer, primary_key=True)
+    ano           = db.Column(db.Integer, nullable=False)
+    trimestre     = db.Column(db.Integer, nullable=False)
+    titulo        = db.Column(db.String(200), nullable=False)
+    descricao     = db.Column(db.Text,        nullable=True)
+    status        = db.Column(db.String(20),  default='rascunho', nullable=False)
+    filename      = db.Column(db.String(300), nullable=True)
+    tamanho       = db.Column(db.Integer,     nullable=True)
+    criado_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id', ondelete='SET NULL'), nullable=True)
+    criado_em     = db.Column(db.DateTime, default=datetime.utcnow)
+    atualizado_em = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    criado_por = db.relationship('Usuario', foreign_keys=[criado_por_id])
+
+
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(Usuario, int(user_id))

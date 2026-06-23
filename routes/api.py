@@ -14,11 +14,12 @@ from models import (Usuario, Clube, WaLog, EmailLog, Config, FinanceiroClube,
                     Associado, ClippingNoticia,
                     ContatoWA, ConversacaoWA, MensagemWA, Evento,
                     AgendaConteudo, RecorrenciaConteudo, DiretorFBVA,
-                    TicketOuvidoria, TicketResposta, DocumentoFBVA)
+                    TicketOuvidoria, TicketResposta, DocumentoFBVA,
+                    RelatorioFinanceiro)
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
-ALLOWED_EXTENSIONS = {'.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png'}
+ALLOWED_EXTENSIONS = {'.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png', '.xls', '.xlsx', '.odt', '.ods'}
 WA_PHONE_ID    = os.environ.get('WA_PHONE_NUMBER_ID', '')
 WA_TOKEN       = os.environ.get('WA_ACCESS_TOKEN', '')
 WA_API_URL     = 'https://graph.facebook.com/v18.0'
@@ -2778,3 +2779,160 @@ def remove_arquivo_doc_fbva(id):
         d.tamanho  = None
         db.session.commit()
     return ok(doc_fbva_dict(d))
+
+
+# ── Relatórios Financeiros ──────────────────────────────────────────
+
+def rel_fin_dict(r):
+    return {
+        'id':           r.id,
+        'ano':          r.ano,
+        'trimestre':    r.trimestre,
+        'titulo':       r.titulo,
+        'descricao':    r.descricao,
+        'status':       r.status,
+        'filename':     r.filename,
+        'tamanho':      r.tamanho,
+        'criadoPor':    r.criado_por.nome if r.criado_por else None,
+        'criadoEm':     r.criado_em.isoformat() if r.criado_em else None,
+        'atualizadoEm': r.atualizado_em.isoformat() if r.atualizado_em else None,
+    }
+
+
+@api_bp.route('/relatorios-financeiros', methods=['GET'])
+@login_required
+def list_relatorios_financeiros():
+    if current_user.perfil not in ('admin', 'secretaria'):
+        return err('Sem permissão.', 403)
+    ano = request.args.get('ano', type=int) or datetime.utcnow().year
+    items = RelatorioFinanceiro.query.filter_by(ano=ano)\
+        .order_by(RelatorioFinanceiro.trimestre, RelatorioFinanceiro.criado_em).all()
+    return ok([rel_fin_dict(r) for r in items])
+
+
+@api_bp.route('/relatorios-financeiros', methods=['POST'])
+@login_required
+def create_relatorio_financeiro():
+    if current_user.perfil not in ('admin', 'secretaria'):
+        return err('Sem permissão.', 403)
+    body      = request.get_json(silent=True) or {}
+    titulo    = (body.get('titulo') or '').strip()
+    trimestre = body.get('trimestre')
+    ano       = body.get('ano')
+    if not titulo:
+        return err('O título é obrigatório.')
+    if not trimestre or int(trimestre) not in (1, 2, 3, 4):
+        return err('Trimestre inválido.')
+    if not ano:
+        return err('O ano é obrigatório.')
+    r = RelatorioFinanceiro(
+        ano=int(ano),
+        trimestre=int(trimestre),
+        titulo=titulo,
+        descricao=body.get('descricao') or None,
+        status=body.get('status') or 'rascunho',
+        criado_por_id=current_user.id,
+    )
+    db.session.add(r)
+    db.session.commit()
+    return ok(rel_fin_dict(r)), 201
+
+
+@api_bp.route('/relatorios-financeiros/<int:id>', methods=['PUT'])
+@login_required
+def update_relatorio_financeiro(id):
+    if current_user.perfil not in ('admin', 'secretaria'):
+        return err('Sem permissão.', 403)
+    r = db.session.get(RelatorioFinanceiro, id)
+    if not r:
+        return err('Relatório não encontrado.', 404)
+    body      = request.get_json(silent=True) or {}
+    titulo    = (body.get('titulo') or '').strip()
+    trimestre = body.get('trimestre')
+    if not titulo:
+        return err('O título é obrigatório.')
+    if not trimestre or int(trimestre) not in (1, 2, 3, 4):
+        return err('Trimestre inválido.')
+    r.titulo    = titulo
+    r.trimestre = int(trimestre)
+    r.descricao = body.get('descricao') or None
+    r.status    = body.get('status') or r.status
+    db.session.commit()
+    return ok(rel_fin_dict(r))
+
+
+@api_bp.route('/relatorios-financeiros/<int:id>', methods=['DELETE'])
+@login_required
+def delete_relatorio_financeiro(id):
+    if current_user.perfil not in ('admin', 'secretaria'):
+        return err('Sem permissão.', 403)
+    r = db.session.get(RelatorioFinanceiro, id)
+    if not r:
+        return err('Relatório não encontrado.', 404)
+    if r.filename:
+        try:
+            os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], r.filename))
+        except OSError:
+            pass
+    db.session.delete(r)
+    db.session.commit()
+    return ok({'id': id})
+
+
+@api_bp.route('/relatorios-financeiros/<int:id>/arquivo', methods=['POST'])
+@login_required
+def upload_relatorio_financeiro(id):
+    if current_user.perfil not in ('admin', 'secretaria'):
+        return err('Sem permissão.', 403)
+    r = db.session.get(RelatorioFinanceiro, id)
+    if not r:
+        return err('Relatório não encontrado.', 404)
+    f = request.files.get('arquivo')
+    if not f or not f.filename:
+        return err('Nenhum arquivo enviado.')
+    ext = os.path.splitext(secure_filename(f.filename))[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        return err('Tipo de arquivo não permitido.')
+    if r.filename:
+        try:
+            os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], r.filename))
+        except OSError:
+            pass
+    fname = f'relfin_{uuid.uuid4().hex}{ext}'
+    path  = os.path.join(current_app.config['UPLOAD_FOLDER'], fname)
+    f.save(path)
+    r.filename = fname
+    r.tamanho  = os.path.getsize(path)
+    db.session.commit()
+    return ok(rel_fin_dict(r))
+
+
+@api_bp.route('/relatorios-financeiros/<int:id>/arquivo', methods=['GET'])
+@login_required
+def download_relatorio_financeiro(id):
+    r = db.session.get(RelatorioFinanceiro, id)
+    if not r or not r.filename:
+        return err('Arquivo não encontrado.', 404)
+    ext       = os.path.splitext(r.filename)[1]
+    safe_name = r.titulo + ext
+    return send_from_directory(current_app.config['UPLOAD_FOLDER'], r.filename,
+                               as_attachment=True, download_name=safe_name)
+
+
+@api_bp.route('/relatorios-financeiros/<int:id>/arquivo', methods=['DELETE'])
+@login_required
+def remove_relatorio_financeiro_arquivo(id):
+    if current_user.perfil not in ('admin', 'secretaria'):
+        return err('Sem permissão.', 403)
+    r = db.session.get(RelatorioFinanceiro, id)
+    if not r:
+        return err('Relatório não encontrado.', 404)
+    if r.filename:
+        try:
+            os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], r.filename))
+        except OSError:
+            pass
+        r.filename = None
+        r.tamanho  = None
+        db.session.commit()
+    return ok({'id': id})

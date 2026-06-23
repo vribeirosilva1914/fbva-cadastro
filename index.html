@@ -563,6 +563,72 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;font-size:
   </div>
 </div>
 
+<!-- Modal: Relatório Financeiro Trimestral -->
+<div class="modal fade" id="modal-rel-fin" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#0f1c2e;color:#fff">
+        <h5 class="modal-title" id="rel-fin-modal-titulo">
+          <i class="bi bi-bar-chart-line-fill me-2" style="color:var(--accent)"></i>Relatório Financeiro
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-6">
+            <label class="form-label fw-semibold">Trimestre <span class="text-danger">*</span></label>
+            <select id="rel-fin-trimestre" class="form-select form-select-sm">
+              <option value="1">1º Trimestre (Jan-Mar)</option>
+              <option value="2">2º Trimestre (Abr-Jun)</option>
+              <option value="3">3º Trimestre (Jul-Set)</option>
+              <option value="4">4º Trimestre (Out-Dez)</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label fw-semibold">Status</label>
+            <select id="rel-fin-status" class="form-select form-select-sm">
+              <option value="rascunho">Rascunho</option>
+              <option value="aprovado">Aprovado</option>
+              <option value="publicado">Publicado</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Título <span class="text-danger">*</span></label>
+            <input id="rel-fin-titulo" type="text" class="form-control form-control-sm"
+              placeholder="Ex: Relatório Financeiro 1º Trimestre 2025">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Descrição</label>
+            <textarea id="rel-fin-descricao" class="form-control form-control-sm" rows="2"
+              placeholder="Observações ou resumo do relatório..."></textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Arquivo (PDF, DOC, XLS…)</label>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <button type="button" class="btn btn-sm btn-outline-secondary"
+                onclick="document.getElementById('rel-fin-arquivo-inp').click()">
+                <i class="bi bi-upload me-1"></i>Selecionar arquivo
+              </button>
+              <input type="file" id="rel-fin-arquivo-inp"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.odt,.ods"
+                style="display:none" onchange="App._relFinPreviewArquivo(this)">
+              <span id="rel-fin-arquivo-label" class="text-muted small"></span>
+            </div>
+          </div>
+        </div>
+        <div class="mt-3" id="rel-fin-alert"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary btn-sm" id="btn-salvar-rel-fin"
+          onclick="App._relFinSalvar()">
+          <i class="bi bi-check-lg me-1"></i>Salvar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 const App = (() => {
@@ -2151,6 +2217,13 @@ async function _renderGestaoTab(tab) {
     const docs = await Api.get('/api/gestao/documentos');
     window._gdAllDocs = docs;
     _renderGestaoShell('docs', q);
+  } else if(tab === 'relatorios') {
+    const ano = window._relFinAno || new Date().getFullYear();
+    window._relFinAno = ano;
+    setTitle('<i class="bi bi-folder2-open me-2"></i>Documentação &amp; Financeiro');
+    const relatorios = await Api.get(`/api/relatorios-financeiros?ano=${ano}`);
+    window._relFinData = relatorios;
+    _renderGestaoShell('relatorios');
   } else {
     const ano = window._triAno || new Date().getFullYear();
     window._triAno = ano;
@@ -2166,11 +2239,13 @@ function _renderGestaoShell(tab, q='') {
     .filter(c=> !q || c.nomeClube.toLowerCase().includes(q) || (c.cidade||'').toLowerCase().includes(q))
     .sort((a,b)=>a.nomeClube.localeCompare(b.nomeClube,'pt-BR'));
 
-  const conteudo = tab==='docs' ? _docsTabContent(clubes) : _finTabContent(clubes);
+  const conteudo = tab==='docs' ? _docsTabContent(clubes)
+                 : tab==='relatorios' ? _relFinTabContent()
+                 : _finTabContent(clubes);
 
   render(`
-  <!-- Busca por clube -->
-  <div class="mb-3">
+  <!-- Busca por clube (oculta na aba de relatórios) -->
+  ${tab !== 'relatorios' ? `<div class="mb-3">
     <div class="input-group">
       <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
       <input type="text" id="gestao-q" class="form-control border-start-0"
@@ -2180,7 +2255,7 @@ function _renderGestaoShell(tab, q='') {
       ${q?`<button class="btn btn-outline-secondary" onclick="document.getElementById('gestao-q').value='';App._filtrarGestao()">
         <i class="bi bi-x-lg"></i></button>`:''}
     </div>
-  </div>
+  </div>` : ''}
 
   <!-- Tabs -->
   <ul class="nav nav-tabs mb-0">
@@ -2194,6 +2269,11 @@ function _renderGestaoShell(tab, q='') {
         onclick="App._renderGestaoTab('fin')">
         <i class="bi bi-cash-coin me-2"></i>Trimestralidades</button>
     </li>
+    <li class="nav-item">
+      <button class="nav-link ${tab==='relatorios'?'active':''} fw-semibold"
+        onclick="App._renderGestaoTab('relatorios')">
+        <i class="bi bi-bar-chart-line-fill me-2"></i>Relatórios Financeiros</button>
+    </li>
   </ul>
   <div class="card shadow-sm border-top-0" style="border-radius:0 0 10px 10px">
     <div class="card-body p-0" id="gestao-corpo">
@@ -2206,6 +2286,7 @@ function _filtrarGestao() {
   const q = (document.getElementById('gestao-q')?.value||'').toLowerCase();
   const el = document.getElementById('gestao-corpo');
   if(!el) return;
+  if(_gestaoTab === 'relatorios') { el.innerHTML = _relFinTabContent(); return; }
   const clubes = (state.clubes||[])
     .filter(c=> !q || c.nomeClube.toLowerCase().includes(q) || (c.cidade||'').toLowerCase().includes(q))
     .sort((a,b)=>a.nomeClube.localeCompare(b.nomeClube,'pt-BR'));
@@ -2513,6 +2594,217 @@ async function _triRemoverComprovante() {
     if(window._triCache&&window._triCache[key]) window._triCache[key].comprovanteUrl = null;
     toast('Comprovante removido.');
   } catch(e) { toast(e.message,'danger'); }
+}
+
+// ── Aba Relatórios Financeiros ───────────────────────────────────
+const REL_FIN_TRI_LABELS = ['','1º Tri (Jan-Mar)','2º Tri (Abr-Jun)','3º Tri (Jul-Set)','4º Tri (Out-Dez)'];
+let _relFinEditId = null;
+
+function _relFinStatusBadge(s) {
+  const cfg = {
+    rascunho:  {cls:'secondary', icon:'pencil-fill',      label:'Rascunho'},
+    aprovado:  {cls:'success',   icon:'check-circle-fill', label:'Aprovado'},
+    publicado: {cls:'primary',   icon:'globe2',            label:'Publicado'},
+  }[s] || {cls:'secondary', icon:'circle', label:s};
+  return `<span class="badge bg-${cfg.cls}-subtle text-${cfg.cls} border">
+    <i class="bi bi-${cfg.icon} me-1"></i>${cfg.label}</span>`;
+}
+
+function _relFinTabContent() {
+  const ano       = window._relFinAno || new Date().getFullYear();
+  const relatorios = window._relFinData || [];
+  const publicados = relatorios.filter(r=>r.status==='publicado').length;
+  const aprovados  = relatorios.filter(r=>r.status==='aprovado').length;
+  const rascunhos  = relatorios.filter(r=>r.status==='rascunho').length;
+
+  const linhas = relatorios.length
+    ? relatorios.map(r=>`
+      <tr>
+        <td class="ps-3">
+          <span class="badge bg-light text-dark border fw-normal">${REL_FIN_TRI_LABELS[r.trimestre]||r.trimestre+'º Tri'}</span>
+        </td>
+        <td>
+          <div class="fw-semibold small">${esc(r.titulo)}</div>
+          ${r.descricao?`<div class="text-muted" style="font-size:.72rem">${esc(r.descricao)}</div>`:''}
+          <div class="text-muted" style="font-size:.68rem">${r.criadoPor?'Por '+esc(r.criadoPor):''}</div>
+        </td>
+        <td class="text-center">${_relFinStatusBadge(r.status)}</td>
+        <td class="text-center">
+          ${r.filename
+            ? `<a href="/api/relatorios-financeiros/${r.id}/arquivo"
+                class="btn btn-sm btn-outline-success" title="Download">
+                <i class="bi bi-download me-1"></i><span style="font-size:.72rem">${_fmtBytes(r.tamanho)}</span>
+              </a>`
+            : `<span class="text-muted small">Sem arquivo</span>`}
+        </td>
+        <td class="text-end pe-3">
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-secondary" title="Enviar/substituir arquivo"
+              onclick="document.getElementById('rel-fin-up-${r.id}').click()">
+              <i class="bi bi-upload"></i></button>
+            <input type="file" id="rel-fin-up-${r.id}"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.odt,.ods"
+              style="display:none" onchange="App._relFinUpload(${r.id},this)">
+            <button class="btn btn-outline-primary" title="Editar"
+              onclick="App._relFinAbrirModal(${r.id})">
+              <i class="bi bi-pencil"></i></button>
+            <button class="btn btn-outline-danger" title="Excluir"
+              onclick="App._relFinExcluir(${r.id})">
+              <i class="bi bi-trash"></i></button>
+          </div>
+        </td>
+      </tr>`).join('')
+    : `<tr><td colspan="5" class="text-center py-5 text-muted">
+        <i class="bi bi-bar-chart-line fs-2 d-block mb-2 opacity-25"></i>
+        Nenhum relatório cadastrado para ${ano}.</td></tr>`;
+
+  return `
+  <div class="p-3 border-bottom">
+    <div class="row g-3 align-items-center">
+      <div class="col-auto d-flex align-items-center gap-2">
+        <button class="btn btn-sm btn-outline-secondary" onclick="App._relFinNavAno(-1)">
+          <i class="bi bi-chevron-left"></i></button>
+        <span class="fw-bold fs-5">${ano}</span>
+        <button class="btn btn-sm btn-outline-secondary" onclick="App._relFinNavAno(1)">
+          <i class="bi bi-chevron-right"></i></button>
+      </div>
+      <div class="col-auto"><span class="badge bg-primary-subtle text-primary border fs-6 fw-semibold">
+        <i class="bi bi-globe2 me-1"></i>${publicados} publicados</span></div>
+      <div class="col-auto"><span class="badge bg-success-subtle text-success border fs-6 fw-semibold">
+        <i class="bi bi-check-circle-fill me-1"></i>${aprovados} aprovados</span></div>
+      <div class="col-auto"><span class="badge bg-secondary-subtle text-secondary border fs-6 fw-semibold">
+        <i class="bi bi-pencil-fill me-1"></i>${rascunhos} rascunhos</span></div>
+      <div class="col-auto ms-auto">
+        <button class="btn btn-primary btn-sm" onclick="App._relFinAbrirModal(null)">
+          <i class="bi bi-plus-lg me-1"></i>Novo Relatório</button>
+      </div>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr>
+        <th class="ps-3" style="width:180px">Trimestre</th>
+        <th>Título</th>
+        <th class="text-center" style="width:130px">Status</th>
+        <th class="text-center" style="width:140px">Arquivo</th>
+        <th style="width:130px"></th>
+      </tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>
+  </div>`;
+}
+
+async function _relFinNavAno(delta) {
+  window._relFinAno = (window._relFinAno || new Date().getFullYear()) + delta;
+  const relatorios = await Api.get(`/api/relatorios-financeiros?ano=${window._relFinAno}`);
+  window._relFinData = relatorios;
+  const el = document.getElementById('gestao-corpo');
+  if(el) el.innerHTML = _relFinTabContent();
+}
+
+function _relFinAbrirModal(id) {
+  _relFinEditId = id;
+  document.getElementById('rel-fin-modal-titulo').innerHTML =
+    `<i class="bi bi-bar-chart-line-fill me-2" style="color:var(--accent)"></i>${id ? 'Editar Relatório' : 'Novo Relatório Financeiro'}`;
+  document.getElementById('rel-fin-alert').innerHTML = '';
+  document.getElementById('rel-fin-arquivo-label').textContent = '';
+  document.getElementById('rel-fin-arquivo-inp').value = '';
+
+  if(id) {
+    const r = (window._relFinData||[]).find(x=>x.id===id);
+    if(r) {
+      document.getElementById('rel-fin-trimestre').value  = r.trimestre;
+      document.getElementById('rel-fin-titulo').value     = r.titulo;
+      document.getElementById('rel-fin-descricao').value  = r.descricao||'';
+      document.getElementById('rel-fin-status').value     = r.status;
+      if(r.filename) document.getElementById('rel-fin-arquivo-label').textContent =
+        `Arquivo atual: ${_fmtBytes(r.tamanho)}`;
+    }
+  } else {
+    document.getElementById('rel-fin-trimestre').value = '1';
+    document.getElementById('rel-fin-titulo').value    = '';
+    document.getElementById('rel-fin-descricao').value = '';
+    document.getElementById('rel-fin-status').value    = 'rascunho';
+  }
+  new bootstrap.Modal(document.getElementById('modal-rel-fin')).show();
+}
+
+function _relFinPreviewArquivo(input) {
+  const f = input.files[0];
+  document.getElementById('rel-fin-arquivo-label').textContent = f ? f.name : '';
+}
+
+async function _relFinSalvar() {
+  const btn     = document.getElementById('btn-salvar-rel-fin');
+  const alertEl = document.getElementById('rel-fin-alert');
+  alertEl.innerHTML = '';
+  const titulo    = document.getElementById('rel-fin-titulo').value.trim();
+  const trimestre = parseInt(document.getElementById('rel-fin-trimestre').value);
+  const status    = document.getElementById('rel-fin-status').value;
+  const descricao = document.getElementById('rel-fin-descricao').value.trim();
+  const ano       = window._relFinAno || new Date().getFullYear();
+  if(!titulo) {
+    alertEl.innerHTML = '<div class="alert alert-warning py-2">O título é obrigatório.</div>'; return;
+  }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Salvando...';
+  try {
+    let r;
+    if(_relFinEditId) {
+      r = await Api.put(`/api/relatorios-financeiros/${_relFinEditId}`,{titulo, trimestre, status, descricao});
+    } else {
+      r = await Api.post('/api/relatorios-financeiros',{titulo, trimestre, status, descricao, ano});
+    }
+    const fileInp = document.getElementById('rel-fin-arquivo-inp');
+    if(fileInp.files[0]) {
+      const fd = new FormData();
+      fd.append('arquivo', fileInp.files[0]);
+      const resp = await fetch(`/api/relatorios-financeiros/${r.id}/arquivo`,
+        {method:'POST', body:fd, credentials:'same-origin'});
+      const json = await resp.json();
+      if(!json.ok) throw new Error(json.error||'Erro ao enviar arquivo.');
+    }
+    bootstrap.Modal.getInstance(document.getElementById('modal-rel-fin'))?.hide();
+    toast(_relFinEditId ? 'Relatório atualizado!' : 'Relatório criado!');
+    window._relFinData = await Api.get(`/api/relatorios-financeiros?ano=${ano}`);
+    const el = document.getElementById('gestao-corpo');
+    if(el) el.innerHTML = _relFinTabContent();
+  } catch(e) {
+    alertEl.innerHTML = `<div class="alert alert-danger py-2">${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Salvar';
+  }
+}
+
+async function _relFinUpload(id, input) {
+  const f = input.files[0]; if(!f) return;
+  const fd = new FormData();
+  fd.append('arquivo', f);
+  try {
+    const resp = await fetch(`/api/relatorios-financeiros/${id}/arquivo`,
+      {method:'POST', body:fd, credentials:'same-origin'});
+    const json = await resp.json();
+    if(!json.ok) throw new Error(json.error||'Erro ao enviar arquivo.');
+    toast('Arquivo enviado!');
+    const ano = window._relFinAno || new Date().getFullYear();
+    window._relFinData = await Api.get(`/api/relatorios-financeiros?ano=${ano}`);
+    const el = document.getElementById('gestao-corpo');
+    if(el) el.innerHTML = _relFinTabContent();
+  } catch(e) { toast(e.message,'danger'); }
+}
+
+async function _relFinExcluir(id) {
+  showConfirm('Excluir este relatório financeiro?', async()=>{
+    try {
+      await Api.del(`/api/relatorios-financeiros/${id}`);
+      toast('Relatório excluído.');
+      const ano = window._relFinAno || new Date().getFullYear();
+      window._relFinData = await Api.get(`/api/relatorios-financeiros?ano=${ano}`);
+      const el = document.getElementById('gestao-corpo');
+      if(el) el.innerHTML = _relFinTabContent();
+    } catch(e) { toast(e.message,'danger'); }
+  });
 }
 
 // ═════════ MENSAGEIRO WHATSAPP ════════════════════
@@ -5988,6 +6280,8 @@ return{
   _renderGestaoTab,_filtrarGestao,
   _abrirUploadDoc,_abrirUploadDocClube,_submitUploadDoc,_excluirDoc,
   _triNavAno,_editarTri,_salvarTrimestralidade,_triPreviewComprovante,_triRemoverComprovante,
+  // Relatórios Financeiros
+  _relFinNavAno,_relFinAbrirModal,_relFinPreviewArquivo,_relFinSalvar,_relFinUpload,_relFinExcluir,
   // Clipping
   _clBuscar,_clFiltrar,_clSetViz,_clMarcarLida,_clMarcarTodasLidas,_clDeletar,_clLimpar,
   // Agenda de Conteúdo
