@@ -54,7 +54,7 @@ def parse_date(s):
 
 def fmt_size(n):
     if not n:
-        return '—'
+        return '-'
     if n < 1024:
         return f'{n} B'
     if n < 1024 * 1024:
@@ -281,7 +281,7 @@ def solicitar_reset():
         try:
             _send_email(
                 to=email,
-                subject='FBVA — Redefinição de senha',
+                subject='FBVA - Redefinição de senha',
                 body=(
                     f'Olá {u.nome},\n\n'
                     f'Seu código de redefinição de senha é:\n\n{token}\n\n'
@@ -1196,7 +1196,7 @@ def list_all_documentos():
         query = query.filter(Documento.tipo == tipo)
     docs = query.order_by(Documento.enviado_em.desc()).all()
     return ok([{**documento_dict(d), 'clubeId': d.clube_id,
-                'clubeNome': d.clube.nome_clube if d.clube else '—'} for d in docs])
+                'clubeNome': d.clube.nome_clube if d.clube else '-'} for d in docs])
 
 
 @api_bp.route('/gestao/documentos', methods=['POST'])
@@ -1427,7 +1427,7 @@ def testar_email():
     try:
         _send_email(
             to=current_user.email,
-            subject='Teste FBVA — Configuração de E-mail',
+            subject='Teste FBVA - Configuração de E-mail',
             body=f'Olá {current_user.nome},\n\nA configuração de e-mail do sistema FBVA está funcionando corretamente!',
             cfg=cfg,
         )
@@ -1483,7 +1483,7 @@ def get_email_log():
         'msg':         l.mensagem,
         'status':      l.status,
         'hora':        l.enviado_em.strftime('%d/%m/%Y %H:%M'),
-        'por':         l.enviado_por.nome if l.enviado_por else '—',
+        'por':         l.enviado_por.nome if l.enviado_por else '-',
     } for l in logs])
 
 
@@ -1507,7 +1507,7 @@ def get_wa_log():
         'clube': l.clube_nome,
         'msg':   l.mensagem,
         'hora':  l.enviado_em.strftime('%d/%m/%Y %H:%M'),
-        'por':   l.enviado_por.nome if l.enviado_por else '—',
+        'por':   l.enviado_por.nome if l.enviado_por else '-',
     } for l in logs])
 
 
@@ -1574,7 +1574,7 @@ CLIPPING_SOURCES = [
     {'type':'gnews','query':'FIVA "veículos históricos" regulamento OR legislação',             'bloco':'juridico',    'nivel':3},
     {'type':'gnews','query':'"Diário Oficial" carro clássico OR veículo histórico',             'bloco':'juridico',    'nivel':3},
 
-    # ── RSS diretos — mídia especializada internacional (Nível 1) ────────────
+    # ── RSS diretos - mídia especializada internacional (Nível 1) ────────────
     {'type':'rss','url':'https://www.hemmings.com/feed/',             'fonte':'Hemmings Daily',         'bloco':'mercado',     'nivel':1},
     {'type':'rss','url':'https://www.hagerty.com/media/feed/',        'fonte':'Hagerty Media',          'bloco':'mercado',     'nivel':1},
     {'type':'rss','url':'https://petrolicious.com/articles/feed',     'fonte':'Petrolicious',           'bloco':'gente',       'nivel':1},
@@ -1582,20 +1582,20 @@ CLIPPING_SOURCES = [
     {'type':'rss','url':'https://www.goodwood.com/media/feed/',       'fonte':'Goodwood Road & Racing', 'bloco':'eventos',     'nivel':1},
     {'type':'rss','url':'https://bringatrailer.com/feed/',            'fonte':'Bring a Trailer',        'bloco':'mercado',     'nivel':1},
 
-    # ── RSS diretos — mídia brasileira (Nível 1) ─────────────────────────────
+    # ── RSS diretos - mídia brasileira (Nível 1) ─────────────────────────────
     {'type':'rss','url':'https://www.motortudo.com.br/feed/',         'fonte':'Motor Tudo',             'bloco':'radar',       'nivel':1},
     {'type':'rss','url':'https://autoentusiastas.com.br/feed/',       'fonte':'Autoentusiastas',        'bloco':'radar',       'nivel':1},
 
-    # ── RSS diretos — imprensa geral (Nível 2) ───────────────────────────────
+    # ── RSS diretos - imprensa geral (Nível 2) ───────────────────────────────
     {'type':'gnews','query':'Valor Econômico OR Exame OR Bloomberg carro clássico colecionável','bloco':'mercado',    'nivel':2},
 
-    # ── YouTube — busca por palavra-chave (requer env YOUTUBE_API_KEY) ───────
+    # ── YouTube - busca por palavra-chave (requer env YOUTUBE_API_KEY) ───────
     {'type':'yt_search','query':'carros antigos clássicos Brasil',             'bloco':'radar',       'nivel':1},
     {'type':'yt_search','query':'encontro exposição carros clássicos antigos', 'bloco':'eventos',     'nivel':1},
     {'type':'yt_search','query':'restauração carro antigo clássico brasil',    'bloco':'restauracao', 'nivel':1},
     {'type':'yt_search','query':'leilão carros clássicos antigos brasil',      'bloco':'mercado',     'nivel':1},
     {'type':'yt_search','query':'coleção garagem carros clássicos história',   'bloco':'gente',       'nivel':1},
-    # ── YouTube — canais específicos (channel_id visível em youtube.com/channel/ID) ─
+    # ── YouTube - canais específicos (channel_id visível em youtube.com/channel/ID) ─
     # {'type':'yt_channel','channel_id':'CHANNEL_ID','fonte':'Nome do Canal','bloco':'radar','nivel':1},
 ]
 
@@ -1668,7 +1668,7 @@ def _scrape_clipping():
                         nivel=src['nivel'],
                     )
             elif src['type'] == 'yt_channel':
-                # YouTube Atom feed — sem API key, canal específico
+                # YouTube Atom feed - sem API key, canal específico
                 url = f"https://www.youtube.com/feeds/videos.xml?channel_id={src['channel_id']}"
                 r = http.get(url, timeout=12, headers=headers)
                 NS = {
@@ -1691,7 +1691,7 @@ def _scrape_clipping():
                         nivel=src['nivel'],
                     )
             elif src['type'] == 'yt_search':
-                # YouTube Data API v3 — requer env YOUTUBE_API_KEY
+                # YouTube Data API v3 - requer env YOUTUBE_API_KEY
                 api_key = os.environ.get('YOUTUBE_API_KEY', '')
                 if not api_key:
                     continue

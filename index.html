@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FBVA — Sistema de Gestão</title>
+<title>FBVA - Sistema de Gestão</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <style>
@@ -460,7 +460,7 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;font-size:
             <label class="form-label req">Arquivo</label>
             <input type="file" id="ud-file" name="file" class="form-control" required
               accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
-            <div class="form-text">PDF, DOC, DOCX, JPG, PNG — máx. 16 MB</div>
+            <div class="form-text">PDF, DOC, DOCX, JPG, PNG - máx. 16 MB</div>
           </div>
           <div class="row g-2">
             <div class="col-md-7">
@@ -802,18 +802,18 @@ function maskCPF(el) {
 }
 
 // ── Formatters ─────────────────────────────────
-const fmtDate=s=>{if(!s)return'—';const[y,m,d]=s.split('-');return`${d}/${m}/${y}`;};
-const fmtDatetime=s=>s?new Date(s).toLocaleString('pt-BR'):'—';
+const fmtDate=s=>{if(!s)return'-';const[y,m,d]=s.split('-');return`${d}/${m}/${y}`;};
+const fmtDatetime=s=>s?new Date(s).toLocaleString('pt-BR'):'-';
 const isVencido=s=>s&&s<new Date().toISOString().slice(0,10);
 const isProximo=s=>{if(!s)return false;const d=(new Date(s+'T00:00:00')-new Date())/864e5;return d>=0&&d<=60;};
 function badgeDate(fm) {
-  if(!fm)return'—';
+  if(!fm)return'-';
   if(isVencido(fm))return`<span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="bi bi-exclamation-triangle-fill me-1"></i>${fmtDate(fm)}</span>`;
   if(isProximo(fm))return`<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle"><i class="bi bi-clock-history me-1"></i>${fmtDate(fm)}</span>`;
   return fmtDate(fm);
 }
 const optStr=v=>v||'<span class="text-muted">Não informado</span>';
-const statesOpts=sel=>`<option value="">Selecione...</option>`+ESTADOS.map(([s,n])=>`<option value="${s}"${sel===s?' selected':''}>${s} — ${n}</option>`).join('');
+const statesOpts=sel=>`<option value="">Selecione...</option>`+ESTADOS.map(([s,n])=>`<option value="${s}"${sel===s?' selected':''}>${s} - ${n}</option>`).join('');
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
 
 // ── Dynamic form state ────────────────────────
@@ -934,7 +934,7 @@ function _refreshContatoPref(){
   const sel=document.getElementById('sel-contato-pref');
   if(!sel)return;
   const cur=sel.value;
-  sel.innerHTML='<option value="">— Nenhum —</option>'+
+  sel.innerHTML='<option value="">- Nenhum -</option>'+
     _fMembros.filter(m=>m.nome).map(m=>`<option value="${esc(m.nome)}"${cur===m.nome?' selected':''}>${esc(m.nome)}${m.cargo?' ('+m.cargo+')':''}</option>`).join('');
 }
 
@@ -1152,7 +1152,7 @@ async function renderDashboard() {
             ${mandatosAlerta.map(c=>`<li class="list-group-item d-flex align-items-center gap-3 py-2 px-3">
               <div class="flex-grow-1 overflow-hidden">
                 <div class="fw-semibold small text-truncate">${esc(c.nomeClube)}</div>
-                <div class="text-muted" style="font-size:.71rem">${esc(c.nomePresidente||'—')}</div>
+                <div class="text-muted" style="font-size:.71rem">${esc(c.nomePresidente||'-')}</div>
               </div>
               <div class="flex-shrink-0">${badgeDate(c.fimMandato)}</div>
               <button class="btn btn-sm btn-outline-primary py-0 px-2 flex-shrink-0"
@@ -1180,7 +1180,7 @@ async function renderDashboard() {
             ${recentes.map(c=>`<tr>
               <td class="fw-semibold">${esc(c.nomeClube)}</td>
               <td>${esc(c.cidade||'')}${c.estado?` <span class="badge bg-light text-dark border">${c.estado}</span>`:''}</td>
-              <td>${esc(c.nomePresidente||'—')}</td>
+              <td>${esc(c.nomePresidente||'-')}</td>
               <td>${badgeDate(c.fimMandato)}</td>
               <td><span class="badge bg-${c.ativo?'success':'secondary'}">${c.ativo?'Ativo':'Inativo'}</span></td>
               <td><button class="btn btn-sm btn-outline-primary" onclick="App.go('clube-detalhe',${c.id})">
@@ -1234,7 +1234,7 @@ async function renderClubes() {
         <div class="col-md-2">
           <select class="form-select form-select-sm" id="f-estado">
             <option value="">Todos os estados</option>
-            ${ESTADOS.map(([s,n])=>`<option value="${s}"${state.filters.estado===s?' selected':''}>${s} — ${n}</option>`).join('')}
+            ${ESTADOS.map(([s,n])=>`<option value="${s}"${state.filters.estado===s?' selected':''}>${s} - ${n}</option>`).join('')}
           </select>
         </div>
         <div class="col-md-2">
@@ -1268,10 +1268,10 @@ async function renderClubes() {
         ${cl.map(c=>`<tr>
           <td><button class="btn btn-link p-0 fw-semibold text-dark text-decoration-none"
             onclick="App.go('clube-detalhe',${c.id})">${esc(c.nomeClube)}</button></td>
-          <td class="text-muted small">${esc(c.cnpj||'—')}</td>
-          <td>${esc(c.nomePresidente||'—')}</td>
+          <td class="text-muted small">${esc(c.cnpj||'-')}</td>
+          <td>${esc(c.nomePresidente||'-')}</td>
           <td>${esc(c.cidade||'')}${c.estado?` <span class="badge bg-light text-dark border ms-1">${c.estado}</span>`:''}</td>
-          <td class="text-muted small">${esc(c.telefoneCelular||'—')}</td>
+          <td class="text-muted small">${esc(c.telefoneCelular||'-')}</td>
           <td>${badgeDate(c.fimMandato)}</td>
           <td class="text-center"><span class="badge bg-${c.ativo?'success':'secondary'}">${c.ativo?'Ativo':'Inativo'}</span></td>
           <td class="text-center">
@@ -1362,7 +1362,7 @@ async function renderClubeForm(id=null) {
         <div class="col-md-5">
           <label class="form-label">Contato Preferencial</label>
           <select name="contatoPreferencial" id="sel-contato-pref" class="form-select">
-            <option value="">— Nenhum —</option>
+            <option value="">- Nenhum -</option>
             ${(()=>{
               const defContato=v.contatoPreferencial||(_fMembros.find(m=>m.nome&&(m.cargo||'').toLowerCase()==='presidente')?.nome||'');
               return _fMembros.filter(m=>m.nome).map(m=>`<option value="${esc(m.nome)}"${defContato===m.nome?' selected':''}>${esc(m.nome)}${m.cargo?' ('+m.cargo+')':''}</option>`).join('');
@@ -1609,10 +1609,10 @@ async function renderClubeDetalhe(id) {
         <div class="card-body"><div class="row g-3">
           <div class="col-sm-6"><div class="d-lbl">Nome do Clube</div><div class="d-val">${esc(c.nomeClube)}</div></div>
           <div class="col-sm-3"><div class="d-lbl">CNPJ</div><div class="d-val">${optStr(esc(c.cnpj))}</div></div>
-          <div class="col-sm-3"><div class="d-lbl">Fundação</div><div class="d-val">${c.dataFundacao?fmtDate(c.dataFundacao):'<span class="text-muted">—</span>'}</div></div>
+          <div class="col-sm-3"><div class="d-lbl">Fundação</div><div class="d-val">${c.dataFundacao?fmtDate(c.dataFundacao):'<span class="text-muted">-</span>'}</div></div>
           <div class="col-sm-6"><div class="d-lbl">Presidente</div><div class="d-val">${optStr(esc(c.nomePresidente))}</div></div>
           <div class="col-sm-3"><div class="d-lbl">Fim do Mandato</div>
-            <div class="d-val">${c.fimMandato?badgeDate(c.fimMandato):'<span class="text-muted">—</span>'}</div></div>
+            <div class="d-val">${c.fimMandato?badgeDate(c.fimMandato):'<span class="text-muted">-</span>'}</div></div>
           <div class="col-sm-6"><div class="d-lbl">Contato Preferencial</div><div class="d-val">${optStr(esc(c.contatoPreferencial))}</div></div>
         </div></div>
       </div>
@@ -1628,11 +1628,11 @@ async function renderClubeDetalhe(id) {
             ${membros.map(m=>`<tr>
               <td><span class="badge bg-secondary-subtle text-secondary border">${_cargoLabel(m.cargo)}</span></td>
               <td class="fw-semibold">${esc(m.nome)}</td>
-              <td class="text-muted small">${esc(m.cpf||'—')}</td>
+              <td class="text-muted small">${esc(m.cpf||'-')}</td>
               <td class="small">${m.whatsapp?`<a href="${waLink(m.whatsapp,'')}" target="_blank" class="wa-chip" style="font-size:.72rem;padding:3px 8px">
-                <i class="bi bi-whatsapp"></i> ${esc(m.whatsapp)}</a>`:'—'}</td>
-              <td class="small">${m.email?`<a href="mailto:${esc(m.email)}">${esc(m.email)}</a>`:'—'}</td>
-              <td class="small text-muted">${m.dataNascimento?fmtDate(m.dataNascimento):'—'}</td>
+                <i class="bi bi-whatsapp"></i> ${esc(m.whatsapp)}</a>`:'-'}</td>
+              <td class="small">${m.email?`<a href="mailto:${esc(m.email)}">${esc(m.email)}</a>`:'-'}</td>
+              <td class="small text-muted">${m.dataNascimento?fmtDate(m.dataNascimento):'-'}</td>
             </tr>`).join('')}
             </tbody>
           </table></div>
@@ -1648,15 +1648,15 @@ async function renderClubeDetalhe(id) {
             <div class="col-12"><div class="d-lbl">Endereço</div><div class="d-val">${optStr(esc(c.endereco))}</div></div>
             <div class="col-sm-6"><div class="d-lbl">Cidade</div><div class="d-val">${optStr(esc(c.cidade))}</div></div>
             <div class="col-sm-6"><div class="d-lbl">Estado</div>
-              <div class="d-val">${c.estado?`<span class="badge bg-success">${c.estado}</span>`:'<span class="text-muted">—</span>'}</div></div>
+              <div class="d-val">${c.estado?`<span class="badge bg-success">${c.estado}</span>`:'<span class="text-muted">-</span>'}</div></div>
           </div>
           ${endsAdic.length?`
           <p class="small fw-semibold text-muted mb-2">Endereços Adicionais</p>
           ${endsAdic.map(e=>`
           <div class="p-2 rounded mb-2" style="background:#f8f9fb;border:1px solid #e8ebf0">
             <span class="badge bg-secondary-subtle text-secondary border me-2">${tipoEndLabel(e.tipo)}</span>
-            ${e.descricao?`<strong>${esc(e.descricao)}</strong> — `:''}
-            ${[e.logradouro,e.cidade,e.estado].filter(Boolean).map(esc).join(', ')||'—'}
+            ${e.descricao?`<strong>${esc(e.descricao)}</strong> - `:''}
+            ${[e.logradouro,e.cidade,e.estado].filter(Boolean).map(esc).join(', ')||'-'}
           </div>`).join('')}`:''}
         </div>
       </div>
@@ -1706,9 +1706,9 @@ async function renderClubeDetalhe(id) {
           <div class="mb-3"><div class="d-lbl"><i class="bi bi-envelope-fill me-1"></i>E-mail</div>
             ${c.email?`<a href="mailto:${esc(c.email)}" class="d-val text-decoration-none">${esc(c.email)}</a>`:'<span class="text-muted">Não informado</span>'}</div>
           <div class="mb-2"><div class="d-lbl"><i class="bi bi-instagram me-1"></i>Instagram</div>
-            ${c.instagram?`<a href="${c.instagram.startsWith('http')?c.instagram:'https://instagram.com/'+c.instagram.replace('@','')}" target="_blank" class="d-val text-decoration-none text-truncate d-block">${esc(c.instagram)}</a>`:'<span class="text-muted">—</span>'}</div>
+            ${c.instagram?`<a href="${c.instagram.startsWith('http')?c.instagram:'https://instagram.com/'+c.instagram.replace('@','')}" target="_blank" class="d-val text-decoration-none text-truncate d-block">${esc(c.instagram)}</a>`:'<span class="text-muted">-</span>'}</div>
           <div class="mb-2"><div class="d-lbl"><i class="bi bi-facebook me-1"></i>Facebook</div>
-            ${c.facebook?`<a href="${c.facebook.startsWith('http')?c.facebook:'https://facebook.com/'+c.facebook}" target="_blank" class="d-val text-decoration-none text-truncate d-block">${esc(c.facebook)}</a>`:'<span class="text-muted">—</span>'}</div>
+            ${c.facebook?`<a href="${c.facebook.startsWith('http')?c.facebook:'https://facebook.com/'+c.facebook}" target="_blank" class="d-val text-decoration-none text-truncate d-block">${esc(c.facebook)}</a>`:'<span class="text-muted">-</span>'}</div>
           ${c.site?`<div class="mb-2"><div class="d-lbl"><i class="bi bi-globe2 me-1"></i>Site</div>
             <a href="${c.site.startsWith('http')?c.site:'https://'+c.site}" target="_blank" class="d-val text-decoration-none text-truncate d-block">${esc(c.site)}</a></div>`:''}
           ${c.youtube?`<div class="mb-2"><div class="d-lbl"><i class="bi bi-youtube me-1"></i>YouTube</div>
@@ -1767,7 +1767,7 @@ function _buildDocsList(docs, cid) {
     <i class="doc-icon bi bi-file-earmark-pdf-fill"></i>
     <div class="flex-grow-1 min-w-0">
       <div class="fw-semibold small text-truncate">${esc(d.nome)}</div>
-      <div class="text-muted" style="font-size:.72rem">${d.tipo||'outro'} · ${d.tamanhoFmt||'—'}</div>
+      <div class="text-muted" style="font-size:.72rem">${d.tipo||'outro'} · ${d.tamanhoFmt||'-'}</div>
     </div>
     <a href="/api/documentos/${d.id}" class="btn btn-sm btn-outline-secondary" title="Baixar">
       <i class="bi bi-download"></i></a>
@@ -1783,9 +1783,9 @@ function _buildAssocTable(assocs, cid) {
     ${pode.editar()?'<th></th>':''}</tr></thead><tbody>
     ${assocs.map(a=>`<tr>
       <td class="fw-semibold">${esc(a.nome)}</td>
-      <td class="text-muted small">${esc(a.cpf||'—')}</td>
-      <td class="small">${a.whatsapp?`<a href="${waLink(a.whatsapp,'')}" target="_blank" class="wa-chip" style="font-size:.72rem;padding:3px 8px"><i class="bi bi-whatsapp"></i> ${esc(a.whatsapp)}</a>`:'—'}</td>
-      <td class="small">${a.email?`<a href="mailto:${esc(a.email)}">${esc(a.email)}</a>`:'—'}</td>
+      <td class="text-muted small">${esc(a.cpf||'-')}</td>
+      <td class="small">${a.whatsapp?`<a href="${waLink(a.whatsapp,'')}" target="_blank" class="wa-chip" style="font-size:.72rem;padding:3px 8px"><i class="bi bi-whatsapp"></i> ${esc(a.whatsapp)}</a>`:'-'}</td>
+      <td class="small">${a.email?`<a href="mailto:${esc(a.email)}">${esc(a.email)}</a>`:'-'}</td>
       <td class="text-center"><span class="badge bg-${a.ativo?'success':'secondary'}">${a.ativo?'Ativo':'Inativo'}</span></td>
       ${pode.editar()?`<td class="text-center"><div class="btn-group btn-group-sm">
         <button class="btn btn-outline-secondary btn-sm" onclick="App._editAssoc(${cid},${a.id},'${esc(a.nome).replace(/'/g,"\\'")}','${esc(a.cpf||'')}','${esc(a.whatsapp||'')}','${esc(a.email||'')}',${a.ativo})"><i class="bi bi-pencil-fill"></i></button>
@@ -2010,9 +2010,9 @@ async function renderUsuarioForm(id=null) {
           <div class="mb-3">
             <label class="form-label req">Perfil de acesso</label>
             <select name="perfil" class="form-select" required>
-              <option value="secretaria"${!v.perfil||v.perfil==='secretaria'?' selected':''}>Secretaria — Cadastro, financeiro e documentos</option>
-              <option value="comunicacao"${v.perfil==='comunicacao'?' selected':''}>Comunicação — Cadastro e mensageiros</option>
-              <option value="admin"${v.perfil==='admin'?' selected':''}>Administrador — Acesso total</option>
+              <option value="secretaria"${!v.perfil||v.perfil==='secretaria'?' selected':''}>Secretaria - Cadastro, financeiro e documentos</option>
+              <option value="comunicacao"${v.perfil==='comunicacao'?' selected':''}>Comunicação - Cadastro e mensageiros</option>
+              <option value="admin"${v.perfil==='admin'?' selected':''}>Administrador - Acesso total</option>
             </select>
           </div>
           <hr>
@@ -2236,7 +2236,7 @@ function _docsTabContent(clubes) {
       return `<tr>
         <td>
           <div class="fw-semibold small">${esc(c.nomeClube)}</div>
-          <div class="text-muted" style="font-size:.71rem">${esc(c.cidade||'')}${c.estado?' — '+c.estado:''}</div>
+          <div class="text-muted" style="font-size:.71rem">${esc(c.cidade||'')}${c.estado?' - '+c.estado:''}</div>
         </td>
         ${docCell(cnt('ata'))}
         ${docCell(cnt('estatuto'))}
@@ -2405,11 +2405,11 @@ function _finTabContent(clubes) {
           <td>
             <button class="btn btn-link btn-sm p-0 fw-semibold text-start d-block"
               onclick="App.go('clube-detalhe',${c.id})">${esc(c.nomeClube)}</button>
-            <div class="text-muted" style="font-size:.71rem">${esc(c.cidade||'')}${c.estado?' — '+c.estado:''}</div>
+            <div class="text-muted" style="font-size:.71rem">${esc(c.cidade||'')}${c.estado?' - '+c.estado:''}</div>
           </td>
           ${cells}
           <td class="text-center small fw-semibold ${totalC?'text-success':'text-muted'}">
-            ${totalC?'R$ '+totalC.toLocaleString('pt-BR',{minimumFractionDigits:2}):'—'}
+            ${totalC?'R$ '+totalC.toLocaleString('pt-BR',{minimumFractionDigits:2}):'-'}
           </td>
         </tr>`;
       }).join('')}
@@ -2428,7 +2428,7 @@ async function _triNavAno(delta) {
 function _editarTri(clubeId, clubeNome, ano, trimestre) {
   _triEditCtx = {clubeId, clubeNome, ano, trimestre};
   const r = (window._triCache||{})[`${clubeId}_${trimestre}`] || {};
-  const nomeTri = `${trimestre}° Trimestre ${ano} — ${TRI_PERIODOS[trimestre-1]}`;
+  const nomeTri = `${trimestre}° Trimestre ${ano} - ${TRI_PERIODOS[trimestre-1]}`;
   document.getElementById('tri-modal-titulo').innerHTML =
     `<i class="bi bi-cash-coin me-2" style="color:var(--accent)"></i>${nomeTri}`;
   document.getElementById('tri-clube-nome').textContent = clubeNome;
@@ -2540,8 +2540,8 @@ async function renderMensageiro() {
           <div class="fw-semibold mb-1">API do WhatsApp não configurada</div>
           <div class="small text-muted mb-2">Para ativar o envio automático, configure as seguintes variáveis de ambiente no <strong>Render</strong>:</div>
           <ul class="small mb-2">
-            <li><code>WA_PHONE_NUMBER_ID</code> — ID do número obtido no Meta for Developers</li>
-            <li><code>WA_ACCESS_TOKEN</code> — Token permanente do System User</li>
+            <li><code>WA_PHONE_NUMBER_ID</code> - ID do número obtido no Meta for Developers</li>
+            <li><code>WA_ACCESS_TOKEN</code> - Token permanente do System User</li>
           </ul>
           <div class="small text-muted">
             <i class="bi bi-info-circle me-1"></i>No modo atual, os envios abrem o WhatsApp Web no navegador (uma aba por clube).
@@ -2592,7 +2592,7 @@ async function renderMensageiro() {
           <div class="wa-msg-card border-0 border-bottom rounded-0">
             <div class="d-flex justify-content-between align-items-start">
               <div class="fw-semibold small">${esc(e.clube)}</div>
-              <span class="ts">${e.hora}${e.por&&e.por!=='—'?' · '+esc(e.por):''}</span>
+              <span class="ts">${e.hora}${e.por&&e.por!=='-'?' · '+esc(e.por):''}</span>
             </div>
             <div class="small text-muted mt-1" style="white-space:pre-wrap">${esc(e.msg.slice(0,120))}${e.msg.length>120?'…':''}</div>
           </div>`).join('')}
@@ -2622,7 +2622,7 @@ async function renderMensageiro() {
             <div class="col-md-3">
               <select class="form-select form-select-sm" id="wa-est" onchange="App.filtrarWA()">
                 <option value="">Todos estados</option>
-                ${ESTADOS.map(([s,n])=>`<option value="${s}">${s} — ${n}</option>`).join('')}
+                ${ESTADOS.map(([s,n])=>`<option value="${s}">${s} - ${n}</option>`).join('')}
               </select>
             </div>
             <div class="col-auto">
@@ -2689,7 +2689,7 @@ function _renderWALista() {
       onchange="App._updateWASel()">
     <div class="flex-grow-1 min-w-0">
       <div class="fw-semibold small text-truncate">${esc(c.nomeClube)}</div>
-      <div class="text-muted" style="font-size:.72rem">${esc(c.cidade||'')}${c.estado?' — '+c.estado:''}
+      <div class="text-muted" style="font-size:.72rem">${esc(c.cidade||'')}${c.estado?' - '+c.estado:''}
         ${c.telefoneCelular?`· <span style="color:#25D366"><i class="bi bi-whatsapp"></i> ${esc(c.telefoneCelular)}</span>`:'<span class="text-danger">sem celular</span>'}
       </div>
     </div>
@@ -3006,7 +3006,7 @@ function _atdRenderThread() {
     </button>
   </div>`:`
   <div class="border-top p-3 text-center text-muted small" style="background:#f7f7f7">
-    <i class="bi bi-lock-fill me-1"></i>Conversa resolvida — reabra para responder.
+    <i class="bi bi-lock-fill me-1"></i>Conversa resolvida - reabra para responder.
     <button class="btn btn-link btn-sm p-0 ms-2" onclick="App._atdResolver(${c.id},true)">Reabrir</button>
   </div>`}`;
 
@@ -3134,7 +3134,7 @@ async function renderMensageiroEmail() {
           </div>
           <div class="col-md-6">
             <label class="form-label small fw-semibold">Nome do remetente</label>
-            <input id="em-nome" class="form-control form-control-sm" value="${esc(cfg.nome_remetente||'FBVA')}" placeholder="Ex: FBVA — Federação">
+            <input id="em-nome" class="form-control form-control-sm" value="${esc(cfg.nome_remetente||'FBVA')}" placeholder="Ex: FBVA - Federação">
           </div>
           <div class="col-md-6">
             <label class="form-label small fw-semibold">E-mail remetente</label>
@@ -3196,7 +3196,7 @@ async function renderMensageiroEmail() {
           <div class="mb-3">
             <label class="form-label small fw-semibold">Assunto</label>
             <input id="em-assunto" class="form-control form-control-sm"
-              placeholder="Ex: Comunicado importante — FBVA" oninput="App._previewEmail()">
+              placeholder="Ex: Comunicado importante - FBVA" oninput="App._previewEmail()">
           </div>
 
           <!-- MODO TEXTO -->
@@ -3294,7 +3294,7 @@ async function renderMensageiroEmail() {
             <div class="col-md-3">
               <select class="form-select form-select-sm" id="em-est" onchange="App._filtrarEmail()">
                 <option value="">Todos estados</option>
-                ${ESTADOS.map(([s,n])=>`<option value="${s}">${s} — ${n}</option>`).join('')}
+                ${ESTADOS.map(([s,n])=>`<option value="${s}">${s} - ${n}</option>`).join('')}
               </select>
             </div>
             <div class="col-auto">
@@ -3421,7 +3421,7 @@ function _renderEmailLista() {
     <input type="checkbox" class="form-check-input em-check flex-shrink-0" value="${c.id}" onchange="App._updateEmailSel()">
     <div class="flex-grow-1 min-w-0">
       <div class="fw-semibold small text-truncate">${esc(c.nomeClube)}</div>
-      <div class="text-muted" style="font-size:.72rem">${esc(c.cidade||'')}${c.estado?' — '+c.estado:''}
+      <div class="text-muted" style="font-size:.72rem">${esc(c.cidade||'')}${c.estado?' - '+c.estado:''}
         ${c.email?`· <span style="color:#2563eb"><i class="bi bi-envelope"></i> ${esc(c.email)}</span>`:'<span class="text-danger">sem e-mail</span>'}
       </div>
     </div>
@@ -3556,7 +3556,7 @@ function _emBlockPreview(b){
   switch(b.type){
     case 'header':
       return `<div style="background:${esc(b.data.cor||'#1d4ed8')};padding:16px 20px;border-radius:4px;text-align:center">
-        <div style="color:#fff;font-weight:700;font-size:1rem">FBVA — Federação Brasileira de Veículos Antigos</div>
+        <div style="color:#fff;font-weight:700;font-size:1rem">FBVA - Federação Brasileira de Veículos Antigos</div>
         ${b.data.subtitulo?`<div style="color:rgba(255,255,255,.75);font-size:.8rem;margin-top:3px">${esc(b.data.subtitulo)}</div>`:''}
       </div>`;
     case 'titulo':
@@ -3575,7 +3575,7 @@ function _emBlockPreview(b){
     case 'espaco':  return `<div style="height:${Math.max(8,parseInt(b.data.altura)||24)}px;background:repeating-linear-gradient(45deg,#f8fafc,#f8fafc 4px,#f1f5f9 4px,#f1f5f9 8px);border-radius:4px;opacity:.4"></div>`;
     case 'rodape':
       return `<div style="text-align:center;background:#f8fafc;border-radius:4px;padding:10px;color:#9ca3af;font-size:.75rem">
-        ${b.data.texto||'FBVA — Federação Brasileira de Veículos Antigos'}</div>`;
+        ${b.data.texto||'FBVA - Federação Brasileira de Veículos Antigos'}</div>`;
     default: return `<div class="text-muted small">Bloco: ${esc(b.type)}</div>`;
   }
 }
@@ -3626,7 +3626,7 @@ function _emBlockEditorHtml(b,i){
     case 'rodape': return `<label>Texto (deixe em branco para usar o padrão FBVA)</label>
       <textarea class="form-control form-control-sm mt-1" rows="2"
         oninput="App._emUpdate(${i},'texto',this.value)">${esc(b.data.texto||'')}</textarea>`;
-    case 'divisor': return `<div class="text-muted small py-1">Divisor — sem configurações adicionais.</div>`;
+    case 'divisor': return `<div class="text-muted small py-1">Divisor - sem configurações adicionais.</div>`;
     default: return '';
   }
 }
@@ -3734,7 +3734,7 @@ function _emBlockToEmailHtml(b){
   switch(b.type){
     case 'header':
       return `<table width="100%" cellpadding="0" cellspacing="0"><tr><td style="background:${b.data.cor||'#1d4ed8'};padding:28px 32px;text-align:center">
-        <div style="color:#ffffff;font-weight:700;font-size:20px;font-family:sans-serif;margin:0">FBVA — Federação Brasileira de Veículos Antigos</div>
+        <div style="color:#ffffff;font-weight:700;font-size:20px;font-family:sans-serif;margin:0">FBVA - Federação Brasileira de Veículos Antigos</div>
         ${b.data.subtitulo?`<div style="color:rgba(255,255,255,.8);font-size:14px;margin-top:6px;font-family:sans-serif">${esc(b.data.subtitulo)}</div>`:''}
       </td></tr></table>`;
     case 'titulo':
@@ -3750,7 +3750,7 @@ function _emBlockToEmailHtml(b){
     case 'divisor': return `<hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">`;
     case 'espaco':  return `<div style="height:${Math.max(8,parseInt(b.data.altura)||24)}px"></div>`;
     case 'rodape': {
-      const txt=b.data.texto||'FBVA — Federação Brasileira de Veículos Antigos\nEste é um comunicado oficial da Federação.';
+      const txt=b.data.texto||'FBVA - Federação Brasileira de Veículos Antigos\nEste é um comunicado oficial da Federação.';
       return `<table width="100%" cellpadding="0" cellspacing="0"><tr><td style="background:#f8f9fa;padding:16px 24px;text-align:center;border-top:1px solid #e5e7eb">
         <p style="color:#9ca3af;font-size:12px;margin:0;font-family:sans-serif;white-space:pre-wrap">${esc(txt)}</p></td></tr></table>`;
     }
@@ -4117,7 +4117,7 @@ async function renderEventos() {
         <div class="col-6 col-md-3">
           <select id="ev-estado" class="form-select form-select-sm" onchange="App._filtrarEventos()">
             <option value="">Todos os estados</option>
-            ${ESTADOS.map(([s,n])=>`<option value="${s}">${s} — ${n}</option>`).join('')}
+            ${ESTADOS.map(([s,n])=>`<option value="${s}">${s} - ${n}</option>`).join('')}
           </select>
         </div>
         <div class="col-6 col-md-4">
@@ -4171,13 +4171,13 @@ function _renderEventosTabela(eventos) {
           ${e.imagemUrl?`<img src="${e.imagemUrl}" style="width:36px;height:36px;object-fit:cover;border-radius:4px;margin-right:8px;vertical-align:middle" loading="lazy">`:''}
           ${esc(e.nome)}
         </td>
-        <td>${esc(e.clubeNome||'—')}</td>
+        <td>${esc(e.clubeNome||'-')}</td>
         <td>${fmtDate(e.dataInicio)}</td>
         <td>${fmtDate(e.dataFim)}</td>
         <td>
-          ${[e.local,e.cidade,e.estado].filter(Boolean).map(esc).join(' · ')||'—'}
+          ${[e.local,e.cidade,e.estado].filter(Boolean).map(esc).join(' · ')||'-'}
         </td>
-        <td>${esc(e.diretorRepresentante||'—')}</td>
+        <td>${esc(e.diretorRepresentante||'-')}</td>
         <td>${trofeuBadge(e.trofeuStatus)}</td>
         ${pode.editar()?`<td class="text-end">
           <button class="btn btn-sm btn-outline-secondary me-1" onclick="App.go('evento-form',${e.id})" title="Editar">
@@ -4216,7 +4216,7 @@ async function renderEventoForm(id) {
 
   const clubes = await Api.get('/api/clubes?status=ativos');
   const v = evento||{};
-  const clubeOpts = `<option value="">— Nenhum —</option>`
+  const clubeOpts = `<option value="">- Nenhum -</option>`
     + clubes.map(c=>`<option value="${c.id}"${v.clubeId===c.id?' selected':''}>${esc(c.nomeClube)}</option>`).join('');
 
   render(`
@@ -4459,7 +4459,7 @@ function _clToolbar(){
 }
 
 function _clCardHtml(n){
-  const fmtDt=s=>{if(!s)return'—';return new Date(s).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});};
+  const fmtDt=s=>{if(!s)return'-';return new Date(s).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});};
   const bInfo=CL_BLOCOS.find(b=>b.id===n.bloco)||CL_BLOCOS[0];
   const isYT=n.url&&n.url.includes('youtube.com');
   return `
@@ -4553,7 +4553,7 @@ async function _clBuscar(){
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Buscando...';}
   try {
     const r=await Api.call('/api/clipping/buscar',{method:'POST'});
-    toast(`Busca concluída — ${r.novos} nova${r.novos!==1?'s':''} notícia${r.novos!==1?'s':''} encontrada${r.novos!==1?'s':''}.`);
+    toast(`Busca concluída - ${r.novos} nova${r.novos!==1?'s':''} notícia${r.novos!==1?'s':''} encontrada${r.novos!==1?'s':''}.`);
     const res=await Api.get('/api/clipping');
     _clData=res;
     _clRender(); // re-render cria novo botão já habilitado
@@ -4776,7 +4776,7 @@ function _agAbrirModalRec(r) {
     `<option value="${i}"${Number(dia)===i?' selected':''}>${n}</option>`).join('');
   const platOpts = _PLATAFORMAS.map(p=>
     `<option value="${p.v}"${plat===p.v?' selected':''}>${p.l}</option>`).join('');
-  const tipoOpts = `<option value="">— Nenhum —</option>`
+  const tipoOpts = `<option value="">- Nenhum -</option>`
     +_TIPOS_CONTEUDO.map(t=>`<option value="${t.v}"${tipo===t.v?' selected':''}>${t.l}</option>`).join('');
   const stOpts = _STATUS_AGENDA.map(s=>
     `<option value="${s.v}"${status===s.v?' selected':''}>${s.l}</option>`).join('');
@@ -4905,11 +4905,11 @@ function _agRenderTabela(lista) {
           ${a.tipoConteudo?`<div class="text-muted small">${esc(_TIPOS_CONTEUDO.find(t=>t.v===a.tipoConteudo)?.l||a.tipoConteudo)}</div>`:''}
         </td>
         <td>${_agStatusBadge(a.status)}</td>
-        <td>${esc(a.responsavelNome||'—')}</td>
+        <td>${esc(a.responsavelNome||'-')}</td>
         <td class="small text-muted">
           ${a.eventoNome?`<div><i class="bi bi-calendar-event me-1"></i>${esc(a.eventoNome)}</div>`:''}
           ${a.clubeNome?`<div><i class="bi bi-building me-1"></i>${esc(a.clubeNome)}</div>`:''}
-          ${!a.eventoNome&&!a.clubeNome?'—':''}
+          ${!a.eventoNome&&!a.clubeNome?'-':''}
         </td>
         ${pode.editar()?`<td class="text-end text-nowrap">
           <button class="btn btn-sm btn-outline-secondary me-1" onclick="App.go('agenda-form',${a.id})" title="Editar">
@@ -4948,7 +4948,7 @@ function _agFiltrar() {
   const st   = document.getElementById('ag-status')?.value||'';
   const inp  = document.getElementById('ag-mes');
   let mes    = inp?.value||'';
-  // Calendário sempre precisa de um mês — usa o atual se vazio
+  // Calendário sempre precisa de um mês - usa o atual se vazio
   if(_agVizMode === 'calendario' && !mes) {
     const hoje = new Date();
     mes = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
@@ -5021,7 +5021,7 @@ function _agRenderCalendario(mes, lista) {
       const p = _agPlataforma(a.plataforma);
       if(a._rec) {
         return `<div onclick="App._agCriarDoRec(${a.id},'${a.dataPublicacao}')"
-          title="${esc(a.titulo)} (recorrência — clique para criar e editar)"
+          title="${esc(a.titulo)} (recorrência - clique para criar e editar)"
           style="background:transparent;color:${p.cor};padding:1px 5px;border-radius:3px;font-size:.62rem;
                  margin-bottom:2px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
                  border:1px dashed ${p.cor};opacity:.8">
@@ -5106,15 +5106,15 @@ async function renderAgendaConteudoForm(id) {
 
   const platOpts = _PLATAFORMAS.map(p=>
     `<option value="${p.v}"${v.plataforma===p.v?' selected':''}>${p.l}</option>`).join('');
-  const tipoOpts = `<option value="">— Nenhum —</option>`
+  const tipoOpts = `<option value="">- Nenhum -</option>`
     + _TIPOS_CONTEUDO.map(t=>`<option value="${t.v}"${v.tipoConteudo===t.v?' selected':''}>${t.l}</option>`).join('');
   const statusOpts = _STATUS_AGENDA.map(s=>
     `<option value="${s.v}"${(v.status||'rascunho')===s.v?' selected':''}>${s.l}</option>`).join('');
-  const respOpts = `<option value="">— Nenhum —</option>`
+  const respOpts = `<option value="">- Nenhum -</option>`
     + usuarios.map(u=>`<option value="${u.id}"${v.responsavelId===u.id?' selected':''}>${esc(u.nome)}</option>`).join('');
-  const evOpts = `<option value="">— Nenhum —</option>`
+  const evOpts = `<option value="">- Nenhum -</option>`
     + eventos.map(e=>`<option value="${e.id}"${v.eventoId===e.id?' selected':''}>${esc(e.nome)}</option>`).join('');
-  const clOpts = `<option value="">— Nenhum —</option>`
+  const clOpts = `<option value="">- Nenhum -</option>`
     + clubes.map(c=>`<option value="${c.id}"${v.clubeId===c.id?' selected':''}>${esc(c.nomeClube)}</option>`).join('');
 
   render(`
@@ -5127,7 +5127,7 @@ async function renderAgendaConteudoForm(id) {
           <div class="col-12">
             <label class="form-label req">Título</label>
             <input name="titulo" class="form-control" required
-              value="${esc(v.titulo||'')}" placeholder="Ex.: Post sobre ExpoClassic SP — junho">
+              value="${esc(v.titulo||'')}" placeholder="Ex.: Post sobre ExpoClassic SP - junho">
           </div>
           <div class="col-md-4">
             <label class="form-label req">Plataforma</label>
@@ -5264,10 +5264,10 @@ function _dfRenderLista() {
       <tr class="${m.ativo?'':'table-secondary text-muted'}">
         <td class="fw-semibold">${esc(m.nome)}</td>
         <td>${esc(m.cargo)}</td>
-        <td>${m.estado?`<span class="badge bg-secondary">${esc(m.estado)}</span>`:'—'}</td>
-        <td>${m.email?`<a href="mailto:${esc(m.email)}" class="text-decoration-none">${esc(m.email)}</a>`:'—'}</td>
-        <td>${esc(m.telefone||'—')}</td>
-        <td>${m.mandatoFim?`<span class="${m.mandatoVencido?'text-danger':'text-success'}">${fmtDate(m.mandatoFim)}${m.mandatoVencido?' <i class="bi bi-exclamation-circle-fill text-danger" title="Mandato vencido"></i>':''}</span>`:'—'}</td>
+        <td>${m.estado?`<span class="badge bg-secondary">${esc(m.estado)}</span>`:'-'}</td>
+        <td>${m.email?`<a href="mailto:${esc(m.email)}" class="text-decoration-none">${esc(m.email)}</a>`:'-'}</td>
+        <td>${esc(m.telefone||'-')}</td>
+        <td>${m.mandatoFim?`<span class="${m.mandatoVencido?'text-danger':'text-success'}">${fmtDate(m.mandatoFim)}${m.mandatoVencido?' <i class="bi bi-exclamation-circle-fill text-danger" title="Mandato vencido"></i>':''}</span>`:'-'}</td>
         <td><span class="badge ${m.ativo?'bg-success':'bg-secondary'}">${m.ativo?'Ativo':'Inativo'}</span></td>
         ${pode.editar()?`<td class="text-end">
           <button class="btn btn-sm btn-outline-secondary me-1" onclick="App.go('diretoria-fbva-form',${m.id})" title="Editar"><i class="bi bi-pencil"></i></button>
@@ -5362,21 +5362,21 @@ async function renderDiretoriaFBVAForm(id=null) {
           <div class="col-12 col-md-6">
             <label class="form-label fw-semibold">Grupo <span class="text-danger">*</span></label>
             <select id="df-grupo" class="form-select" required onchange="App._dfGrupoMudou()">
-              <option value="">— Selecione —</option>
+              <option value="">- Selecione -</option>
               ${grupoOpts}
             </select>
           </div>
           <div class="col-12 col-md-6">
             <label class="form-label fw-semibold">Cargo <span class="text-danger">*</span></label>
             <select id="df-cargo" class="form-select" required>
-              ${cargoOpts?`<option value="">— Selecione —</option>${cargoOpts}`:'<option value="">— Selecione o grupo primeiro —</option>'}
+              ${cargoOpts?`<option value="">- Selecione -</option>${cargoOpts}`:'<option value="">- Selecione o grupo primeiro -</option>'}
             </select>
           </div>
           <div class="col-12 col-md-6">
-            <label class="form-label fw-semibold">Estado (UF) <span class="text-muted small fw-normal">— especialmente para Diretorias Regionais</span></label>
+            <label class="form-label fw-semibold">Estado (UF) <span class="text-muted small fw-normal">- especialmente para Diretorias Regionais</span></label>
             <select id="df-estado" class="form-select">
-              <option value="">— Nenhum —</option>
-              ${ESTADOS.map(([s,n])=>`<option value="${s}"${v.estado===s?' selected':''}>${s} — ${n}</option>`).join('')}
+              <option value="">- Nenhum -</option>
+              ${ESTADOS.map(([s,n])=>`<option value="${s}"${v.estado===s?' selected':''}>${s} - ${n}</option>`).join('')}
             </select>
           </div>
           <div class="col-12 col-md-6">
@@ -5432,8 +5432,8 @@ function _dfGrupoMudou() {
   if(!sel) return;
   const cargos = g?(DIRETORIA_CARGOS[g]||[]):[];
   sel.innerHTML = cargos.length
-    ? '<option value="">— Selecione —</option>'+cargos.map(c=>`<option value="${c}">${c}</option>`).join('')
-    : '<option value="">— Selecione o grupo primeiro —</option>';
+    ? '<option value="">- Selecione -</option>'+cargos.map(c=>`<option value="${c}">${c}</option>`).join('')
+    : '<option value="">- Selecione o grupo primeiro -</option>';
 }
 
 async function saveDiretorFBVA(e, id) {
