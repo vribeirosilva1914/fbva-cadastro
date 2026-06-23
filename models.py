@@ -482,6 +482,95 @@ class DiretorFBVA(db.Model):
         return dict(self.GRUPOS).get(self.grupo, self.grupo)
 
 
+class TicketOuvidoria(db.Model):
+    __tablename__ = 'tickets_ouvidoria'
+
+    TIPOS = [
+        ('sugestao',   'Sugestão'),
+        ('reclamacao', 'Reclamação'),
+        ('elogio',     'Elogio'),
+        ('informacao', 'Informação'),
+        ('denuncia',   'Denúncia'),
+    ]
+    STATUS = [
+        ('aberto',       'Aberto'),
+        ('em_andamento', 'Em andamento'),
+        ('aguardando',   'Aguardando retorno'),
+        ('resolvido',    'Resolvido'),
+        ('fechado',      'Fechado'),
+    ]
+    PRIORIDADES = [
+        ('baixa',   'Baixa'),
+        ('media',   'Média'),
+        ('alta',    'Alta'),
+        ('urgente', 'Urgente'),
+    ]
+
+    id                   = db.Column(db.Integer, primary_key=True)
+    protocolo            = db.Column(db.String(20), unique=True, nullable=False)
+    tipo                 = db.Column(db.String(20), nullable=False)
+    assunto              = db.Column(db.String(200), nullable=False)
+    descricao            = db.Column(db.Text, nullable=False)
+    nome_solicitante     = db.Column(db.String(150), nullable=True)
+    email_solicitante    = db.Column(db.String(150), nullable=True)
+    telefone_solicitante = db.Column(db.String(20),  nullable=True)
+    clube_id             = db.Column(db.Integer, db.ForeignKey('clubes.id', ondelete='SET NULL'), nullable=True)
+    status               = db.Column(db.String(20), default='aberto', nullable=False)
+    prioridade           = db.Column(db.String(10), default='media',  nullable=False)
+    responsavel_id       = db.Column(db.Integer, db.ForeignKey('usuarios.id', ondelete='SET NULL'), nullable=True)
+    resolucao            = db.Column(db.Text,     nullable=True)
+    resolucao_em         = db.Column(db.DateTime, nullable=True)
+    criado_em            = db.Column(db.DateTime, default=datetime.utcnow)
+    atualizado_em        = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    clube       = db.relationship('Clube',   foreign_keys=[clube_id])
+    responsavel = db.relationship('Usuario', foreign_keys=[responsavel_id])
+    respostas   = db.relationship('TicketResposta', backref='ticket',
+                                   cascade='all, delete-orphan',
+                                   order_by='TicketResposta.criado_em')
+
+
+class TicketResposta(db.Model):
+    __tablename__ = 'ticket_respostas'
+
+    id        = db.Column(db.Integer, primary_key=True)
+    ticket_id = db.Column(db.Integer, db.ForeignKey('tickets_ouvidoria.id', ondelete='CASCADE'), nullable=False)
+    autor_id  = db.Column(db.Integer, db.ForeignKey('usuarios.id', ondelete='SET NULL'), nullable=True)
+    texto     = db.Column(db.Text, nullable=False)
+    interno   = db.Column(db.Boolean, default=False)
+    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+
+    autor = db.relationship('Usuario', foreign_keys=[autor_id])
+
+
+class DocumentoFBVA(db.Model):
+    __tablename__ = 'documentos_fbva'
+
+    TIPOS = [
+        ('estatuto',  'Estatuto'),
+        ('ata',       'Ata'),
+        ('regimento', 'Regimento Interno'),
+        ('resolucao', 'Resolução'),
+        ('portaria',  'Portaria'),
+        ('convenio',  'Convênio'),
+        ('outro',     'Outro'),
+    ]
+
+    id             = db.Column(db.Integer, primary_key=True)
+    nome           = db.Column(db.String(200), nullable=False)
+    tipo           = db.Column(db.String(20),  nullable=False)
+    descricao      = db.Column(db.Text,        nullable=True)
+    ano            = db.Column(db.Integer,     nullable=True)
+    vigente        = db.Column(db.Boolean,     default=False)
+    filename       = db.Column(db.String(300), nullable=True)
+    tamanho        = db.Column(db.Integer,     nullable=True)
+    enviado_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id', ondelete='SET NULL'), nullable=True)
+    enviado_em     = db.Column(db.DateTime, default=datetime.utcnow)
+    atualizado_em  = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    enviado_por = db.relationship('Usuario', foreign_keys=[enviado_por_id])
+
+
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(Usuario, int(user_id))

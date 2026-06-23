@@ -292,6 +292,8 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;font-size:
       <button class="nl" onclick="App.go('diretoria-fbva')"><i class="bi bi-person-badge-fill"></i><span>Diretoria FBVA</span></button>
       <div class="nav-sec mt-2" id="nav-sec-secretaria">Secretaria</div>
       <button class="nl" id="nav-gestao" onclick="App.go('gestao')"><i class="bi bi-folder2-open"></i><span>Documentação &amp; Financeiro</span></button>
+      <button class="nl" id="nav-ouvidoria" onclick="App.go('ouvidoria')"><i class="bi bi-inbox-fill"></i><span>Ouvidoria <span id="nav-badge-ouv" class="badge bg-danger rounded-pill d-none" style="font-size:.65rem"></span></span></button>
+      <button class="nl" id="nav-docs-fbva" onclick="App.go('docs-fbva')"><i class="bi bi-file-earmark-text-fill"></i><span>Documentos FBVA</span></button>
       <div class="nav-sec mt-2" id="nav-sec-comunicacao">Comunicação</div>
       <button class="nl" id="nav-mensageiro" onclick="App.go('mensageiro')" style="color:rgba(37,211,102,.85)"><i class="bi bi-whatsapp"></i><span>Mensageiro WhatsApp</span></button>
       <button class="nl" id="nav-atendimento" onclick="App.go('atendimento')" style="color:rgba(37,211,102,.85)"><i class="bi bi-headset"></i><span>Atendimento WA <span id="nav-badge-wa" class="badge bg-danger rounded-pill d-none" style="font-size:.65rem"></span></span></button>
@@ -715,7 +717,7 @@ function showApp() {
   document.getElementById('sb-av').textContent=u.nome[0].toUpperCase();
   document.getElementById('sb-nome').textContent=u.nome.split(' ')[0];
   document.getElementById('sb-perfil').textContent=PERFIS[u.perfil]||u.perfil;
-  ['nav-sec-secretaria','nav-gestao'].forEach(id=>{
+  ['nav-sec-secretaria','nav-gestao','nav-ouvidoria','nav-docs-fbva'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.style.display=pode.secretaria()?'':'none';
   });
@@ -875,6 +877,10 @@ const DIRETORIA_CARGOS={
   diretorias_auxiliares: ['Diretor Esportivo','Diretor de Assuntos Internacionais','Diretor de Cultura e Juventude','Diretor de Assuntos Institucionais'],
   fundo_solidariedade:   ['Presidente'],
 };
+const TICKET_TIPOS  =[['sugestao','Sugestão'],['reclamacao','Reclamação'],['elogio','Elogio'],['informacao','Informação'],['denuncia','Denúncia']];
+const TICKET_STATUS =[['aberto','Aberto'],['em_andamento','Em andamento'],['aguardando','Aguardando retorno'],['resolvido','Resolvido'],['fechado','Fechado']];
+const TICKET_PRIOS  =[['baixa','Baixa'],['media','Média'],['alta','Alta'],['urgente','Urgente']];
+const DOC_FBVA_TIPOS=[['estatuto','Estatuto'],['ata','Ata'],['regimento','Regimento Interno'],['resolucao','Resolução'],['portaria','Portaria'],['convenio','Convênio'],['outro','Outro']];
 
 function _cargoLabel(v){return(CARGOS_DIRETORIA.find(([k])=>k===v)||[v,v])[1];}
 
@@ -1024,6 +1030,11 @@ async function go(view,id=null) {
     else if(view==='agenda-form')        await renderAgendaConteudoForm(id);
     else if(view==='diretoria-fbva')     await renderDiretoriaFBVA();
     else if(view==='diretoria-fbva-form')await renderDiretoriaFBVAForm(id);
+    else if(view==='ouvidoria')          await renderOuvidoria();
+    else if(view==='ouvidoria-form')     await renderOuvidoriaForm(id);
+    else if(view==='ouvidoria-det')      await renderOuvidoriaDet(id);
+    else if(view==='docs-fbva')          await renderDocsFBVA();
+    else if(view==='docs-fbva-form')     await renderDocsFBVAForm(id);
   } catch(e) { toast(e.message,'danger'); }
   window.scrollTo(0,0);
 }
@@ -5478,6 +5489,473 @@ function confirmarExcluirDiretorFBVA(id, nome) {
   });
 }
 
+// ═════════ OUVIDORIA ══════════════════════════
+function _ticketStatusBadge(s){
+  const m={aberto:'primary',em_andamento:'warning',aguardando:'info',resolvido:'success',fechado:'secondary'};
+  const l={aberto:'Aberto',em_andamento:'Em andamento',aguardando:'Aguardando retorno',resolvido:'Resolvido',fechado:'Fechado'};
+  return `<span class="badge bg-${m[s]||'secondary'}">${l[s]||s}</span>`;
+}
+function _ticketPrioBadge(p){
+  const m={baixa:'success',media:'warning',alta:'danger',urgente:'dark'};
+  const l={baixa:'Baixa',media:'Média',alta:'Alta',urgente:'Urgente'};
+  return `<span class="badge bg-${m[p]||'secondary'} text-${p==='urgente'?'white':'dark'}">${l[p]||p}</span>`;
+}
+function _fmtBytes(b){
+  if(!b)return '-';
+  if(b<1024)return b+'B';
+  if(b<1024*1024)return (b/1024).toFixed(1)+'KB';
+  return (b/(1024*1024)).toFixed(1)+'MB';
+}
+
+let _ouvFiltros={status:'',tipo:'',prioridade:'',q:''};
+let _ouvAll=[];
+
+async function renderOuvidoria(){
+  if(!pode.secretaria()){toast('Acesso negado.','danger');await go('dashboard');return;}
+  setTitle(`<i class="bi bi-inbox-fill me-2"></i>Ouvidoria`,
+    `<button class="btn btn-primary btn-sm" onclick="App.go('ouvidoria-form')"><i class="bi bi-plus-lg me-1"></i>Novo Ticket</button>`);
+  _ouvAll=await Api.get('/api/ouvidoria');
+  _ouvRenderLista();
+  _ouvAtualizarBadge();
+}
+
+function _ouvAtualizarBadge(){
+  const n=_ouvAll.filter(t=>t.status==='aberto').length;
+  const el=document.getElementById('nav-badge-ouv');
+  if(el){el.textContent=n||'';el.classList.toggle('d-none',!n);}
+}
+
+function _ouvRenderLista(){
+  const f=_ouvFiltros;
+  const lista=_ouvAll.filter(t=>{
+    if(f.status&&t.status!==f.status)return false;
+    if(f.tipo&&t.tipo!==f.tipo)return false;
+    if(f.prioridade&&t.prioridade!==f.prioridade)return false;
+    if(f.q){const q=f.q.toLowerCase();if(!t.assunto.toLowerCase().includes(q)&&!(t.nomeSolicitante||'').toLowerCase().includes(q)&&!t.protocolo.toLowerCase().includes(q))return false;}
+    return true;
+  });
+  render(`
+  <div class="row g-2 mb-3">
+    <div class="col-md-3">
+      <select class="form-select form-select-sm" onchange="App._ouvSetFiltro('status',this.value)">
+        <option value="">Todos os status</option>
+        ${TICKET_STATUS.map(([v,l])=>`<option value="${v}"${f.status===v?' selected':''}>${l}</option>`).join('')}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select class="form-select form-select-sm" onchange="App._ouvSetFiltro('tipo',this.value)">
+        <option value="">Todos os tipos</option>
+        ${TICKET_TIPOS.map(([v,l])=>`<option value="${v}"${f.tipo===v?' selected':''}>${l}</option>`).join('')}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select class="form-select form-select-sm" onchange="App._ouvSetFiltro('prioridade',this.value)">
+        <option value="">Todas as prioridades</option>
+        ${TICKET_PRIOS.map(([v,l])=>`<option value="${v}"${f.prioridade===v?' selected':''}>${l}</option>`).join('')}
+      </select>
+    </div>
+    <div class="col-md-5">
+      <input class="form-control form-control-sm" placeholder="Buscar protocolo, assunto ou solicitante..." value="${esc(f.q)}"
+        oninput="App._ouvSetFiltro('q',this.value)">
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead><tr>
+        <th>Protocolo</th><th>Tipo</th><th>Assunto</th><th>Solicitante</th>
+        <th>Status</th><th>Prioridade</th><th>Abertura</th><th>Responsável</th><th></th>
+      </tr></thead>
+      <tbody>
+        ${lista.length?lista.map(t=>`
+        <tr style="cursor:pointer" onclick="App.go('ouvidoria-det',${t.id})">
+          <td><code>${esc(t.protocolo)}</code></td>
+          <td><small class="badge bg-secondary">${TICKET_TIPOS.find(x=>x[0]===t.tipo)?.[1]||t.tipo}</small></td>
+          <td>${esc(t.assunto)}</td>
+          <td>${esc(t.nomeSolicitante||'-')}</td>
+          <td>${_ticketStatusBadge(t.status)}</td>
+          <td>${_ticketPrioBadge(t.prioridade)}</td>
+          <td>${t.criadoEm?t.criadoEm.slice(0,10):'-'}</td>
+          <td>${esc(t.responsavelNome||'-')}</td>
+          <td onclick="event.stopPropagation()">
+            ${pode.secretaria()?`<button class="btn btn-sm btn-outline-danger" title="Excluir" onclick="App._ouvExcluir(${t.id})"><i class="bi bi-trash"></i></button>`:''}
+          </td>
+        </tr>`).join(''):`<tr><td colspan="9" class="text-center text-muted py-4">Nenhum ticket encontrado.</td></tr>`}
+      </tbody>
+    </table>
+  </div>`);
+}
+
+function _ouvSetFiltro(campo,valor){_ouvFiltros[campo]=valor;_ouvRenderLista();}
+
+async function _ouvExcluir(id){
+  if(!confirm('Excluir este ticket? Esta ação não pode ser desfeita.'))return;
+  try{
+    await Api.del(`/api/ouvidoria/${id}`);
+    _ouvAll=_ouvAll.filter(t=>t.id!==id);
+    _ouvRenderLista();_ouvAtualizarBadge();
+    toast('Ticket excluído.');
+  }catch(e){toast(e.message,'danger');}
+}
+
+async function renderOuvidoriaForm(id){
+  if(!pode.secretaria()){toast('Acesso negado.','danger');await go('dashboard');return;}
+  const isEdit=!!id;
+  let v={};
+  if(isEdit) v=await Api.get(`/api/ouvidoria/${id}`);
+  const [clubes,usuarios]=await Promise.all([Api.get('/api/clubes?ativo=1'),Api.get('/api/usuarios')]);
+  setTitle(isEdit?`<i class="bi bi-inbox-fill me-2"></i>Editar Ticket`:`<i class="bi bi-inbox-fill me-2"></i>Novo Ticket`);
+  render(`
+  <form onsubmit="event.preventDefault();App.saveTicket(${id||'null'})">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label">Tipo *</label>
+        <select name="tipo" class="form-select" required>
+          <option value="">Selecione...</option>
+          ${TICKET_TIPOS.map(([val,lbl])=>`<option value="${val}"${v.tipo===val?' selected':''}>${lbl}</option>`).join('')}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Prioridade</label>
+        <select name="prioridade" class="form-select">
+          ${TICKET_PRIOS.map(([val,lbl])=>`<option value="${val}"${(v.prioridade||'media')===val?' selected':''}>${lbl}</option>`).join('')}
+        </select>
+      </div>
+      ${isEdit?`<div class="col-md-4">
+        <label class="form-label">Status</label>
+        <select name="status" class="form-select">
+          ${TICKET_STATUS.map(([val,lbl])=>`<option value="${val}"${v.status===val?' selected':''}>${lbl}</option>`).join('')}
+        </select>
+      </div>`:`<div class="col-md-4"></div>`}
+      <div class="col-12">
+        <label class="form-label">Assunto *</label>
+        <input name="assunto" class="form-control" required value="${esc(v.assunto||'')}">
+      </div>
+      <div class="col-12">
+        <label class="form-label">Descrição *</label>
+        <textarea name="descricao" class="form-control" rows="5" required>${esc(v.descricao||'')}</textarea>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Nome do Solicitante</label>
+        <input name="nomeSolicitante" class="form-control" value="${esc(v.nomeSolicitante||'')}">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">E-mail do Solicitante</label>
+        <input name="emailSolicitante" type="email" class="form-control" value="${esc(v.emailSolicitante||'')}">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Telefone do Solicitante</label>
+        <input name="telefoneSolicitante" class="form-control" value="${esc(v.telefoneSolicitante||'')}">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Clube relacionado</label>
+        <select name="clubeId" class="form-select">
+          <option value="">Nenhum</option>
+          ${clubes.map(c=>`<option value="${c.id}"${v.clubeId===c.id?' selected':''}>${esc(c.nome)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Responsável</label>
+        <select name="responsavelId" class="form-select">
+          <option value="">Não atribuído</option>
+          ${usuarios.filter(u=>u.ativo&&['admin','secretaria'].includes(u.perfil)).map(u=>`<option value="${u.id}"${v.responsavelId===u.id?' selected':''}>${esc(u.nome)}</option>`).join('')}
+        </select>
+      </div>
+      ${isEdit?`<div class="col-12">
+        <label class="form-label">Resolução / Encaminhamento</label>
+        <textarea name="resolucao" class="form-control" rows="3">${esc(v.resolucao||'')}</textarea>
+      </div>`:''}
+    </div>
+    <div class="mt-4 d-flex gap-2">
+      <button type="submit" class="btn btn-primary">Salvar</button>
+      <button type="button" class="btn btn-outline-secondary" onclick="App.go(${isEdit?`'ouvidoria-det',${id}`:`'ouvidoria'`})">Cancelar</button>
+    </div>
+  </form>`);
+}
+
+async function saveTicket(id){
+  const f=document.querySelector('#app-content form');
+  const data=Object.fromEntries(new FormData(f));
+  const body={
+    tipo:data.tipo,assunto:data.assunto,descricao:data.descricao,
+    nomeSolicitante:data.nomeSolicitante||null,
+    emailSolicitante:data.emailSolicitante||null,
+    telefoneSolicitante:data.telefoneSolicitante||null,
+    clubeId:data.clubeId?parseInt(data.clubeId):null,
+    responsavelId:data.responsavelId?parseInt(data.responsavelId):null,
+    prioridade:data.prioridade||'media',
+  };
+  try{
+    if(id){
+      body.status=data.status;body.resolucao=data.resolucao||null;
+      await Api.put(`/api/ouvidoria/${id}`,body);
+      toast('Ticket atualizado.');
+      await go('ouvidoria-det',id);
+    }else{
+      const t=await Api.post('/api/ouvidoria',body);
+      toast(`Ticket criado - protocolo ${t.protocolo}.`);
+      await go('ouvidoria-det',t.id);
+    }
+  }catch(e){toast(e.message,'danger');}
+}
+
+async function renderOuvidoriaDet(id){
+  if(!pode.secretaria()){toast('Acesso negado.','danger');await go('dashboard');return;}
+  const t=await Api.get(`/api/ouvidoria/${id}`);
+  const tipoLabel=TICKET_TIPOS.find(x=>x[0]===t.tipo)?.[1]||t.tipo;
+  setTitle(`<i class="bi bi-inbox-fill me-2"></i>Ticket <code>${esc(t.protocolo)}</code>`,
+    `<div class="d-flex gap-2">
+      ${pode.secretaria()?`<button class="btn btn-outline-secondary btn-sm" onclick="App.go('ouvidoria-form',${id})"><i class="bi bi-pencil me-1"></i>Editar</button>`:''}
+      <button class="btn btn-outline-primary btn-sm" onclick="App.go('ouvidoria')"><i class="bi bi-arrow-left me-1"></i>Voltar</button>
+    </div>`);
+  render(`
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <strong>${esc(t.assunto)}</strong>
+          <div class="d-flex gap-2">${_ticketStatusBadge(t.status)}${_ticketPrioBadge(t.prioridade)}</div>
+        </div>
+        <div class="card-body"><p class="mb-0" style="white-space:pre-wrap">${esc(t.descricao)}</p></div>
+      </div>
+      <h6 class="fw-bold mb-3">Histórico de Andamento</h6>
+      <div id="ouv-thread">
+        ${(t.respostas||[]).length
+          ?(t.respostas.map(r=>`
+          <div class="card mb-2${r.interno?' border-warning':''}" style="${r.interno?'background:rgba(255,193,7,.08)':''}">
+            <div class="card-body py-2 px-3">
+              <div class="d-flex justify-content-between mb-1">
+                <span class="fw-semibold">${esc(r.autorNome||'Desconhecido')}${r.interno?' <span class="badge bg-warning text-dark ms-1" style="font-size:.7rem">Nota interna</span>':''}</span>
+                <small class="text-muted">${r.criadoEm?r.criadoEm.slice(0,16).replace('T',' '):''}</small>
+              </div>
+              <p class="mb-0" style="white-space:pre-wrap">${esc(r.texto)}</p>
+            </div>
+          </div>`).join(''))
+          :`<p class="text-muted">Nenhuma movimentação registrada.</p>`}
+      </div>
+      ${pode.secretaria()?`
+      <div class="card mt-3">
+        <div class="card-body">
+          <label class="form-label fw-semibold">Adicionar resposta / movimentação</label>
+          <textarea id="ouv-resp-txt" class="form-control mb-2" rows="3" placeholder="Digite a resposta ou observação..."></textarea>
+          <div class="d-flex align-items-center gap-3">
+            <div class="form-check">
+              <input type="checkbox" id="ouv-resp-interno" class="form-check-input">
+              <label for="ouv-resp-interno" class="form-check-label">Nota interna (não visível ao solicitante)</label>
+            </div>
+            <button class="btn btn-primary btn-sm ms-auto" onclick="App._ouvEnviarResposta(${id})">
+              <i class="bi bi-send me-1"></i>Enviar
+            </button>
+          </div>
+        </div>
+      </div>`:''}
+    </div>
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-header fw-semibold">Informações do Ticket</div>
+        <div class="card-body">
+          <table class="table table-sm mb-0">
+            <tr><th class="text-muted fw-normal" style="width:40%">Protocolo</th><td><code>${esc(t.protocolo)}</code></td></tr>
+            <tr><th class="text-muted fw-normal">Tipo</th><td>${tipoLabel}</td></tr>
+            <tr><th class="text-muted fw-normal">Status</th><td>${_ticketStatusBadge(t.status)}</td></tr>
+            <tr><th class="text-muted fw-normal">Prioridade</th><td>${_ticketPrioBadge(t.prioridade)}</td></tr>
+            <tr><th class="text-muted fw-normal">Abertura</th><td>${t.criadoEm?t.criadoEm.slice(0,10):'-'}</td></tr>
+            ${t.nomeSolicitante?`<tr><th class="text-muted fw-normal">Solicitante</th><td>${esc(t.nomeSolicitante)}</td></tr>`:''}
+            ${t.emailSolicitante?`<tr><th class="text-muted fw-normal">E-mail</th><td>${esc(t.emailSolicitante)}</td></tr>`:''}
+            ${t.telefoneSolicitante?`<tr><th class="text-muted fw-normal">Telefone</th><td>${esc(t.telefoneSolicitante)}</td></tr>`:''}
+            ${t.clubeNome?`<tr><th class="text-muted fw-normal">Clube</th><td>${esc(t.clubeNome)}</td></tr>`:''}
+            ${t.responsavelNome?`<tr><th class="text-muted fw-normal">Responsável</th><td>${esc(t.responsavelNome)}</td></tr>`:''}
+          </table>
+          ${t.resolucao?`<hr><p class="small text-muted mb-1">Resolução:</p><p class="small mb-0" style="white-space:pre-wrap">${esc(t.resolucao)}</p>`:''}
+          ${pode.secretaria()?`
+          <hr>
+          <div class="d-grid gap-2">
+            ${t.status!=='resolvido'?`<button class="btn btn-success btn-sm" onclick="App._ouvMudarStatus(${id},'resolvido')"><i class="bi bi-check-circle me-1"></i>Marcar como Resolvido</button>`:''}
+            ${t.status!=='fechado'?`<button class="btn btn-secondary btn-sm" onclick="App._ouvMudarStatus(${id},'fechado')"><i class="bi bi-x-circle me-1"></i>Fechar Ticket</button>`:''}
+            ${(t.status==='fechado'||t.status==='resolvido')?`<button class="btn btn-outline-primary btn-sm" onclick="App._ouvMudarStatus(${id},'aberto')"><i class="bi bi-arrow-counterclockwise me-1"></i>Reabrir</button>`:''}
+          </div>`:''}
+        </div>
+      </div>
+    </div>
+  </div>`);
+}
+
+async function _ouvEnviarResposta(ticketId){
+  const texto=document.getElementById('ouv-resp-txt')?.value?.trim();
+  if(!texto){toast('Digite o texto da resposta.','warning');return;}
+  const interno=document.getElementById('ouv-resp-interno')?.checked||false;
+  try{
+    await Api.post(`/api/ouvidoria/${ticketId}/resposta`,{texto,interno});
+    toast('Resposta adicionada.');
+    await go('ouvidoria-det',ticketId);
+  }catch(e){toast(e.message,'danger');}
+}
+
+async function _ouvMudarStatus(ticketId,novoStatus){
+  try{
+    await Api.put(`/api/ouvidoria/${ticketId}`,{status:novoStatus});
+    toast('Status atualizado.');
+    await go('ouvidoria-det',ticketId);
+  }catch(e){toast(e.message,'danger');}
+}
+
+// ═════════ DOCUMENTOS FBVA ════════════════════
+let _docsFBVAAll=[];
+let _docsFBVATipo='';
+
+async function renderDocsFBVA(){
+  if(!pode.secretaria()){toast('Acesso negado.','danger');await go('dashboard');return;}
+  setTitle(`<i class="bi bi-file-earmark-text-fill me-2"></i>Documentos FBVA`,
+    `<button class="btn btn-primary btn-sm" onclick="App.go('docs-fbva-form')"><i class="bi bi-plus-lg me-1"></i>Adicionar Documento</button>`);
+  _docsFBVAAll=await Api.get('/api/documentos-fbva');
+  _docsFBVARenderLista();
+}
+
+function _docsFBVARenderLista(){
+  const lista=_docsFBVATipo?_docsFBVAAll.filter(d=>d.tipo===_docsFBVATipo):_docsFBVAAll;
+  const grupos={};
+  DOC_FBVA_TIPOS.forEach(([v])=>{grupos[v]=[];});
+  lista.forEach(d=>{if(!grupos[d.tipo])grupos[d.tipo]=[];grupos[d.tipo].push(d);});
+  render(`
+  <div class="d-flex gap-2 mb-4 flex-wrap">
+    <button class="btn btn-sm ${!_docsFBVATipo?'btn-primary':'btn-outline-secondary'}" onclick="App._docsFBVAFiltrar('')">Todos</button>
+    ${DOC_FBVA_TIPOS.map(([v,l])=>`<button class="btn btn-sm ${_docsFBVATipo===v?'btn-primary':'btn-outline-secondary'}" onclick="App._docsFBVAFiltrar('${v}')">${l}</button>`).join('')}
+  </div>
+  ${DOC_FBVA_TIPOS.map(([tipo,tipoLabel])=>{
+    const docs=grupos[tipo]||[];
+    if(!docs.length)return '';
+    return `
+    <h6 class="fw-bold mt-3 mb-2"><i class="bi bi-folder2-open me-2"></i>${tipoLabel}</h6>
+    <div class="table-responsive mb-4">
+      <table class="table table-sm align-middle">
+        <thead class="table-light"><tr>
+          <th>Nome</th><th>Ano</th><th>Situação</th><th>Enviado em</th><th>Tamanho</th><th>Ações</th>
+        </tr></thead>
+        <tbody>
+          ${docs.map(d=>`
+          <tr>
+            <td>${esc(d.nome)}</td>
+            <td>${d.ano||'-'}</td>
+            <td>${d.vigente?`<span class="badge bg-success">Vigente</span>`:`<span class="badge bg-secondary">Histórico</span>`}</td>
+            <td>${d.enviadoEm?d.enviadoEm.slice(0,10):'-'}</td>
+            <td>${_fmtBytes(d.tamanho)}</td>
+            <td>
+              <div class="d-flex gap-1">
+                ${d.hasFile?`<a href="/api/documentos-fbva/${d.id}/arquivo" class="btn btn-sm btn-outline-primary" title="Baixar"><i class="bi bi-download"></i></a>`:''}
+                ${pode.secretaria()?`
+                  <input type="file" id="df-up-${d.id}" class="d-none" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="App._docsFBVAUpload(${d.id},this)">
+                  <button class="btn btn-sm btn-outline-secondary" title="Enviar arquivo" onclick="document.getElementById('df-up-${d.id}').click()"><i class="bi bi-upload"></i></button>
+                  <button class="btn btn-sm btn-outline-secondary" title="Editar" onclick="App.go('docs-fbva-form',${d.id})"><i class="bi bi-pencil"></i></button>
+                  <button class="btn btn-sm btn-outline-danger" title="Excluir" onclick="App._docsFBVAExcluir(${d.id})"><i class="bi bi-trash"></i></button>
+                `:''}
+              </div>
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  }).join('')}
+  ${lista.length===0?`<p class="text-muted text-center py-5">Nenhum documento encontrado.</p>`:''}`);
+}
+
+function _docsFBVAFiltrar(tipo){_docsFBVATipo=tipo;_docsFBVARenderLista();}
+
+async function _docsFBVAUpload(id,input){
+  const file=input.files[0];if(!file)return;
+  const fd=new FormData();fd.append('arquivo',file);
+  try{
+    const res=await fetch(`/api/documentos-fbva/${id}/arquivo`,{method:'POST',credentials:'same-origin',body:fd});
+    const data=await res.json();
+    if(!data.ok){toast(data.error||'Erro ao enviar.','danger');return;}
+    toast('Arquivo enviado com sucesso.');
+    _docsFBVAAll=_docsFBVAAll.map(d=>d.id===id?data.data:d);
+    _docsFBVARenderLista();
+  }catch(e){toast(e.message,'danger');}
+}
+
+async function _docsFBVAExcluir(id){
+  if(!confirm('Excluir este documento? O arquivo também será removido.'))return;
+  try{
+    await Api.del(`/api/documentos-fbva/${id}`);
+    _docsFBVAAll=_docsFBVAAll.filter(d=>d.id!==id);
+    _docsFBVARenderLista();
+    toast('Documento excluído.');
+  }catch(e){toast(e.message,'danger');}
+}
+
+async function renderDocsFBVAForm(id){
+  if(!pode.secretaria()){toast('Acesso negado.','danger');await go('dashboard');return;}
+  const isEdit=!!id;
+  let v={};
+  if(isEdit) v=await Api.get(`/api/documentos-fbva/${id}`);
+  setTitle(isEdit?`<i class="bi bi-file-earmark-text-fill me-2"></i>Editar Documento`:`<i class="bi bi-file-earmark-text-fill me-2"></i>Novo Documento FBVA`);
+  render(`
+  <form onsubmit="event.preventDefault();App.saveDocFBVA(${id||'null'})">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Nome *</label>
+        <input name="nome" class="form-control" required value="${esc(v.nome||'')}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Tipo *</label>
+        <select name="tipo" class="form-select" required>
+          <option value="">Selecione...</option>
+          ${DOC_FBVA_TIPOS.map(([val,lbl])=>`<option value="${val}"${v.tipo===val?' selected':''}>${lbl}</option>`).join('')}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Ano</label>
+        <input name="ano" type="number" class="form-control" min="1900" max="2100" value="${v.ano||''}">
+      </div>
+      <div class="col-12">
+        <label class="form-label">Descrição</label>
+        <textarea name="descricao" class="form-control" rows="3">${esc(v.descricao||'')}</textarea>
+      </div>
+      <div class="col-12">
+        <div class="form-check">
+          <input type="checkbox" name="vigente" id="doc-fbva-vigente" class="form-check-input" ${v.vigente?'checked':''}>
+          <label for="doc-fbva-vigente" class="form-check-label fw-semibold">Documento vigente (versão atual)</label>
+        </div>
+        <small class="text-muted">Ao marcar como vigente, versões anteriores do mesmo tipo serão marcadas como histórico.</small>
+      </div>
+      ${isEdit&&v.hasFile?`<div class="col-12">
+        <label class="form-label">Arquivo atual</label>
+        <div class="d-flex align-items-center gap-2">
+          <a href="/api/documentos-fbva/${id}/arquivo" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-download me-1"></i>Baixar arquivo atual (${_fmtBytes(v.tamanho)})
+          </a>
+          <small class="text-muted">Para substituir, use o botão de upload na lista após salvar.</small>
+        </div>
+      </div>`:''}
+    </div>
+    <div class="mt-4 d-flex gap-2">
+      <button type="submit" class="btn btn-primary">Salvar</button>
+      <button type="button" class="btn btn-outline-secondary" onclick="App.go('docs-fbva')">Cancelar</button>
+    </div>
+  </form>`);
+}
+
+async function saveDocFBVA(id){
+  const f=document.querySelector('#app-content form');
+  const data=Object.fromEntries(new FormData(f));
+  const body={
+    nome:data.nome,tipo:data.tipo,
+    descricao:data.descricao||null,
+    ano:data.ano?parseInt(data.ano):null,
+    vigente:data.vigente==='on',
+  };
+  try{
+    if(id){
+      await Api.put(`/api/documentos-fbva/${id}`,body);
+      toast('Documento atualizado.');
+      await go('docs-fbva');
+    }else{
+      const d=await Api.post('/api/documentos-fbva',body);
+      toast('Documento criado. Envie o arquivo pelo botão de upload na lista.');
+      await go('docs-fbva');
+    }
+  }catch(e){toast(e.message,'danger');}
+}
+
 // ── Init ───────────────────────────────────────
 async function init() {
   document.getElementById('l-senha').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
@@ -5519,6 +5997,12 @@ return{
   // Diretoria FBVA
   renderDiretoriaFBVA,renderDiretoriaFBVAForm,saveDiretorFBVA,confirmarExcluirDiretorFBVA,
   _dfRenderLista,_dfGrupoMudou,
+  // Ouvidoria
+  renderOuvidoria,renderOuvidoriaForm,renderOuvidoriaDet,saveTicket,
+  _ouvSetFiltro,_ouvExcluir,_ouvEnviarResposta,_ouvMudarStatus,
+  // Documentos FBVA
+  renderDocsFBVA,renderDocsFBVAForm,saveDocFBVA,
+  _docsFBVAFiltrar,_docsFBVAUpload,_docsFBVAExcluir,
   // Form dynamic sections
   _addMembro,_addEndereco,_onEstadoMudou,
   // Detail view actions

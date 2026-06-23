@@ -13,7 +13,8 @@ from models import (Usuario, Clube, WaLog, EmailLog, Config, FinanceiroClube,
                     EnderecoAdicional, Contato, ContatoTelefone, ContatoEmail,
                     Associado, ClippingNoticia,
                     ContatoWA, ConversacaoWA, MensagemWA, Evento,
-                    AgendaConteudo, RecorrenciaConteudo, DiretorFBVA)
+                    AgendaConteudo, RecorrenciaConteudo, DiretorFBVA,
+                    TicketOuvidoria, TicketResposta, DocumentoFBVA)
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -2406,3 +2407,374 @@ def delete_diretor_fbva(id):
     db.session.delete(d)
     db.session.commit()
     return ok({'id': id})
+
+
+# ═══════════════════════════════════════════════════════════
+# OUVIDORIA
+# ═══════════════════════════════════════════════════════════
+
+def ticket_dict(t, with_respostas=False):
+    d = {
+        'id':                  t.id,
+        'protocolo':           t.protocolo,
+        'tipo':                t.tipo,
+        'assunto':             t.assunto,
+        'descricao':           t.descricao,
+        'nomeSolicitante':     t.nome_solicitante,
+        'emailSolicitante':    t.email_solicitante,
+        'telefoneSolicitante': t.telefone_solicitante,
+        'clubeId':             t.clube_id,
+        'clubeNome':           t.clube.nome if t.clube else None,
+        'status':              t.status,
+        'prioridade':          t.prioridade,
+        'responsavelId':       t.responsavel_id,
+        'responsavelNome':     t.responsavel.nome if t.responsavel else None,
+        'resolucao':           t.resolucao,
+        'resolucaoEm':         t.resolucao_em.isoformat() if t.resolucao_em else None,
+        'criadoEm':            t.criado_em.isoformat() if t.criado_em else None,
+        'atualizadoEm':        t.atualizado_em.isoformat() if t.atualizado_em else None,
+    }
+    if with_respostas:
+        d['respostas'] = [
+            {
+                'id':        r.id,
+                'texto':     r.texto,
+                'interno':   r.interno,
+                'autorId':   r.autor_id,
+                'autorNome': r.autor.nome if r.autor else 'Sistema',
+                'criadoEm':  r.criado_em.isoformat() if r.criado_em else None,
+            }
+            for r in t.respostas
+        ]
+    return d
+
+
+@api_bp.route('/ouvidoria', methods=['GET'])
+@login_required
+def list_ouvidoria():
+    q = TicketOuvidoria.query
+    status = request.args.get('status')
+    tipo   = request.args.get('tipo')
+    prio   = request.args.get('prioridade')
+    busca  = (request.args.get('q') or '').strip()
+    if status:
+        q = q.filter(TicketOuvidoria.status == status)
+    if tipo:
+        q = q.filter(TicketOuvidoria.tipo == tipo)
+    if prio:
+        q = q.filter(TicketOuvidoria.prioridade == prio)
+    if busca:
+        like = f'%{busca}%'
+        q = q.filter(db.or_(
+            TicketOuvidoria.assunto.ilike(like),
+            TicketOuvidoria.protocolo.ilike(like),
+            TicketOuvidoria.nome_solicitante.ilike(like),
+        ))
+    tickets = q.order_by(TicketOuvidoria.criado_em.desc()).all()
+    return ok([ticket_dict(t) for t in tickets])
+
+
+@api_bp.route('/ouvidoria', methods=['POST'])
+@login_required
+def create_ticket():
+    body     = request.get_json(silent=True) or {}
+    tipo     = (body.get('tipo') or '').strip()
+    assunto  = (body.get('assunto') or '').strip()
+    descricao = (body.get('descricao') or '').strip()
+    if not tipo:
+        return err('O tipo é obrigatório.')
+    if not assunto:
+        return err('O assunto é obrigatório.')
+    if not descricao:
+        return err('A descrição é obrigatória.')
+    if tipo not in [t[0] for t in TicketOuvidoria.TIPOS]:
+        return err('Tipo inválido.')
+    ticket = TicketOuvidoria(
+        protocolo='TEMP',
+        tipo=tipo,
+        assunto=assunto,
+        descricao=descricao,
+        nome_solicitante=(body.get('nomeSolicitante') or '').strip() or None,
+        email_solicitante=body.get('emailSolicitante') or None,
+        telefone_solicitante=body.get('telefoneSolicitante') or None,
+        clube_id=body.get('clubeId') or None,
+        prioridade=body.get('prioridade') or 'media',
+        responsavel_id=body.get('responsavelId') or None,
+        status='aberto',
+    )
+    db.session.add(ticket)
+    db.session.flush()
+    ticket.protocolo = f"OUV-{datetime.utcnow().strftime('%Y%m')}-{str(ticket.id).zfill(4)}"
+    db.session.commit()
+    return ok(ticket_dict(ticket), code=201)
+
+
+@api_bp.route('/ouvidoria/<int:id>', methods=['GET'])
+@login_required
+def get_ticket(id):
+    t = db.session.get(TicketOuvidoria, id)
+    if not t:
+        return err('Ticket não encontrado.', 404)
+    return ok(ticket_dict(t, with_respostas=True))
+
+
+@api_bp.route('/ouvidoria/<int:id>', methods=['PUT'])
+@login_required
+def update_ticket(id):
+    t = db.session.get(TicketOuvidoria, id)
+    if not t:
+        return err('Ticket não encontrado.', 404)
+    body = request.get_json(silent=True) or {}
+    if current_user.perfil in ('admin', 'secretaria'):
+        if 'status' in body:
+            if body['status'] not in [s[0] for s in TicketOuvidoria.STATUS]:
+                return err('Status inválido.')
+            t.status = body['status']
+            if body['status'] == 'resolvido' and not t.resolucao_em:
+                t.resolucao_em = datetime.utcnow()
+        if 'prioridade' in body:
+            t.prioridade = body['prioridade']
+        if 'responsavelId' in body:
+            t.responsavel_id = body.get('responsavelId') or None
+        if 'resolucao' in body:
+            t.resolucao = body.get('resolucao') or None
+    if 'assunto' in body:
+        t.assunto = (body['assunto'] or '').strip() or t.assunto
+    if 'descricao' in body:
+        t.descricao = (body['descricao'] or '').strip() or t.descricao
+    if 'nomeSolicitante' in body:
+        t.nome_solicitante = body.get('nomeSolicitante') or None
+    if 'emailSolicitante' in body:
+        t.email_solicitante = body.get('emailSolicitante') or None
+    if 'telefoneSolicitante' in body:
+        t.telefone_solicitante = body.get('telefoneSolicitante') or None
+    if 'clubeId' in body:
+        t.clube_id = body.get('clubeId') or None
+    db.session.commit()
+    return ok(ticket_dict(t, with_respostas=True))
+
+
+@api_bp.route('/ouvidoria/<int:id>', methods=['DELETE'])
+@login_required
+def delete_ticket(id):
+    if current_user.perfil not in ('admin', 'secretaria'):
+        return err('Sem permissão.', 403)
+    t = db.session.get(TicketOuvidoria, id)
+    if not t:
+        return err('Ticket não encontrado.', 404)
+    db.session.delete(t)
+    db.session.commit()
+    return ok({'id': id})
+
+
+@api_bp.route('/ouvidoria/<int:id>/resposta', methods=['POST'])
+@login_required
+def add_resposta_ticket(id):
+    t = db.session.get(TicketOuvidoria, id)
+    if not t:
+        return err('Ticket não encontrado.', 404)
+    body  = request.get_json(silent=True) or {}
+    texto = (body.get('texto') or '').strip()
+    if not texto:
+        return err('O texto da resposta é obrigatório.')
+    interno = bool(body.get('interno', False))
+    if interno and current_user.perfil not in ('admin', 'secretaria'):
+        interno = False
+    resp = TicketResposta(
+        ticket_id=id,
+        autor_id=current_user.id,
+        texto=texto,
+        interno=interno,
+    )
+    db.session.add(resp)
+    if t.status == 'aberto' and current_user.perfil in ('admin', 'secretaria'):
+        t.status = 'em_andamento'
+    db.session.commit()
+    return ok({
+        'id':        resp.id,
+        'texto':     resp.texto,
+        'interno':   resp.interno,
+        'autorId':   resp.autor_id,
+        'autorNome': current_user.nome,
+        'criadoEm':  resp.criado_em.isoformat(),
+        'ticket':    ticket_dict(t),
+    }, code=201)
+
+
+# ═══════════════════════════════════════════════════════════
+# DOCUMENTOS FBVA
+# ═══════════════════════════════════════════════════════════
+
+def doc_fbva_dict(d):
+    return {
+        'id':             d.id,
+        'nome':           d.nome,
+        'tipo':           d.tipo,
+        'descricao':      d.descricao,
+        'ano':            d.ano,
+        'vigente':        d.vigente,
+        'filename':       d.filename,
+        'tamanho':        d.tamanho,
+        'hasFile':        bool(d.filename),
+        'enviadoPorId':   d.enviado_por_id,
+        'enviadoPorNome': d.enviado_por.nome if d.enviado_por else None,
+        'enviadoEm':      d.enviado_em.isoformat() if d.enviado_em else None,
+        'atualizadoEm':   d.atualizado_em.isoformat() if d.atualizado_em else None,
+    }
+
+
+@api_bp.route('/documentos-fbva', methods=['GET'])
+@login_required
+def list_docs_fbva():
+    tipo = request.args.get('tipo')
+    q = DocumentoFBVA.query
+    if tipo:
+        q = q.filter(DocumentoFBVA.tipo == tipo)
+    docs = q.order_by(DocumentoFBVA.tipo, DocumentoFBVA.ano.desc()).all()
+    return ok([doc_fbva_dict(d) for d in docs])
+
+
+@api_bp.route('/documentos-fbva', methods=['POST'])
+@login_required
+def create_doc_fbva():
+    if current_user.perfil not in ('admin', 'secretaria'):
+        return err('Sem permissão.', 403)
+    body = request.get_json(silent=True) or {}
+    nome = (body.get('nome') or '').strip()
+    tipo = (body.get('tipo') or '').strip()
+    if not nome:
+        return err('O nome é obrigatório.')
+    if not tipo:
+        return err('O tipo é obrigatório.')
+    if tipo not in [t[0] for t in DocumentoFBVA.TIPOS]:
+        return err('Tipo inválido.')
+    vigente = bool(body.get('vigente', False))
+    if vigente:
+        DocumentoFBVA.query.filter_by(tipo=tipo, vigente=True).update({'vigente': False})
+    doc = DocumentoFBVA(
+        nome=nome,
+        tipo=tipo,
+        descricao=body.get('descricao') or None,
+        ano=int(body['ano']) if body.get('ano') else None,
+        vigente=vigente,
+        enviado_por_id=current_user.id,
+    )
+    db.session.add(doc)
+    db.session.commit()
+    return ok(doc_fbva_dict(doc), code=201)
+
+
+@api_bp.route('/documentos-fbva/<int:id>', methods=['GET'])
+@login_required
+def get_doc_fbva(id):
+    d = db.session.get(DocumentoFBVA, id)
+    if not d:
+        return err('Documento não encontrado.', 404)
+    return ok(doc_fbva_dict(d))
+
+
+@api_bp.route('/documentos-fbva/<int:id>', methods=['PUT'])
+@login_required
+def update_doc_fbva(id):
+    if current_user.perfil not in ('admin', 'secretaria'):
+        return err('Sem permissão.', 403)
+    d = db.session.get(DocumentoFBVA, id)
+    if not d:
+        return err('Documento não encontrado.', 404)
+    body = request.get_json(silent=True) or {}
+    nome = (body.get('nome') or '').strip()
+    tipo = (body.get('tipo') or '').strip()
+    if not nome:
+        return err('O nome é obrigatório.')
+    if not tipo:
+        return err('O tipo é obrigatório.')
+    vigente = bool(body.get('vigente', False))
+    if vigente and not d.vigente:
+        DocumentoFBVA.query.filter(
+            DocumentoFBVA.tipo == tipo,
+            DocumentoFBVA.id != id,
+            DocumentoFBVA.vigente == True,
+        ).update({'vigente': False})
+    d.nome      = nome
+    d.tipo      = tipo
+    d.descricao = body.get('descricao') or None
+    d.ano       = int(body['ano']) if body.get('ano') else None
+    d.vigente   = vigente
+    db.session.commit()
+    return ok(doc_fbva_dict(d))
+
+
+@api_bp.route('/documentos-fbva/<int:id>', methods=['DELETE'])
+@login_required
+def delete_doc_fbva(id):
+    if current_user.perfil not in ('admin', 'secretaria'):
+        return err('Sem permissão.', 403)
+    d = db.session.get(DocumentoFBVA, id)
+    if not d:
+        return err('Documento não encontrado.', 404)
+    if d.filename:
+        try:
+            os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], d.filename))
+        except OSError:
+            pass
+    db.session.delete(d)
+    db.session.commit()
+    return ok({'id': id})
+
+
+@api_bp.route('/documentos-fbva/<int:id>/arquivo', methods=['POST'])
+@login_required
+def upload_doc_fbva(id):
+    if current_user.perfil not in ('admin', 'secretaria'):
+        return err('Sem permissão.', 403)
+    d = db.session.get(DocumentoFBVA, id)
+    if not d:
+        return err('Documento não encontrado.', 404)
+    f = request.files.get('arquivo')
+    if not f or not f.filename:
+        return err('Nenhum arquivo enviado.')
+    ext = os.path.splitext(secure_filename(f.filename))[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        return err('Tipo de arquivo não permitido.')
+    if d.filename:
+        try:
+            os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], d.filename))
+        except OSError:
+            pass
+    unique   = f"fbva_{uuid.uuid4().hex}{ext}"
+    filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], unique)
+    f.save(filepath)
+    d.filename = unique
+    d.tamanho  = os.path.getsize(filepath)
+    db.session.commit()
+    return ok(doc_fbva_dict(d))
+
+
+@api_bp.route('/documentos-fbva/<int:id>/arquivo', methods=['GET'])
+@login_required
+def download_doc_fbva(id):
+    d = db.session.get(DocumentoFBVA, id)
+    if not d or not d.filename:
+        return err('Arquivo não encontrado.', 404)
+    safe_name = d.nome + os.path.splitext(d.filename)[1]
+    return send_from_directory(current_app.config['UPLOAD_FOLDER'], d.filename,
+                               as_attachment=True, download_name=safe_name)
+
+
+@api_bp.route('/documentos-fbva/<int:id>/arquivo', methods=['DELETE'])
+@login_required
+def remove_arquivo_doc_fbva(id):
+    if current_user.perfil not in ('admin', 'secretaria'):
+        return err('Sem permissão.', 403)
+    d = db.session.get(DocumentoFBVA, id)
+    if not d:
+        return err('Documento não encontrado.', 404)
+    if d.filename:
+        try:
+            os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], d.filename))
+        except OSError:
+            pass
+        d.filename = None
+        d.tamanho  = None
+        db.session.commit()
+    return ok(doc_fbva_dict(d))
