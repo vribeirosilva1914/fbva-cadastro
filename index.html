@@ -4214,10 +4214,15 @@ async function renderEventoForm(id) {
     `<button class="btn btn-outline-secondary btn-sm" onclick="App.go('eventos')">
       <i class="bi bi-arrow-left me-1"></i>Voltar</button>`);
 
-  const clubes = await Api.get('/api/clubes?status=ativos');
+  const [clubes, diretores] = await Promise.all([
+    Api.get('/api/clubes?status=ativos'),
+    Api.get('/api/diretoria-fbva?status=ativos'),
+  ]);
   const v = evento||{};
   const clubeOpts = `<option value="">- Nenhum -</option>`
     + clubes.map(c=>`<option value="${c.id}"${v.clubeId===c.id?' selected':''}>${esc(c.nomeClube)}</option>`).join('');
+  const diretorOpts = `<option value="">- Selecione -</option>`
+    + diretores.map(d=>`<option value="${esc(d.nome)}"${v.diretorRepresentante===d.nome?' selected':''}>${esc(d.nome)} — ${esc(d.cargo)}</option>`).join('');
 
   render(`
   <form id="evento-form" onsubmit="App.saveEvento(event,${id||'null'})">
@@ -4291,9 +4296,9 @@ async function renderEventoForm(id) {
         <div class="row g-3">
           <div class="col-12">
             <label class="form-label">Diretor Representante FBVA</label>
-            <input name="diretorRepresentante" class="form-control"
-              value="${esc(v.diretorRepresentante||'')}"
-              placeholder="Nome do diretor que representará a FBVA no evento">
+            <select name="diretorRepresentante" class="form-select">
+              ${diretorOpts}
+            </select>
           </div>
           <div class="col-md-4">
             <label class="form-label">Status do Troféu</label>
