@@ -36,3 +36,7 @@ wa_service/wa_session/
 
 # Chave de sessão gerada localmente
 secret.key
+
+# BMad
+_bmad-output/
+_bmad/config.user.toml
