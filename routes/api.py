@@ -13,7 +13,7 @@ from models import (Usuario, Clube, WaLog, EmailLog, Config, FinanceiroClube,
                     EnderecoAdicional, Contato, ContatoTelefone, ContatoEmail,
                     Associado, ClippingNoticia,
                     ContatoWA, ConversacaoWA, MensagemWA, Evento,
-                    AgendaConteudo, RecorrenciaConteudo)
+                    AgendaConteudo, RecorrenciaConteudo, DiretorFBVA)
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -2269,3 +2269,144 @@ def gerar_mes():
 
     db.session.commit()
     return ok({'criados': criados, 'mes': mes})
+
+
+# ── Diretoria FBVA ───────────────────────────────────────────────────────────
+
+def diretor_fbva_dict(d):
+    return {
+        'id':             d.id,
+        'nome':           d.nome,
+        'grupo':          d.grupo,
+        'grupoLabel':     d.grupo_label(),
+        'cargo':          d.cargo,
+        'email':          d.email,
+        'telefone':       d.telefone,
+        'cpf':            d.cpf,
+        'dataNascimento': d.data_nascimento.isoformat() if d.data_nascimento else None,
+        'estado':         d.estado,
+        'mandatoInicio':  d.mandato_inicio.isoformat() if d.mandato_inicio else None,
+        'mandatoFim':     d.mandato_fim.isoformat()    if d.mandato_fim    else None,
+        'ativo':          d.ativo,
+        'ordem':          d.ordem,
+        'mandatoVencido': d.mandato_vencido(),
+        'criadoEm':       d.criado_em.isoformat() if d.criado_em else None,
+    }
+
+
+@api_bp.route('/diretoria-fbva')
+@login_required
+def list_diretoria_fbva():
+    q      = request.args.get('q', '').strip()
+    grupo  = request.args.get('grupo', '').strip()
+    status = request.args.get('status', 'ativos').strip()
+    query  = DiretorFBVA.query
+    if q:
+        like = f'%{q}%'
+        query = query.filter(db.or_(
+            DiretorFBVA.nome.ilike(like),
+            DiretorFBVA.cargo.ilike(like),
+        ))
+    if grupo:
+        query = query.filter_by(grupo=grupo)
+    if status == 'ativos':
+        query = query.filter_by(ativo=True)
+    elif status == 'inativos':
+        query = query.filter_by(ativo=False)
+    diretores = query.order_by(DiretorFBVA.grupo, DiretorFBVA.ordem, DiretorFBVA.nome).all()
+    return ok([diretor_fbva_dict(d) for d in diretores])
+
+
+@api_bp.route('/diretoria-fbva', methods=['POST'])
+@login_required
+def create_diretor_fbva():
+    if not current_user.pode_editar():
+        return err('Sem permissão.', 403)
+    d = request.get_json(silent=True) or {}
+    nome  = (d.get('nome') or '').strip()
+    grupo = (d.get('grupo') or '').strip()
+    cargo = (d.get('cargo') or '').strip()
+    if not nome:
+        return err('O nome é obrigatório.')
+    if not grupo:
+        return err('O grupo é obrigatório.')
+    if not cargo:
+        return err('O cargo é obrigatório.')
+    grupos_validos = [g[0] for g in DiretorFBVA.GRUPOS]
+    if grupo not in grupos_validos:
+        return err('Grupo inválido.')
+    diretor = DiretorFBVA(
+        nome=nome, grupo=grupo, cargo=cargo,
+        email=d.get('email') or None,
+        telefone=d.get('telefone') or None,
+        cpf=d.get('cpf') or None,
+        data_nascimento=parse_date(d.get('dataNascimento')),
+        estado=d.get('estado') or None,
+        mandato_inicio=parse_date(d.get('mandatoInicio')),
+        mandato_fim=parse_date(d.get('mandatoFim')),
+        ativo=bool(d.get('ativo', True)),
+        ordem=int(d.get('ordem') or 0),
+        criado_por_id=current_user.id,
+    )
+    db.session.add(diretor)
+    db.session.commit()
+    return ok(diretor_fbva_dict(diretor), code=201)
+
+
+@api_bp.route('/diretoria-fbva/<int:id>', methods=['GET'])
+@login_required
+def get_diretor_fbva(id):
+    d = db.session.get(DiretorFBVA, id)
+    if not d:
+        return err('Membro não encontrado.', 404)
+    return ok(diretor_fbva_dict(d))
+
+
+@api_bp.route('/diretoria-fbva/<int:id>', methods=['PUT'])
+@login_required
+def update_diretor_fbva(id):
+    if not current_user.pode_editar():
+        return err('Sem permissão.', 403)
+    d = db.session.get(DiretorFBVA, id)
+    if not d:
+        return err('Membro não encontrado.', 404)
+    body  = request.get_json(silent=True) or {}
+    nome  = (body.get('nome') or '').strip()
+    grupo = (body.get('grupo') or '').strip()
+    cargo = (body.get('cargo') or '').strip()
+    if not nome:
+        return err('O nome é obrigatório.')
+    if not grupo:
+        return err('O grupo é obrigatório.')
+    if not cargo:
+        return err('O cargo é obrigatório.')
+    grupos_validos = [g[0] for g in DiretorFBVA.GRUPOS]
+    if grupo not in grupos_validos:
+        return err('Grupo inválido.')
+    d.nome            = nome
+    d.grupo           = grupo
+    d.cargo           = cargo
+    d.email           = body.get('email') or None
+    d.telefone        = body.get('telefone') or None
+    d.cpf             = body.get('cpf') or None
+    d.data_nascimento = parse_date(body.get('dataNascimento'))
+    d.estado          = body.get('estado') or None
+    d.mandato_inicio  = parse_date(body.get('mandatoInicio'))
+    d.mandato_fim     = parse_date(body.get('mandatoFim'))
+    d.ativo           = bool(body.get('ativo', True))
+    d.ordem           = int(body.get('ordem') or 0)
+    db.session.commit()
+    return ok(diretor_fbva_dict(d))
+
+
+@api_bp.route('/diretoria-fbva/<int:id>', methods=['DELETE'])
+@login_required
+def delete_diretor_fbva(id):
+    if not current_user.pode_editar():
+        return err('Sem permissão.', 403)
+    d = db.session.get(DiretorFBVA, id)
+    if not d:
+        return err('Membro não encontrado.', 404)
+    db.session.delete(d)
+    db.session.commit()
+    return ok({'id': id})

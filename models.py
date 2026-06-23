@@ -434,6 +434,60 @@ class AgendaConteudo(db.Model):
     criado_por  = db.relationship('Usuario', foreign_keys=[criado_por_id])
 
 
+class DiretorFBVA(db.Model):
+    __tablename__ = 'diretores_fbva'
+
+    GRUPOS = [
+        ('diretoria_executiva',   'Diretoria Executiva'),
+        ('conselho_consultivo',   'Conselho Consultivo'),
+        ('conselho_fiscal',       'Conselho Fiscal'),
+        ('diretorias_regionais',  'Diretorias Regionais'),
+        ('diretoria_tecnica',     'Diretoria Técnica'),
+        ('diretorias_auxiliares', 'Diretorias Auxiliares'),
+        ('fundo_solidariedade',   'Fundo de Solidariedade'),
+    ]
+
+    CARGOS = {
+        'diretoria_executiva':   ['Presidente', 'Vice-Presidente Administrativo',
+                                  'Vice-Presidente Jurídico', 'Vice-Presidente Financeiro',
+                                  'Vice-Presidente Técnico'],
+        'conselho_consultivo':   ['Presidente do Conselho Consultivo', 'Conselheiro Consultivo'],
+        'conselho_fiscal':       ['Conselheiro Fiscal'],
+        'diretorias_regionais':  ['Diretor Regional'],
+        'diretoria_tecnica':     ['Diretor Técnico'],
+        'diretorias_auxiliares': ['Diretor Esportivo', 'Diretor de Assuntos Internacionais',
+                                  'Diretor de Cultura e Juventude', 'Diretor de Assuntos Institucionais'],
+        'fundo_solidariedade':   ['Presidente'],
+    }
+
+    id              = db.Column(db.Integer, primary_key=True)
+    nome            = db.Column(db.String(150), nullable=False)
+    grupo           = db.Column(db.String(50),  nullable=False)
+    cargo           = db.Column(db.String(100), nullable=False)
+    email           = db.Column(db.String(150), nullable=True)
+    telefone        = db.Column(db.String(20),  nullable=True)
+    cpf             = db.Column(db.String(14),  nullable=True)
+    data_nascimento = db.Column(db.Date,        nullable=True)
+    estado          = db.Column(db.String(2),   nullable=True)
+    mandato_inicio  = db.Column(db.Date,        nullable=True)
+    mandato_fim     = db.Column(db.Date,        nullable=True)
+    ativo           = db.Column(db.Boolean, default=True, nullable=False)
+    ordem           = db.Column(db.Integer, default=0)
+    criado_em       = db.Column(db.DateTime, default=datetime.utcnow)
+    atualizado_em   = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    criado_por_id   = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
+
+    criado_por = db.relationship('Usuario', foreign_keys=[criado_por_id])
+
+    def grupo_label(self):
+        return dict(self.GRUPOS).get(self.grupo, self.grupo)
+
+    def mandato_vencido(self):
+        if self.mandato_fim is None:
+            return False
+        return self.mandato_fim < datetime.utcnow().date()
+
+
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(Usuario, int(user_id))

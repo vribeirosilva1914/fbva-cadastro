@@ -289,6 +289,7 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;font-size:
       <button class="nl" onclick="App.go('dashboard')"><i class="bi bi-grid-1x2-fill"></i><span>Dashboard</span></button>
       <button class="nl" onclick="App.go('clubes')"><i class="bi bi-building-fill"></i><span>Clubes</span></button>
       <button class="nl" onclick="App.go('eventos')"><i class="bi bi-calendar-event-fill"></i><span>Eventos</span></button>
+      <button class="nl" onclick="App.go('diretoria-fbva')"><i class="bi bi-person-badge-fill"></i><span>Diretoria FBVA</span></button>
       <div class="nav-sec mt-2" id="nav-sec-secretaria">Secretaria</div>
       <button class="nl" id="nav-gestao" onclick="App.go('gestao')"><i class="bi bi-folder2-open"></i><span>Documentação &amp; Financeiro</span></button>
       <div class="nav-sec mt-2" id="nav-sec-comunicacao">Comunicação</div>
@@ -855,6 +856,25 @@ const TIPOS_EMAIL=[['principal','Principal'],['alternativo','Alternativo']];
 const TIPOS_END=[['correspondencia','Correspondência'],['filial','Filial'],['outro','Outro']];
 const TIPOS_DOC=[['ata','Ata'],['estatuto','Estatuto'],['cnpj','Registro CNPJ'],['regimento','Regimento'],['outro','Outro']];
 
+const DIRETORIA_GRUPOS=[
+  {key:'diretoria_executiva',   label:'Diretoria Executiva'},
+  {key:'conselho_consultivo',   label:'Conselho Consultivo'},
+  {key:'conselho_fiscal',       label:'Conselho Fiscal'},
+  {key:'diretorias_regionais',  label:'Diretorias Regionais'},
+  {key:'diretoria_tecnica',     label:'Diretoria Técnica'},
+  {key:'diretorias_auxiliares', label:'Diretorias Auxiliares'},
+  {key:'fundo_solidariedade',   label:'Fundo de Solidariedade'},
+];
+const DIRETORIA_CARGOS={
+  diretoria_executiva:   ['Presidente','Vice-Presidente Administrativo','Vice-Presidente Jurídico','Vice-Presidente Financeiro','Vice-Presidente Técnico'],
+  conselho_consultivo:   ['Presidente do Conselho Consultivo','Conselheiro Consultivo'],
+  conselho_fiscal:       ['Conselheiro Fiscal'],
+  diretorias_regionais:  ['Diretor Regional'],
+  diretoria_tecnica:     ['Diretor Técnico'],
+  diretorias_auxiliares: ['Diretor Esportivo','Diretor de Assuntos Internacionais','Diretor de Cultura e Juventude','Diretor de Assuntos Institucionais'],
+  fundo_solidariedade:   ['Presidente'],
+};
+
 function _cargoLabel(v){return(CARGOS_DIRETORIA.find(([k])=>k===v)||[v,v])[1];}
 
 function _renderMembros(){
@@ -999,8 +1019,10 @@ async function go(view,id=null) {
     else if(view==='atendimento')   await renderAtendimento();
     else if(view==='email')         await renderMensageiroEmail();
     else if(view==='clipping')      await renderClipping();
-    else if(view==='agenda')        await renderAgendaConteudo();
-    else if(view==='agenda-form')   await renderAgendaConteudoForm(id);
+    else if(view==='agenda')             await renderAgendaConteudo();
+    else if(view==='agenda-form')        await renderAgendaConteudoForm(id);
+    else if(view==='diretoria-fbva')     await renderDiretoriaFBVA();
+    else if(view==='diretoria-fbva-form')await renderDiretoriaFBVAForm(id);
   } catch(e) { toast(e.message,'danger'); }
   window.scrollTo(0,0);
 }
@@ -5207,6 +5229,252 @@ function confirmarExcluirAgenda(id, titulo) {
   });
 }
 
+// ═════════ DIRETORIA FBVA ════════════════════════════════════════════════════
+
+let _dfAll = [];
+
+async function renderDiretoriaFBVA() {
+  setTitle('<i class="bi bi-person-badge-fill me-2"></i>Diretoria FBVA',
+    pode.editar()?`<button class="btn btn-primary btn-sm" onclick="App.go('diretoria-fbva-form')">
+      <i class="bi bi-plus-lg me-1"></i>Novo Membro</button>`:''
+  );
+  render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
+  _dfAll = await Api.get('/api/diretoria-fbva?status=todos');
+  _dfRenderLista();
+}
+
+function _dfRenderLista() {
+  const q       = (document.getElementById('df-busca')?.value||'').toLowerCase();
+  const grpFilt = document.getElementById('df-grupo-filtro')?.value||'';
+  const stFilt  = document.getElementById('df-status-filtro')?.value||'ativos';
+
+  let lista = (_dfAll||[]);
+  if(stFilt==='ativos')   lista = lista.filter(m=>m.ativo);
+  if(stFilt==='inativos') lista = lista.filter(m=>!m.ativo);
+  if(grpFilt) lista = lista.filter(m=>m.grupo===grpFilt);
+  if(q)       lista = lista.filter(m=>(m.nome+' '+m.cargo).toLowerCase().includes(q));
+
+  const grupoOpts = DIRETORIA_GRUPOS.map(g=>`<option value="${g.key}"${grpFilt===g.key?' selected':''}>${g.label}</option>`).join('');
+
+  const totalAtivos = (_dfAll||[]).filter(m=>m.ativo).length;
+
+  const gruposHtml = DIRETORIA_GRUPOS.map(g=>{
+    const mems = lista.filter(m=>m.grupo===g.key);
+    const rows = mems.map(m=>`
+      <tr class="${m.ativo?'':'table-secondary text-muted'}">
+        <td class="fw-semibold">${esc(m.nome)}</td>
+        <td>${esc(m.cargo)}</td>
+        <td>${m.estado?`<span class="badge bg-secondary">${esc(m.estado)}</span>`:'—'}</td>
+        <td>${m.email?`<a href="mailto:${esc(m.email)}" class="text-decoration-none">${esc(m.email)}</a>`:'—'}</td>
+        <td>${esc(m.telefone||'—')}</td>
+        <td>${m.mandatoFim?`<span class="${m.mandatoVencido?'text-danger':'text-success'}">${fmtDate(m.mandatoFim)}${m.mandatoVencido?' <i class="bi bi-exclamation-circle-fill text-danger" title="Mandato vencido"></i>':''}</span>`:'—'}</td>
+        <td><span class="badge ${m.ativo?'bg-success':'bg-secondary'}">${m.ativo?'Ativo':'Inativo'}</span></td>
+        ${pode.editar()?`<td class="text-end">
+          <button class="btn btn-sm btn-outline-secondary me-1" onclick="App.go('diretoria-fbva-form',${m.id})" title="Editar"><i class="bi bi-pencil"></i></button>
+          <button class="btn btn-sm btn-outline-danger" onclick="App.confirmarExcluirDiretorFBVA(${m.id},${JSON.stringify(m.nome)})" title="Excluir"><i class="bi bi-trash"></i></button>
+        </td>`:''}
+      </tr>`).join('');
+
+    if(!mems.length && (grpFilt || q || stFilt==='inativos')) return '';
+    return `
+    <div class="card shadow-sm mb-3">
+      <div class="card-header fw-semibold d-flex justify-content-between align-items-center py-2">
+        <span><i class="bi bi-people-fill me-2 text-success"></i>${g.label}</span>
+        <span class="badge bg-secondary rounded-pill">${mems.length}</span>
+      </div>
+      ${mems.length?`
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <thead class="table-light"><tr>
+            <th>Nome</th><th>Cargo</th><th>UF</th><th>E-mail</th><th>Telefone</th><th>Fim do Mandato</th><th>Status</th>
+            ${pode.editar()?'<th class="text-end">Ações</th>':''}
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`:`<div class="text-muted small fst-italic p-3">Nenhum membro cadastrado neste grupo.</div>`}
+    </div>`;
+  }).join('');
+
+  render(`
+  <div class="card shadow-sm mb-3">
+    <div class="card-body py-2 px-3">
+      <div class="row g-2 align-items-center">
+        <div class="col-12 col-md-4">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" id="df-busca" class="form-control" placeholder="Buscar por nome ou cargo..."
+              oninput="App._dfRenderLista()" value="${esc(q)}">
+          </div>
+        </div>
+        <div class="col-6 col-md-4">
+          <select id="df-grupo-filtro" class="form-select form-select-sm" onchange="App._dfRenderLista()">
+            <option value="">Todos os grupos</option>
+            ${grupoOpts}
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <select id="df-status-filtro" class="form-select form-select-sm" onchange="App._dfRenderLista()">
+            <option value="ativos"${stFilt==='ativos'?' selected':''}>Ativos</option>
+            <option value="inativos"${stFilt==='inativos'?' selected':''}>Inativos</option>
+            <option value="todos"${stFilt==='todos'?' selected':''}>Todos</option>
+          </select>
+        </div>
+        <div class="col-auto ms-auto d-none d-md-block text-muted small">${totalAtivos} membro(s) ativo(s)</div>
+      </div>
+    </div>
+  </div>
+  ${gruposHtml||'<div class="sec-empty"><i class="bi bi-person-x fs-4 d-block mb-2"></i>Nenhum membro encontrado.</div>'}`);
+}
+
+async function renderDiretoriaFBVAForm(id=null) {
+  const editing = !!id;
+  let membro = null;
+  if(editing) {
+    render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
+    membro = await Api.get(`/api/diretoria-fbva/${id}`);
+    if(!membro){await go('diretoria-fbva');return;}
+  }
+  setTitle(`<i class="bi bi-person-badge me-2"></i>${editing?'Editar':'Novo'} Membro da Diretoria`,
+    `<button class="btn btn-outline-secondary btn-sm" onclick="App.go('diretoria-fbva')">
+      <i class="bi bi-arrow-left me-1"></i>Voltar</button>`
+  );
+  const v = membro||{};
+  const grupoAtual = v.grupo||'';
+  const grupoOpts = DIRETORIA_GRUPOS.map(g=>
+    `<option value="${g.key}"${grupoAtual===g.key?' selected':''}>${g.label}</option>`
+  ).join('');
+  const cargosIniciais = grupoAtual?(DIRETORIA_CARGOS[grupoAtual]||[]):[];
+  const cargoAtual = v.cargo||'';
+  const cargoOpts = cargosIniciais.length
+    ? cargosIniciais.map(c=>`<option value="${c}"${cargoAtual===c?' selected':''}>${c}</option>`).join('')
+    : '';
+
+  render(`
+  <form id="diretoria-fbva-form" onsubmit="App.saveDiretorFBVA(event,${id||'null'})">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-12 col-md-6">
+            <label class="form-label fw-semibold">Nome <span class="text-danger">*</span></label>
+            <input type="text" id="df-nome" class="form-control" required
+              value="${esc(v.nome||'')}" placeholder="Nome completo">
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label fw-semibold">Grupo <span class="text-danger">*</span></label>
+            <select id="df-grupo" class="form-select" required onchange="App._dfGrupoMudou()">
+              <option value="">— Selecione —</option>
+              ${grupoOpts}
+            </select>
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label fw-semibold">Cargo <span class="text-danger">*</span></label>
+            <select id="df-cargo" class="form-select" required>
+              ${cargoOpts?`<option value="">— Selecione —</option>${cargoOpts}`:'<option value="">— Selecione o grupo primeiro —</option>'}
+            </select>
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label fw-semibold">Estado (UF) <span class="text-muted small fw-normal">— especialmente para Diretorias Regionais</span></label>
+            <select id="df-estado" class="form-select">
+              <option value="">— Nenhum —</option>
+              ${ESTADOS.map(([s,n])=>`<option value="${s}"${v.estado===s?' selected':''}>${s} — ${n}</option>`).join('')}
+            </select>
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label fw-semibold">E-mail</label>
+            <input type="email" id="df-email" class="form-control"
+              value="${esc(v.email||'')}" placeholder="email@exemplo.com">
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label fw-semibold">Telefone</label>
+            <input type="text" id="df-telefone" class="form-control"
+              value="${esc(v.telefone||'')}" placeholder="(00) 00000-0000">
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-semibold">CPF</label>
+            <input type="text" id="df-cpf" class="form-control"
+              value="${esc(v.cpf||'')}" placeholder="000.000.000-00">
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-semibold">Data de Nascimento</label>
+            <input type="date" id="df-dataNascimento" class="form-control" value="${v.dataNascimento||''}">
+          </div>
+          <div class="col-12 col-md-4"></div>
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-semibold">Início do Mandato</label>
+            <input type="date" id="df-mandatoInicio" class="form-control" value="${v.mandatoInicio||''}">
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-semibold">Fim do Mandato</label>
+            <input type="date" id="df-mandatoFim" class="form-control" value="${v.mandatoFim||''}">
+          </div>
+          <div class="col-12 col-md-4 d-flex align-items-end pb-1">
+            <div class="form-check">
+              <input type="checkbox" id="df-ativo" class="form-check-input"
+                ${v.ativo!==false?'checked':''}>
+              <label class="form-check-label" for="df-ativo">Membro ativo</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-outline-secondary"
+          onclick="App.go('diretoria-fbva')">Cancelar</button>
+        <button type="submit" id="df-btn-save" class="btn btn-primary">
+          <i class="bi bi-check-lg me-1"></i>Salvar</button>
+      </div>
+    </div>
+  </form>`);
+}
+
+function _dfGrupoMudou() {
+  const g   = document.getElementById('df-grupo')?.value;
+  const sel = document.getElementById('df-cargo');
+  if(!sel) return;
+  const cargos = g?(DIRETORIA_CARGOS[g]||[]):[];
+  sel.innerHTML = cargos.length
+    ? '<option value="">— Selecione —</option>'+cargos.map(c=>`<option value="${c}">${c}</option>`).join('')
+    : '<option value="">— Selecione o grupo primeiro —</option>';
+}
+
+async function saveDiretorFBVA(e, id) {
+  e.preventDefault();
+  const btn = document.getElementById('df-btn-save');
+  btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Salvando...';
+  const payload = {
+    nome:           document.getElementById('df-nome').value.trim(),
+    grupo:          document.getElementById('df-grupo').value,
+    cargo:          document.getElementById('df-cargo').value,
+    email:          document.getElementById('df-email').value.trim()||null,
+    telefone:       document.getElementById('df-telefone').value.trim()||null,
+    cpf:            document.getElementById('df-cpf').value.trim()||null,
+    dataNascimento: document.getElementById('df-dataNascimento').value||null,
+    estado:         document.getElementById('df-estado').value||null,
+    mandatoInicio:  document.getElementById('df-mandatoInicio').value||null,
+    mandatoFim:     document.getElementById('df-mandatoFim').value||null,
+    ativo:          document.getElementById('df-ativo').checked,
+  };
+  try {
+    if(id) await Api.put(`/api/diretoria-fbva/${id}`,payload);
+    else   await Api.post('/api/diretoria-fbva',payload);
+    toast(`Membro ${id?'atualizado':'cadastrado'}!`);
+    await go('diretoria-fbva');
+  } catch(err2){
+    toast(err2.message,'danger');
+    btn.disabled=false;
+    btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Salvar';
+  }
+}
+
+function confirmarExcluirDiretorFBVA(id, nome) {
+  showConfirm(`Excluir o membro <strong>${esc(nome)}</strong>?`, async()=>{
+    try {
+      await Api.del(`/api/diretoria-fbva/${id}`);
+      toast('Membro excluído.');
+      await go('diretoria-fbva');
+    } catch(err2){ toast(err2.message,'danger'); }
+  });
+}
+
 // ── Init ───────────────────────────────────────
 async function init() {
   document.getElementById('l-senha').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
@@ -5245,6 +5513,9 @@ return{
   renderAgendaConteudo,renderAgendaConteudoForm,saveAgendaConteudo,confirmarExcluirAgenda,
   _agFiltrar,_agSetViz,_agNavMes,
   _agNovaRec,_agEditarRec,_agExcluirRec,_agSalvarRec,_agFecharRec,_agGerarMes,_agCriarDoRec,
+  // Diretoria FBVA
+  renderDiretoriaFBVA,renderDiretoriaFBVAForm,saveDiretorFBVA,confirmarExcluirDiretorFBVA,
+  _dfRenderLista,_dfGrupoMudou,
   // Form dynamic sections
   _addMembro,_addEndereco,_onEstadoMudou,
   // Detail view actions
