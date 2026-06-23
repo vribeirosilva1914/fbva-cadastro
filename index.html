@@ -4990,9 +4990,10 @@ function _agRenderCalendario(mes, lista) {
     const badgesHtml = vis.map(a => {
       const p = _agPlataforma(a.plataforma);
       if(a._rec) {
-        return `<div title="${esc(a.titulo)} (recorrência)"
+        return `<div onclick="App._agCriarDoRec(${a.id},'${a.dataPublicacao}')"
+          title="${esc(a.titulo)} (recorrência — clique para criar e editar)"
           style="background:transparent;color:${p.cor};padding:1px 5px;border-radius:3px;font-size:.62rem;
-                 margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+                 margin-bottom:2px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
                  border:1px dashed ${p.cor};opacity:.8">
           <i class="bi bi-arrow-repeat"></i> ${esc(a.titulo)}</div>`;
       }
@@ -5034,6 +5035,24 @@ function _agRenderCalendario(mes, lista) {
       </table>
     </div>
   </div>`;
+}
+
+async function _agCriarDoRec(recId, dateStr) {
+  const rec = (_agRecs||[]).find(r=>r.id===recId);
+  if(!rec) return;
+  try {
+    const novo = await Api.post('/api/agenda-conteudo', {
+      titulo:         rec.titulo,
+      plataforma:     rec.plataforma,
+      tipoConteudo:   rec.tipoConteudo||undefined,
+      dataPublicacao: dateStr,
+      status:         rec.statusPadrao||'agendado',
+      descricao:      rec.descricao||undefined,
+    });
+    await go('agenda-form', novo.id);
+  } catch(e) {
+    toast(e.message, 'danger');
+  }
 }
 
 async function renderAgendaConteudoForm(id) {
@@ -5217,7 +5236,7 @@ return{
   // Agenda de Conteúdo
   renderAgendaConteudo,renderAgendaConteudoForm,saveAgendaConteudo,confirmarExcluirAgenda,
   _agFiltrar,_agSetViz,_agNavMes,
-  _agNovaRec,_agEditarRec,_agExcluirRec,_agSalvarRec,_agFecharRec,_agGerarMes,
+  _agNovaRec,_agEditarRec,_agExcluirRec,_agSalvarRec,_agFecharRec,_agGerarMes,_agCriarDoRec,
   // Form dynamic sections
   _addMembro,_addEndereco,_onEstadoMudou,
   // Detail view actions
