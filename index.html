@@ -704,6 +704,7 @@ const pode={
   documentos:()=>['admin','secretaria'].includes(state.user?.perfil),
   excluir:()=>state.user?.perfil==='admin',
   usuarios:()=>state.user?.perfil==='admin',
+  diretoria:()=>state.user?.perfil!=='comunicacao'&&['admin','secretaria','comunicacao','operador'].includes(state.user?.perfil),
 };
 
 // ── UI helpers ─────────────────────────────────
@@ -5240,7 +5241,7 @@ let _dfAll = [];
 
 async function renderDiretoriaFBVA() {
   setTitle('<i class="bi bi-person-badge-fill me-2"></i>Diretoria FBVA',
-    pode.editar()?`<button class="btn btn-primary btn-sm" onclick="App.go('diretoria-fbva-form')">
+    pode.diretoria()?`<button class="btn btn-primary btn-sm" onclick="App.go('diretoria-fbva-form')">
       <i class="bi bi-plus-lg me-1"></i>Novo Membro</button>`:''
   );
   render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
@@ -5273,7 +5274,7 @@ function _dfRenderLista() {
         <td>${m.email?`<a href="mailto:${esc(m.email)}" class="text-decoration-none">${esc(m.email)}</a>`:'-'}</td>
         <td>${esc(m.telefone||'-')}</td>
         <td><span class="badge ${m.ativo?'bg-success':'bg-secondary'}">${m.ativo?'Ativo':'Inativo'}</span></td>
-        ${pode.editar()?`<td class="text-end">
+        ${pode.diretoria()?`<td class="text-end">
           <button class="btn btn-sm btn-outline-secondary me-1" onclick="App.go('diretoria-fbva-form',${m.id})" title="Editar"><i class="bi bi-pencil"></i></button>
           <button class="btn btn-sm btn-outline-danger" onclick="App.confirmarExcluirDiretorFBVA(${m.id},${JSON.stringify(m.nome)})" title="Excluir"><i class="bi bi-trash"></i></button>
         </td>`:''}
@@ -5291,7 +5292,7 @@ function _dfRenderLista() {
         <table class="table table-sm table-hover mb-0">
           <thead class="table-light"><tr>
             <th>Nome</th><th>Cargo</th><th>Cidade / UF</th><th>E-mail</th><th>Telefone</th><th>Status</th>
-            ${pode.editar()?'<th class="text-end">Ações</th>':''}
+            ${pode.diretoria()?'<th class="text-end">Ações</th>':''}
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>
@@ -5331,6 +5332,7 @@ function _dfRenderLista() {
 }
 
 async function renderDiretoriaFBVAForm(id=null) {
+  if(!pode.diretoria()){await go('diretoria-fbva');return;}
   const editing = !!id;
   let membro = null;
   if(editing) {
