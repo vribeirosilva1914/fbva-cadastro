@@ -831,11 +831,18 @@ async function _getCidades(uf){
   }catch(e){return [];}
 }
 
-async function _onEstadoMudou(uf, datalistId){
-  const dl=document.getElementById(datalistId);
-  if(!dl) return;
-  const cidades=await _getCidades(uf);
-  dl.innerHTML=cidades.map(c=>`<option value="${c}"></option>`).join('');
+async function _onEstadoMudou(uf, selectId) {
+  const sel = document.getElementById(selectId);
+  if(!sel) return;
+  const prev = sel.value;
+  if(!uf) {
+    sel.innerHTML = '<option value="">Selecione o estado primeiro...</option>';
+    return;
+  }
+  sel.innerHTML = '<option value="">Carregando cidades...</option>';
+  const cidades = await _getCidades(uf);
+  sel.innerHTML = '<option value="">Selecione a cidade...</option>'
+    + cidades.map(c=>`<option value="${c}"${c===prev?' selected':''}>${c}</option>`).join('');
 }
 
 const CARGOS_DIRETORIA=[
@@ -936,16 +943,17 @@ function _renderEnderecos(){
       <div class="col-md-1">
         <label class="form-label small mb-1">UF</label>
         <select class="form-select form-select-sm"
-          onchange="_fEnderecos[${i}].estado=this.value;App._onEstadoMudou(this.value,'dl-cidades-end-${i}')">
+          onchange="_fEnderecos[${i}].estado=this.value;App._onEstadoMudou(this.value,'sel-cidades-end-${i}')">
           <option value=""></option>
           ${ESTADOS.map(([s])=>`<option value="${s}"${e.estado===s?' selected':''}>${s}</option>`).join('')}
         </select>
       </div>
       <div class="col-md-2">
         <label class="form-label small mb-1">Cidade</label>
-        <input class="form-control form-control-sm" value="${esc(e.cidade||'')}" list="dl-cidades-end-${i}"
-          autocomplete="off" oninput="_fEnderecos[${i}].cidade=this.value">
-        <datalist id="dl-cidades-end-${i}"></datalist>
+        <select class="form-select form-select-sm" id="sel-cidades-end-${i}"
+          onchange="_fEnderecos[${i}].cidade=this.value">
+          ${e.cidade?`<option value="${esc(e.cidade)}" selected>${esc(e.cidade)}</option>`:'<option value="">Selecione o estado primeiro...</option>'}
+        </select>
       </div>
       <div class="col-auto">
         <button type="button" class="btn btn-sm btn-outline-danger" title="Remover"
@@ -1371,15 +1379,15 @@ async function renderClubeForm(id=null) {
           <div class="col-md-4">
             <label class="form-label">Estado</label>
             <select name="estado" id="inp-estado" class="form-select"
-              onchange="App._onEstadoMudou(this.value,'dl-cidades-principal')">
+              onchange="App._onEstadoMudou(this.value,'inp-cidade')">
               ${statesOpts(v.estado||'')}
             </select>
           </div>
           <div class="col-md-8">
             <label class="form-label">Cidade</label>
-            <input name="cidade" id="inp-cidade" class="form-control" list="dl-cidades-principal"
-              value="${esc(v.cidade||'')}" placeholder="Selecione o estado e digite a cidade" autocomplete="off">
-            <datalist id="dl-cidades-principal"></datalist>
+            <select name="cidade" id="inp-cidade" class="form-select">
+              ${v.cidade?`<option value="${esc(v.cidade)}" selected>${esc(v.cidade)}</option>`:'<option value="">Selecione o estado primeiro...</option>'}
+            </select>
           </div>
         </div>
         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -1472,9 +1480,9 @@ async function renderClubeForm(id=null) {
   maskFone(document.getElementById('inp-fone'));
   _renderMembros();
   _renderEnderecos();
-  // Popula datalists de cidades
-  if(v.estado) _onEstadoMudou(v.estado,'dl-cidades-principal');
-  _fEnderecos.forEach((e,i)=>{ if(e.estado) _onEstadoMudou(e.estado,`dl-cidades-end-${i}`); });
+  // Popula selects de cidades
+  if(v.estado) _onEstadoMudou(v.estado,'inp-cidade');
+  _fEnderecos.forEach((e,i)=>{ if(e.estado) _onEstadoMudou(e.estado,`sel-cidades-end-${i}`); });
 }
 
 async function saveClube(e,id) {
@@ -4241,15 +4249,15 @@ async function renderEventoForm(id) {
           <div class="col-md-4">
             <label class="form-label">Estado</label>
             <select name="estado" class="form-select"
-              onchange="App._onEstadoMudou(this.value,'dl-cidades-evento')">
+              onchange="App._onEstadoMudou(this.value,'sel-cidades-evento')">
               ${statesOpts(v.estado||'')}
             </select>
           </div>
           <div class="col-md-8">
             <label class="form-label">Cidade</label>
-            <input name="cidade" class="form-control" list="dl-cidades-evento"
-              value="${esc(v.cidade||'')}" placeholder="Selecione o estado e digite a cidade" autocomplete="off">
-            <datalist id="dl-cidades-evento"></datalist>
+            <select name="cidade" id="sel-cidades-evento" class="form-select">
+              ${v.cidade?`<option value="${esc(v.cidade)}" selected>${esc(v.cidade)}</option>`:'<option value="">Selecione o estado primeiro...</option>'}
+            </select>
           </div>
         </div>
       </div>
@@ -4293,7 +4301,7 @@ async function renderEventoForm(id) {
         <i class="bi bi-check-lg me-1"></i>Salvar</button>`:''}
     </div>
   </form>`);
-  if(v.estado) _onEstadoMudou(v.estado, 'dl-cidades-evento');
+  if(v.estado) _onEstadoMudou(v.estado, 'sel-cidades-evento');
 }
 
 async function saveEvento(e, id) {
