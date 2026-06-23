@@ -150,6 +150,12 @@ def _migrate_db():
                     if col_name not in usr_cols:
                         conn.execute(text(f'ALTER TABLE usuarios ADD COLUMN {col_name} {col_def}'))
 
+            # diretores_fbva — coluna cidade
+            if 'diretores_fbva' in inspector.get_table_names():
+                df_cols = {c['name'] for c in inspector.get_columns('diretores_fbva')}
+                if 'cidade' not in df_cols:
+                    conn.execute(text('ALTER TABLE diretores_fbva ADD COLUMN cidade VARCHAR(100)'))
+
             conn.commit()
     except Exception:
         pass

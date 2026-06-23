@@ -2284,12 +2284,10 @@ def diretor_fbva_dict(d):
         'telefone':       d.telefone,
         'cpf':            d.cpf,
         'dataNascimento': d.data_nascimento.isoformat() if d.data_nascimento else None,
+        'cidade':         d.cidade,
         'estado':         d.estado,
-        'mandatoInicio':  d.mandato_inicio.isoformat() if d.mandato_inicio else None,
-        'mandatoFim':     d.mandato_fim.isoformat()    if d.mandato_fim    else None,
         'ativo':          d.ativo,
         'ordem':          d.ordem,
-        'mandatoVencido': d.mandato_vencido(),
         'criadoEm':       d.criado_em.isoformat() if d.criado_em else None,
     }
 
@@ -2341,9 +2339,8 @@ def create_diretor_fbva():
         telefone=d.get('telefone') or None,
         cpf=d.get('cpf') or None,
         data_nascimento=parse_date(d.get('dataNascimento')),
+        cidade=d.get('cidade') or None,
         estado=d.get('estado') or None,
-        mandato_inicio=parse_date(d.get('mandatoInicio')),
-        mandato_fim=parse_date(d.get('mandatoFim')),
         ativo=bool(d.get('ativo', True)),
         ordem=int(d.get('ordem') or 0),
         criado_por_id=current_user.id,
@@ -2390,9 +2387,8 @@ def update_diretor_fbva(id):
     d.telefone        = body.get('telefone') or None
     d.cpf             = body.get('cpf') or None
     d.data_nascimento = parse_date(body.get('dataNascimento'))
+    d.cidade          = body.get('cidade') or None
     d.estado          = body.get('estado') or None
-    d.mandato_inicio  = parse_date(body.get('mandatoInicio'))
-    d.mandato_fim     = parse_date(body.get('mandatoFim'))
     d.ativo           = bool(body.get('ativo', True))
     d.ordem           = int(body.get('ordem') or 0)
     db.session.commit()

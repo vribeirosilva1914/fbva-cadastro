@@ -5264,10 +5264,9 @@ function _dfRenderLista() {
       <tr class="${m.ativo?'':'table-secondary text-muted'}">
         <td class="fw-semibold">${esc(m.nome)}</td>
         <td>${esc(m.cargo)}</td>
-        <td>${m.estado?`<span class="badge bg-secondary">${esc(m.estado)}</span>`:'-'}</td>
+        <td>${[m.cidade,m.estado].filter(Boolean).map(esc).join(' / ')||'-'}</td>
         <td>${m.email?`<a href="mailto:${esc(m.email)}" class="text-decoration-none">${esc(m.email)}</a>`:'-'}</td>
         <td>${esc(m.telefone||'-')}</td>
-        <td>${m.mandatoFim?`<span class="${m.mandatoVencido?'text-danger':'text-success'}">${fmtDate(m.mandatoFim)}${m.mandatoVencido?' <i class="bi bi-exclamation-circle-fill text-danger" title="Mandato vencido"></i>':''}</span>`:'-'}</td>
         <td><span class="badge ${m.ativo?'bg-success':'bg-secondary'}">${m.ativo?'Ativo':'Inativo'}</span></td>
         ${pode.editar()?`<td class="text-end">
           <button class="btn btn-sm btn-outline-secondary me-1" onclick="App.go('diretoria-fbva-form',${m.id})" title="Editar"><i class="bi bi-pencil"></i></button>
@@ -5286,7 +5285,7 @@ function _dfRenderLista() {
       <div class="table-responsive">
         <table class="table table-sm table-hover mb-0">
           <thead class="table-light"><tr>
-            <th>Nome</th><th>Cargo</th><th>UF</th><th>E-mail</th><th>Telefone</th><th>Fim do Mandato</th><th>Status</th>
+            <th>Nome</th><th>Cargo</th><th>Cidade / UF</th><th>E-mail</th><th>Telefone</th><th>Status</th>
             ${pode.editar()?'<th class="text-end">Ações</th>':''}
           </tr></thead>
           <tbody>${rows}</tbody>
@@ -5373,10 +5372,16 @@ async function renderDiretoriaFBVAForm(id=null) {
             </select>
           </div>
           <div class="col-12 col-md-6">
-            <label class="form-label fw-semibold">Estado (UF) <span class="text-muted small fw-normal">- especialmente para Diretorias Regionais</span></label>
-            <select id="df-estado" class="form-select">
+            <label class="form-label fw-semibold">Estado (UF)</label>
+            <select id="df-estado" class="form-select" onchange="App._onEstadoMudou(this.value,'df-cidade')">
               <option value="">- Nenhum -</option>
               ${ESTADOS.map(([s,n])=>`<option value="${s}"${v.estado===s?' selected':''}>${s} - ${n}</option>`).join('')}
+            </select>
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label fw-semibold">Cidade</label>
+            <select id="df-cidade" class="form-select">
+              ${v.cidade?`<option value="${esc(v.cidade)}" selected>${esc(v.cidade)}</option>`:'<option value="">- Selecione o estado primeiro -</option>'}
             </select>
           </div>
           <div class="col-12 col-md-6">
@@ -5398,15 +5403,6 @@ async function renderDiretoriaFBVAForm(id=null) {
             <label class="form-label fw-semibold">Data de Nascimento</label>
             <input type="date" id="df-dataNascimento" class="form-control" value="${v.dataNascimento||''}">
           </div>
-          <div class="col-12 col-md-4"></div>
-          <div class="col-12 col-md-4">
-            <label class="form-label fw-semibold">Início do Mandato</label>
-            <input type="date" id="df-mandatoInicio" class="form-control" value="${v.mandatoInicio||''}">
-          </div>
-          <div class="col-12 col-md-4">
-            <label class="form-label fw-semibold">Fim do Mandato</label>
-            <input type="date" id="df-mandatoFim" class="form-control" value="${v.mandatoFim||''}">
-          </div>
           <div class="col-12 col-md-4 d-flex align-items-end pb-1">
             <div class="form-check">
               <input type="checkbox" id="df-ativo" class="form-check-input"
@@ -5424,6 +5420,7 @@ async function renderDiretoriaFBVAForm(id=null) {
       </div>
     </div>
   </form>`);
+  if(v.estado) await _onEstadoMudou(v.estado,'df-cidade');
 }
 
 function _dfGrupoMudou() {
@@ -5448,9 +5445,8 @@ async function saveDiretorFBVA(e, id) {
     telefone:       document.getElementById('df-telefone').value.trim()||null,
     cpf:            document.getElementById('df-cpf').value.trim()||null,
     dataNascimento: document.getElementById('df-dataNascimento').value||null,
+    cidade:         document.getElementById('df-cidade').value||null,
     estado:         document.getElementById('df-estado').value||null,
-    mandatoInicio:  document.getElementById('df-mandatoInicio').value||null,
-    mandatoFim:     document.getElementById('df-mandatoFim').value||null,
     ativo:          document.getElementById('df-ativo').checked,
   };
   try {

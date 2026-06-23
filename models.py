@@ -468,9 +468,8 @@ class DiretorFBVA(db.Model):
     telefone        = db.Column(db.String(20),  nullable=True)
     cpf             = db.Column(db.String(14),  nullable=True)
     data_nascimento = db.Column(db.Date,        nullable=True)
+    cidade          = db.Column(db.String(100), nullable=True)
     estado          = db.Column(db.String(2),   nullable=True)
-    mandato_inicio  = db.Column(db.Date,        nullable=True)
-    mandato_fim     = db.Column(db.Date,        nullable=True)
     ativo           = db.Column(db.Boolean, default=True, nullable=False)
     ordem           = db.Column(db.Integer, default=0)
     criado_em       = db.Column(db.DateTime, default=datetime.utcnow)
@@ -481,11 +480,6 @@ class DiretorFBVA(db.Model):
 
     def grupo_label(self):
         return dict(self.GRUPOS).get(self.grupo, self.grupo)
-
-    def mandato_vencido(self):
-        if self.mandato_fim is None:
-            return False
-        return self.mandato_fim < datetime.utcnow().date()
 
 
 @login_manager.user_loader
