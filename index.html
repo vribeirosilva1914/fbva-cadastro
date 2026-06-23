@@ -4940,20 +4940,36 @@ function _agRenderCalendario(mes, lista) {
   const [ano, m] = mes.split('-').map(Number);
   const primeiroDia  = new Date(ano, m - 1, 1);
   const ultimoDia    = new Date(ano, m, 0).getDate();
-  // Segunda-feira = 0 (getDay: 0=Dom,1=Seg,...,6=Sab → offset = (getDay+6)%7)
-  const offsetInicio = (primeiroDia.getDay() + 6) % 7;
+  // Domingo = 0 (getDay: 0=Dom,1=Seg,...,6=Sab)
+  const offsetInicio = primeiroDia.getDay();
 
   const hoje    = new Date();
   const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}-${String(hoje.getDate()).padStart(2,'0')}`;
 
-  // Mapa data → itens
+  // Mapa data → itens concretos
   const mapa = {};
   lista.forEach(a => {
     if(!a.dataPublicacao) return;
     (mapa[a.dataPublicacao] = mapa[a.dataPublicacao]||[]).push(a);
   });
 
-  const CABECALHO = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+  // Insere recorrências ativas no calendário (diaSemana: 0=Seg…6=Dom → getDay: 0=Dom…6=Sab)
+  (_agRecs||[]).filter(r=>r.ativa).forEach(rec => {
+    const targetDay = (rec.diaSemana + 1) % 7;
+    for(let d = 1; d <= ultimoDia; d++) {
+      if(new Date(ano, m-1, d).getDay() !== targetDay) continue;
+      const dateStr = `${ano}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const jaExiste = (mapa[dateStr]||[]).some(a=>a.titulo===rec.titulo);
+      if(!jaExiste) {
+        (mapa[dateStr] = mapa[dateStr]||[]).push({
+          _rec: true, id: rec.id,
+          titulo: rec.titulo, plataforma: rec.plataforma, dataPublicacao: dateStr,
+        });
+      }
+    }
+  });
+
+  const CABECALHO = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
   const totalCels = Math.ceil((offsetInicio + ultimoDia) / 7) * 7;
   let rows = '';
   let cells = '';
@@ -4973,6 +4989,13 @@ function _agRenderCalendario(mes, lista) {
 
     const badgesHtml = vis.map(a => {
       const p = _agPlataforma(a.plataforma);
+      if(a._rec) {
+        return `<div title="${esc(a.titulo)} (recorrência)"
+          style="background:transparent;color:${p.cor};padding:1px 5px;border-radius:3px;font-size:.62rem;
+                 margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+                 border:1px dashed ${p.cor};opacity:.8">
+          <i class="bi bi-arrow-repeat"></i> ${esc(a.titulo)}</div>`;
+      }
       return `<div onclick="App.go('agenda-form',${a.id})" title="${esc(a.titulo)}"
         style="background:${p.cor};color:#fff;padding:1px 5px;border-radius:3px;font-size:.62rem;
                margin-bottom:2px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
