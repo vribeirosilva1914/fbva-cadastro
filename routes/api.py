@@ -3135,6 +3135,25 @@ def biblioteca_arquivo_download(aid):
     )
 
 
+@api_bp.route('/biblioteca/arquivos/<int:aid>', methods=['PUT'])
+@login_required
+def biblioteca_arquivo_editar(aid):
+    if current_user.perfil not in ('admin', 'tecnico'):
+        return err('Acesso negado.', 403)
+    a = db.session.get(ArquivoBiblioteca, aid)
+    if not a:
+        return err('Arquivo não encontrado.', 404)
+    j = request.json or {}
+    if 'titulo' in j:
+        titulo = (j['titulo'] or '').strip()
+        if titulo:
+            a.nome_original = titulo
+    if 'descricao' in j:
+        a.descricao = (j['descricao'] or '').strip() or None
+    db.session.commit()
+    return ok(_arquivo_dict(a))
+
+
 @api_bp.route('/biblioteca/arquivos/<int:aid>', methods=['DELETE'])
 @login_required
 def biblioteca_arquivo_excluir(aid):

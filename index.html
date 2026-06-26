@@ -631,6 +631,35 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;font-size:
   </div>
 </div>
 
+<!-- Modal edição de arquivo da biblioteca -->
+<div class="modal fade" id="modal-bib-arquivo" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#0f1c2e;color:#fff">
+        <h5 class="modal-title"><i class="bi bi-pencil-fill me-2" style="color:var(--accent)"></i>Editar arquivo</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="bib-arq-id">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Título <span class="text-danger">*</span></label>
+          <input id="bib-arq-titulo" class="form-control" maxlength="300" placeholder="Nome do arquivo">
+        </div>
+        <div class="mb-1">
+          <label class="form-label fw-semibold">Descrição</label>
+          <textarea id="bib-arq-desc" class="form-control" rows="3" maxlength="300" placeholder="Descrição opcional…"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="App._bibSalvarEdicaoArquivo()">
+          <i class="bi bi-check-lg me-1"></i>Salvar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 const App = (() => {
@@ -6388,7 +6417,7 @@ function _bibRenderVeiculoDetalhe(v) {
       ${lista.length===0?`<p class="text-muted small">Nenhum arquivo.</p>`:
         tipo==='imagem'?_bibGaleriaImagens(lista,v.id):
         `<div class="table-responsive"><table class="table table-sm align-middle">
-          <thead class="table-light"><tr><th>Nome</th><th>Descrição</th><th>Tamanho</th><th>Enviado em</th><th></th></tr></thead>
+          <thead class="table-light"><tr><th>Título</th><th>Descrição</th><th>Tamanho</th><th>Enviado em</th><th></th></tr></thead>
           <tbody>${lista.map(a=>`
           <tr>
             <td class="text-break">${esc(a.nomeOriginal)}</td>
@@ -6398,7 +6427,10 @@ function _bibRenderVeiculoDetalhe(v) {
             <td>
               <div class="d-flex gap-1">
                 <a href="/api/biblioteca/arquivos/${a.id}" class="btn btn-sm btn-outline-primary" title="Baixar"><i class="bi bi-download"></i></a>
-                ${pode.tecnica()?`<button class="btn btn-sm btn-outline-danger" title="Excluir" onclick="App._bibExcluirArquivo(${a.id},${v.id})"><i class="bi bi-trash"></i></button>`:''}
+                ${pode.tecnica()?`
+                  <button class="btn btn-sm btn-outline-secondary" title="Editar" onclick="App._bibAbrirEditarArquivo(${a.id},'${esc(a.nomeOriginal).replace(/'/g,"\\'")}','${(a.descricao||'').replace(/'/g,"\\'")}')"><i class="bi bi-pencil"></i></button>
+                  <button class="btn btn-sm btn-outline-danger" title="Excluir" onclick="App._bibExcluirArquivo(${a.id},${v.id})"><i class="bi bi-trash"></i></button>
+                `:''}
               </div>
             </td>
           </tr>`).join('')}</tbody>
@@ -6427,11 +6459,37 @@ function _bibGaleriaImagens(lista,vid) {
         ${a.descricao?`<div class="small text-muted text-truncate">${esc(a.descricao)}</div>`:''}
         <div class="d-flex gap-1 mt-2">
           <a href="/api/biblioteca/arquivos/${a.id}" class="btn btn-sm btn-outline-primary" title="Baixar"><i class="bi bi-download"></i></a>
-          ${pode.tecnica()?`<button class="btn btn-sm btn-outline-danger" title="Excluir" onclick="App._bibExcluirArquivo(${a.id},${vid})"><i class="bi bi-trash"></i></button>`:''}
+          ${pode.tecnica()?`
+            <button class="btn btn-sm btn-outline-secondary" title="Editar" onclick="App._bibAbrirEditarArquivo(${a.id},'${esc(a.nomeOriginal).replace(/'/g,"\\'")}','${(a.descricao||'').replace(/'/g,"\\'")}')"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-sm btn-outline-danger" title="Excluir" onclick="App._bibExcluirArquivo(${a.id},${vid})"><i class="bi bi-trash"></i></button>
+          `:''}
         </div>
       </div>
     </div>
   </div>`).join('')}</div>`;
+}
+
+function _bibAbrirEditarArquivo(aid, titulo, descricao) {
+  document.getElementById('bib-arq-id').value=aid;
+  document.getElementById('bib-arq-titulo').value=titulo;
+  document.getElementById('bib-arq-desc').value=descricao;
+  new bootstrap.Modal(document.getElementById('modal-bib-arquivo')).show();
+}
+
+async function _bibSalvarEdicaoArquivo() {
+  const aid=parseInt(document.getElementById('bib-arq-id').value);
+  const titulo=document.getElementById('bib-arq-titulo').value.trim();
+  const descricao=document.getElementById('bib-arq-desc').value.trim();
+  if(!titulo){toast('O título não pode ficar vazio.','danger');return;}
+  try{
+    const arq=await Api.put(`/api/biblioteca/arquivos/${aid}`,{titulo,descricao:descricao||null});
+    bootstrap.Modal.getInstance(document.getElementById('modal-bib-arquivo')).hide();
+    toast('Arquivo atualizado.');
+    if(_bibVeiculoAtual){
+      _bibVeiculoAtual.arquivos=_bibVeiculoAtual.arquivos.map(a=>a.id===aid?{...a,...arq}:a);
+      _bibRenderVeiculoDetalhe(_bibVeiculoAtual);
+    }
+  }catch(e){toast(e.message,'danger');}
 }
 
 function _bibAccept(tipo) {
@@ -6655,6 +6713,7 @@ return{
   renderBibliotecaTecnica,renderBibliotecaVeiculo,renderBibliotecaVeiculoForm,
   saveBibliotecaVeiculo,_bibFiltrar,_bibLimparFiltros,
   _bibUploadArquivo,_bibExcluirArquivo,_bibExcluirVeiculo,_bibPreviewFiles,
+  _bibAbrirEditarArquivo,_bibSalvarEdicaoArquivo,
   // Form dynamic sections
   _addMembro,_addEndereco,_onEstadoMudou,
   // Detail view actions
