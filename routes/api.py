@@ -3127,11 +3127,12 @@ def biblioteca_arquivo_download(aid):
     a = db.session.get(ArquivoBiblioteca, aid)
     if not a:
         return err('Arquivo não encontrado.', 404)
+    force_download = request.args.get('download') == '1'
     return send_from_directory(
         current_app.config['UPLOAD_FOLDER'],
         a.filename,
-        as_attachment=True,
-        download_name=a.nome_original,
+        as_attachment=force_download,
+        download_name=a.nome_original if force_download else None,
     )
 
 

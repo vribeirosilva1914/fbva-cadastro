@@ -631,6 +631,25 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;font-size:
   </div>
 </div>
 
+<!-- Modal visualizador de arquivo da biblioteca -->
+<div class="modal fade" id="modal-bib-viewer" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content" style="background:#111;border:none">
+      <div class="modal-header border-0 py-2" style="background:#0f1c2e">
+        <span class="text-white small fw-semibold text-truncate me-2" id="bib-viewer-nome" style="max-width:60vw"></span>
+        <div class="ms-auto d-flex gap-2 align-items-center">
+          <a id="bib-viewer-dl" href="#" class="btn btn-sm btn-outline-light">
+            <i class="bi bi-download me-1"></i>Baixar
+          </a>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+      </div>
+      <div class="modal-body p-0 d-flex align-items-center justify-content-center" id="bib-viewer-body"
+           style="min-height:60vh;background:#1a1a1a"></div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal edição de arquivo da biblioteca -->
 <div class="modal fade" id="modal-bib-arquivo" tabindex="-1" data-bs-backdrop="static">
   <div class="modal-dialog modal-dialog-centered">
@@ -6420,13 +6439,16 @@ function _bibRenderVeiculoDetalhe(v) {
           <thead class="table-light"><tr><th>Título</th><th>Descrição</th><th>Tamanho</th><th>Enviado em</th><th></th></tr></thead>
           <tbody>${lista.map(a=>`
           <tr>
-            <td class="text-break">${esc(a.nomeOriginal)}</td>
+            <td class="text-break" style="cursor:pointer" onclick="App._bibAbrirViewer(${a.id},'${a.tipo}','${esc(a.nomeOriginal).replace(/'/g,"\\'")}')">
+              <span class="text-primary">${esc(a.nomeOriginal)}</span>
+            </td>
             <td class="text-muted small">${a.descricao?esc(a.descricao):'-'}</td>
             <td class="small">${a.tamanhoFmt}</td>
             <td class="small">${a.enviadoEm.slice(0,10)}</td>
             <td>
               <div class="d-flex gap-1">
-                <a href="/api/biblioteca/arquivos/${a.id}" class="btn btn-sm btn-outline-primary" title="Baixar"><i class="bi bi-download"></i></a>
+                <button class="btn btn-sm btn-outline-primary" title="Visualizar" onclick="App._bibAbrirViewer(${a.id},'${a.tipo}','${esc(a.nomeOriginal).replace(/'/g,"\\'")}')"><i class="bi bi-eye"></i></button>
+                <a href="/api/biblioteca/arquivos/${a.id}?download=1" class="btn btn-sm btn-outline-secondary" title="Baixar" download="${esc(a.nomeOriginal)}"><i class="bi bi-download"></i></a>
                 ${pode.tecnica()?`
                   <button class="btn btn-sm btn-outline-secondary" title="Editar" onclick="App._bibAbrirEditarArquivo(${a.id},'${esc(a.nomeOriginal).replace(/'/g,"\\'")}','${(a.descricao||'').replace(/'/g,"\\'")}')"><i class="bi bi-pencil"></i></button>
                   <button class="btn btn-sm btn-outline-danger" title="Excluir" onclick="App._bibExcluirArquivo(${a.id},${v.id})"><i class="bi bi-trash"></i></button>
@@ -6450,15 +6472,16 @@ function _bibGaleriaImagens(lista,vid) {
   return `<div class="row g-3">${lista.map(a=>`
   <div class="col-6 col-md-4 col-lg-3">
     <div class="card shadow-sm h-100">
-      <a href="/api/biblioteca/arquivos/${a.id}" target="_blank">
+      <div style="cursor:pointer" onclick="App._bibAbrirViewer(${a.id},'imagem','${esc(a.nomeOriginal).replace(/'/g,"\\'")}')">
         <img src="/api/biblioteca/arquivos/${a.id}" class="card-img-top" style="object-fit:cover;height:140px;border-radius:8px 8px 0 0"
           onerror="this.style.display='none'" alt="${esc(a.nomeOriginal)}">
-      </a>
+      </div>
       <div class="card-body p-2">
-        <div class="small text-truncate" title="${esc(a.nomeOriginal)}">${esc(a.nomeOriginal)}</div>
+        <div class="small text-truncate fw-semibold" title="${esc(a.nomeOriginal)}">${esc(a.nomeOriginal)}</div>
         ${a.descricao?`<div class="small text-muted text-truncate">${esc(a.descricao)}</div>`:''}
         <div class="d-flex gap-1 mt-2">
-          <a href="/api/biblioteca/arquivos/${a.id}" class="btn btn-sm btn-outline-primary" title="Baixar"><i class="bi bi-download"></i></a>
+          <button class="btn btn-sm btn-outline-primary" title="Visualizar" onclick="App._bibAbrirViewer(${a.id},'imagem','${esc(a.nomeOriginal).replace(/'/g,"\\'")}')"><i class="bi bi-eye"></i></button>
+          <a href="/api/biblioteca/arquivos/${a.id}?download=1" class="btn btn-sm btn-outline-secondary" title="Baixar" download="${esc(a.nomeOriginal)}"><i class="bi bi-download"></i></a>
           ${pode.tecnica()?`
             <button class="btn btn-sm btn-outline-secondary" title="Editar" onclick="App._bibAbrirEditarArquivo(${a.id},'${esc(a.nomeOriginal).replace(/'/g,"\\'")}','${(a.descricao||'').replace(/'/g,"\\'")}')"><i class="bi bi-pencil"></i></button>
             <button class="btn btn-sm btn-outline-danger" title="Excluir" onclick="App._bibExcluirArquivo(${a.id},${vid})"><i class="bi bi-trash"></i></button>
@@ -6467,6 +6490,29 @@ function _bibGaleriaImagens(lista,vid) {
       </div>
     </div>
   </div>`).join('')}</div>`;
+}
+
+function _bibAbrirViewer(aid, tipo, nome) {
+  const url=`/api/biblioteca/arquivos/${aid}`;
+  document.getElementById('bib-viewer-nome').textContent=nome;
+  const dl=document.getElementById('bib-viewer-dl');
+  dl.href=url+'?download=1'; dl.download=nome;
+  const body=document.getElementById('bib-viewer-body');
+  if(tipo==='pdf'){
+    body.innerHTML=`<iframe src="${url}" style="width:100%;height:80vh;border:none;background:#fff"></iframe>`;
+  }else if(tipo==='imagem'){
+    body.innerHTML=`<img src="${url}" style="max-width:100%;max-height:80vh;object-fit:contain;padding:8px" alt="${esc(nome)}">`;
+  }else{
+    body.innerHTML=`<video controls autoplay style="max-width:100%;max-height:80vh">
+      <source src="${url}">
+      <p class="text-white p-3">Seu navegador não suporta este formato de vídeo. <a href="${url}?download=1" class="text-info">Baixar</a></p>
+    </video>`;
+  }
+  const modal=new bootstrap.Modal(document.getElementById('modal-bib-viewer'));
+  document.getElementById('modal-bib-viewer').addEventListener('hidden.bs.modal',()=>{
+    body.innerHTML='';
+  },{once:true});
+  modal.show();
 }
 
 function _bibAbrirEditarArquivo(aid, titulo, descricao) {
@@ -6713,7 +6759,7 @@ return{
   renderBibliotecaTecnica,renderBibliotecaVeiculo,renderBibliotecaVeiculoForm,
   saveBibliotecaVeiculo,_bibFiltrar,_bibLimparFiltros,
   _bibUploadArquivo,_bibExcluirArquivo,_bibExcluirVeiculo,_bibPreviewFiles,
-  _bibAbrirEditarArquivo,_bibSalvarEdicaoArquivo,
+  _bibAbrirViewer,_bibAbrirEditarArquivo,_bibSalvarEdicaoArquivo,
   // Form dynamic sections
   _addMembro,_addEndereco,_onEstadoMudou,
   // Detail view actions
