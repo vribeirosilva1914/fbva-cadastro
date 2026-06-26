@@ -15,7 +15,7 @@ from models import (Usuario, Clube, WaLog, EmailLog, Config, FinanceiroClube,
                     ContatoWA, ConversacaoWA, MensagemWA, Evento,
                     AgendaConteudo, RecorrenciaConteudo, DiretorFBVA,
                     TicketOuvidoria, TicketResposta, DocumentoFBVA,
-                    RelatorioFinanceiro)
+                    RelatorioFinanceiro, VeiculoBiblioteca, ArquivoBiblioteca)
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -2936,3 +2936,217 @@ def remove_relatorio_financeiro_arquivo(id):
         r.tamanho  = None
         db.session.commit()
     return ok({'id': id})
+
+
+# ── Biblioteca Técnica ────────────────────────────────────────────────────────
+
+BIBLIOTECA_EXTENSIONS = {
+    '.pdf',
+    '.jpg', '.jpeg', '.png', '.gif', '.webp',
+    '.mp4', '.mov', '.avi', '.webm', '.mkv',
+}
+
+
+def _tipo_arquivo_biblioteca(ext):
+    if ext == '.pdf':
+        return 'pdf'
+    if ext in {'.jpg', '.jpeg', '.png', '.gif', '.webp'}:
+        return 'imagem'
+    return 'video'
+
+
+def _veiculo_dict(v, com_arquivos=False):
+    d = {
+        'id':         v.id,
+        'marca':      v.marca,
+        'modelo':     v.modelo,
+        'ano':        v.ano,
+        'descricao':  v.descricao,
+        'qtdArquivos': len(v.arquivos),
+        'criadoEm':   v.criado_em.isoformat(),
+    }
+    if com_arquivos:
+        d['arquivos'] = [_arquivo_dict(a) for a in v.arquivos]
+    return d
+
+
+def _arquivo_dict(a):
+    return {
+        'id':           a.id,
+        'veiculoId':    a.veiculo_id,
+        'tipo':         a.tipo,
+        'nomeOriginal': a.nome_original,
+        'tamanho':      a.tamanho,
+        'tamanhoFmt':   fmt_size(a.tamanho),
+        'descricao':    a.descricao,
+        'enviadoEm':    a.enviado_em.isoformat(),
+        'enviadoPor':   a.enviado_por.nome if a.enviado_por else None,
+    }
+
+
+@api_bp.route('/biblioteca/marcas', methods=['GET'])
+@login_required
+def biblioteca_marcas():
+    if current_user.perfil not in ('admin', 'tecnico'):
+        return err('Acesso negado.', 403)
+    from sqlalchemy import distinct
+    marcas = [r[0] for r in db.session.query(
+        distinct(VeiculoBiblioteca.marca)
+    ).order_by(VeiculoBiblioteca.marca).all()]
+    return ok(marcas)
+
+
+@api_bp.route('/biblioteca/veiculos', methods=['GET'])
+@login_required
+def biblioteca_veiculos_list():
+    if current_user.perfil not in ('admin', 'tecnico'):
+        return err('Acesso negado.', 403)
+    q = VeiculoBiblioteca.query
+    if (marca := request.args.get('marca', '').strip()):
+        q = q.filter(VeiculoBiblioteca.marca.ilike(f'%{marca}%'))
+    if (modelo := request.args.get('modelo', '').strip()):
+        q = q.filter(VeiculoBiblioteca.modelo.ilike(f'%{modelo}%'))
+    if (ano_str := request.args.get('ano', '').strip()):
+        try:
+            q = q.filter(VeiculoBiblioteca.ano == int(ano_str))
+        except ValueError:
+            pass
+    veiculos = q.order_by(
+        VeiculoBiblioteca.marca, VeiculoBiblioteca.modelo, VeiculoBiblioteca.ano
+    ).all()
+    return ok([_veiculo_dict(v) for v in veiculos])
+
+
+@api_bp.route('/biblioteca/veiculos', methods=['POST'])
+@login_required
+def biblioteca_veiculo_criar():
+    if current_user.perfil not in ('admin', 'tecnico'):
+        return err('Acesso negado.', 403)
+    j = request.json or {}
+    marca  = (j.get('marca')  or '').strip()
+    modelo = (j.get('modelo') or '').strip()
+    ano    = j.get('ano')
+    if not marca or not modelo or not ano:
+        return err('Marca, modelo e ano são obrigatórios.')
+    v = VeiculoBiblioteca(
+        marca=marca,
+        modelo=modelo,
+        ano=int(ano),
+        descricao=(j.get('descricao') or '').strip() or None,
+        criado_por_id=current_user.id,
+    )
+    db.session.add(v)
+    db.session.commit()
+    return ok(_veiculo_dict(v), 201)
+
+
+@api_bp.route('/biblioteca/veiculos/<int:vid>', methods=['GET'])
+@login_required
+def biblioteca_veiculo_get(vid):
+    if current_user.perfil not in ('admin', 'tecnico'):
+        return err('Acesso negado.', 403)
+    v = db.session.get(VeiculoBiblioteca, vid)
+    if not v:
+        return err('Veículo não encontrado.', 404)
+    return ok(_veiculo_dict(v, com_arquivos=True))
+
+
+@api_bp.route('/biblioteca/veiculos/<int:vid>', methods=['PUT'])
+@login_required
+def biblioteca_veiculo_editar(vid):
+    if current_user.perfil not in ('admin', 'tecnico'):
+        return err('Acesso negado.', 403)
+    v = db.session.get(VeiculoBiblioteca, vid)
+    if not v:
+        return err('Veículo não encontrado.', 404)
+    j = request.json or {}
+    if 'marca'    in j: v.marca    = (j['marca']    or '').strip()
+    if 'modelo'   in j: v.modelo   = (j['modelo']   or '').strip()
+    if 'ano'      in j: v.ano      = int(j['ano'])
+    if 'descricao' in j: v.descricao = (j['descricao'] or '').strip() or None
+    db.session.commit()
+    return ok(_veiculo_dict(v))
+
+
+@api_bp.route('/biblioteca/veiculos/<int:vid>', methods=['DELETE'])
+@login_required
+def biblioteca_veiculo_excluir(vid):
+    if current_user.perfil != 'admin':
+        return err('Acesso negado.', 403)
+    v = db.session.get(VeiculoBiblioteca, vid)
+    if not v:
+        return err('Veículo não encontrado.', 404)
+    upload_dir = current_app.config['UPLOAD_FOLDER']
+    for a in v.arquivos:
+        try:
+            os.remove(os.path.join(upload_dir, a.filename))
+        except OSError:
+            pass
+    db.session.delete(v)
+    db.session.commit()
+    return ok()
+
+
+@api_bp.route('/biblioteca/veiculos/<int:vid>/arquivos', methods=['POST'])
+@login_required
+def biblioteca_arquivo_upload(vid):
+    if current_user.perfil not in ('admin', 'tecnico'):
+        return err('Acesso negado.', 403)
+    v = db.session.get(VeiculoBiblioteca, vid)
+    if not v:
+        return err('Veículo não encontrado.', 404)
+    f = request.files.get('arquivo')
+    if not f or not f.filename:
+        return err('Arquivo não enviado.')
+    ext = os.path.splitext(secure_filename(f.filename))[1].lower()
+    if ext not in BIBLIOTECA_EXTENSIONS:
+        return err(f'Tipo não permitido: {ext}. Use PDF, imagem (JPG/PNG/GIF/WEBP) ou vídeo (MP4/MOV/AVI/WEBM/MKV).')
+    unique_name   = f'bib_{uuid.uuid4().hex}{ext}'
+    upload_dir    = current_app.config['UPLOAD_FOLDER']
+    save_path     = os.path.join(upload_dir, unique_name)
+    f.save(save_path)
+    arquivo = ArquivoBiblioteca(
+        veiculo_id     = v.id,
+        tipo           = _tipo_arquivo_biblioteca(ext),
+        filename       = unique_name,
+        nome_original  = f.filename,
+        tamanho        = os.path.getsize(save_path),
+        descricao      = (request.form.get('descricao') or '').strip() or None,
+        enviado_por_id = current_user.id,
+    )
+    db.session.add(arquivo)
+    db.session.commit()
+    return ok(_arquivo_dict(arquivo), 201)
+
+
+@api_bp.route('/biblioteca/arquivos/<int:aid>', methods=['GET'])
+@login_required
+def biblioteca_arquivo_download(aid):
+    if current_user.perfil not in ('admin', 'tecnico'):
+        return err('Acesso negado.', 403)
+    a = db.session.get(ArquivoBiblioteca, aid)
+    if not a:
+        return err('Arquivo não encontrado.', 404)
+    return send_from_directory(
+        current_app.config['UPLOAD_FOLDER'],
+        a.filename,
+        as_attachment=True,
+        download_name=a.nome_original,
+    )
+
+
+@api_bp.route('/biblioteca/arquivos/<int:aid>', methods=['DELETE'])
+@login_required
+def biblioteca_arquivo_excluir(aid):
+    if current_user.perfil not in ('admin', 'tecnico'):
+        return err('Acesso negado.', 403)
+    a = db.session.get(ArquivoBiblioteca, aid)
+    if not a:
+        return err('Arquivo não encontrado.', 404)
+    try:
+        os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], a.filename))
+    except OSError:
+        pass
+    db.session.delete(a)
+    db.session.commit()
+    return ok()

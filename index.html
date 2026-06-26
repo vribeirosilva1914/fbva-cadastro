@@ -300,6 +300,8 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;font-size:
       <button class="nl" id="nav-email" onclick="App.go('email')"><i class="bi bi-envelope-fill"></i><span>Mensageiro E-mail</span></button>
       <button class="nl" id="nav-clipping" onclick="App.go('clipping')"><i class="bi bi-newspaper"></i><span>Clipping de Notícias</span></button>
       <button class="nl" id="nav-agenda" onclick="App.go('agenda')"><i class="bi bi-calendar2-week-fill"></i><span>Agenda de Conteúdo</span></button>
+      <div class="nav-sec mt-2" id="nav-sec-tecnica">Técnica</div>
+      <button class="nl" id="nav-biblioteca" onclick="App.go('biblioteca-tecnica')"><i class="bi bi-book-fill"></i><span>Biblioteca Técnica</span></button>
       <div class="nav-sec mt-2" id="nav-adm-label">Administração</div>
       <button class="nl" id="nav-usuarios" onclick="App.go('usuarios')"><i class="bi bi-people-fill"></i><span>Usuários</span></button>
       <button class="nl" id="nav-novo-usuario" onclick="App.go('usuario-form')"><i class="bi bi-person-plus-fill"></i><span>Novo Usuário</span></button>
@@ -642,7 +644,7 @@ const ESTADOS = [
   ['RS','Rio Grande do Sul'],['RO','Rondônia'],['RR','Roraima'],['SC','Santa Catarina'],
   ['SP','São Paulo'],['SE','Sergipe'],['TO','Tocantins']
 ];
-const PERFIS = { admin:'Administrador', secretaria:'Secretaria', comunicacao:'Comunicação' };
+const PERFIS = { admin:'Administrador', secretaria:'Secretaria', comunicacao:'Comunicação', tecnico:'Técnico' };
 
 let state = { user:null, view:'', editId:null, filters:{q:'',estado:'',status:'ativos'}, csvData:null, clubes:[], waLog:[] };
 
@@ -770,6 +772,7 @@ const pode={
   comunicacao:()=>['admin','comunicacao'].includes(state.user?.perfil),
   financeiro:()=>['admin','secretaria'].includes(state.user?.perfil),
   documentos:()=>['admin','secretaria'].includes(state.user?.perfil),
+  tecnica:()=>['admin','tecnico'].includes(state.user?.perfil),
   excluir:()=>state.user?.perfil==='admin',
   usuarios:()=>state.user?.perfil==='admin',
   diretoria:()=>state.user?.perfil!=='comunicacao'&&['admin','secretaria','comunicacao','operador'].includes(state.user?.perfil),
@@ -791,6 +794,10 @@ function showApp() {
     const el=document.getElementById(id);
     if(el) el.style.display=pode.comunicacao()?'':'none';
   });
+  ['nav-sec-tecnica','nav-biblioteca'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display=pode.tecnica()?'':'none';
+  });
   ['nav-adm-label','nav-usuarios','nav-novo-usuario'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.style.display=pode.usuarios()?'':'none';
@@ -809,7 +816,10 @@ function activateNav(v) {
     mensageiro:'[onclick*="mensageiro"]',atendimento:'[onclick*="atendimento"]',
     gestao:'[onclick*="gestao"]',email:'[onclick*="email"]',clipping:'[onclick*="clipping"]',
     agenda:'[onclick*="agenda"]','agenda-form':'[onclick*="agenda"]',
-    eventos:'[onclick*="eventos"]','evento-form':'[onclick*="eventos"]'};
+    eventos:'[onclick*="eventos"]','evento-form':'[onclick*="eventos"]',
+    'biblioteca-tecnica':'[onclick*="biblioteca-tecnica"]',
+    'biblioteca-veiculo':'[onclick*="biblioteca-tecnica"]',
+    'biblioteca-veiculo-form':'[onclick*="biblioteca-tecnica"]'};
   const sel=map[v];
   if(sel) document.querySelector(`.sb-nav ${sel}`)?.classList.add('active');
 }
@@ -1101,6 +1111,9 @@ async function go(view,id=null) {
     else if(view==='ouvidoria-det')      await renderOuvidoriaDet(id);
     else if(view==='docs-fbva')          await renderDocsFBVA();
     else if(view==='docs-fbva-form')     await renderDocsFBVAForm(id);
+    else if(view==='biblioteca-tecnica')      await renderBibliotecaTecnica();
+    else if(view==='biblioteca-veiculo')      await renderBibliotecaVeiculo(id);
+    else if(view==='biblioteca-veiculo-form') await renderBibliotecaVeiculoForm(id);
   } catch(e) { toast(e.message,'danger'); }
   window.scrollTo(0,0);
 }
@@ -2090,6 +2103,7 @@ async function renderUsuarioForm(id=null) {
             <select name="perfil" class="form-select" required>
               <option value="secretaria"${!v.perfil||v.perfil==='secretaria'?' selected':''}>Secretaria - Cadastro, financeiro e documentos</option>
               <option value="comunicacao"${v.perfil==='comunicacao'?' selected':''}>Comunicação - Cadastro e mensageiros</option>
+              <option value="tecnico"${v.perfil==='tecnico'?' selected':''}>Técnico - Biblioteca técnica de veículos</option>
               <option value="admin"${v.perfil==='admin'?' selected':''}>Administrador - Acesso total</option>
             </select>
           </div>
@@ -6248,6 +6262,275 @@ async function saveDocFBVA(id){
   }catch(e){toast(e.message,'danger');}
 }
 
+// ══════════ BIBLIOTECA TÉCNICA ══════════════════
+
+let _bibVeiculoAtual = null;
+
+async function renderBibliotecaTecnica() {
+  if(!pode.tecnica()){toast('Acesso negado.','danger');await go('dashboard');return;}
+  setTitle('<i class="bi bi-book-fill me-2"></i>Biblioteca Técnica',
+    `<button class="btn btn-primary btn-sm" onclick="App.go('biblioteca-veiculo-form')">
+      <i class="bi bi-plus-lg me-1"></i>Novo Veículo</button>`);
+  render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
+  let marcas=[];
+  try{marcas=await Api.get('/api/biblioteca/marcas');}catch{}
+  const veiculos=await Api.get('/api/biblioteca/veiculos');
+  _bibRenderLista(veiculos, marcas);
+}
+
+function _bibRenderLista(veiculos, marcas) {
+  const grupos={};
+  veiculos.forEach(v=>{
+    if(!grupos[v.marca])grupos[v.marca]=[];
+    grupos[v.marca].push(v);
+  });
+  const marcasOrdenadas=Object.keys(grupos).sort();
+  render(`
+  <div class="row g-2 mb-4 align-items-end">
+    <div class="col-sm-4">
+      <label class="form-label small mb-1">Marca</label>
+      <input id="bib-f-marca" class="form-control form-control-sm" placeholder="Filtrar por marca…" list="bib-marcas-list"
+        onkeydown="if(event.key==='Enter')App._bibFiltrar()">
+      <datalist id="bib-marcas-list">${marcas.map(m=>`<option value="${esc(m)}">`).join('')}</datalist>
+    </div>
+    <div class="col-sm-4">
+      <label class="form-label small mb-1">Modelo</label>
+      <input id="bib-f-modelo" class="form-control form-control-sm" placeholder="Filtrar por modelo…"
+        onkeydown="if(event.key==='Enter')App._bibFiltrar()">
+    </div>
+    <div class="col-sm-2">
+      <label class="form-label small mb-1">Ano</label>
+      <input id="bib-f-ano" class="form-control form-control-sm" type="number" placeholder="Ex: 1968"
+        onkeydown="if(event.key==='Enter')App._bibFiltrar()">
+    </div>
+    <div class="col-sm-2 d-flex gap-2">
+      <button class="btn btn-primary btn-sm flex-grow-1" onclick="App._bibFiltrar()"><i class="bi bi-search"></i> Buscar</button>
+      <button class="btn btn-outline-secondary btn-sm" onclick="App._bibLimparFiltros()" title="Limpar"><i class="bi bi-x-lg"></i></button>
+    </div>
+  </div>
+  ${veiculos.length===0?`<div class="text-center py-5 text-muted"><i class="bi bi-book display-4 d-block mb-3"></i>Nenhum veículo cadastrado ainda.</div>`:
+    marcasOrdenadas.map(marca=>`
+    <h6 class="fw-bold mt-4 mb-2 text-uppercase" style="letter-spacing:.05em;color:var(--primary,#16a34a)">
+      <i class="bi bi-car-front-fill me-2"></i>${esc(marca)}
+    </h6>
+    <div class="row g-3 mb-3">
+      ${grupos[marca].map(v=>`
+      <div class="col-sm-6 col-lg-4">
+        <div class="card h-100 shadow-sm" style="cursor:pointer;border-radius:10px" onclick="App.go('biblioteca-veiculo',${v.id})">
+          <div class="card-body">
+            <div class="fw-semibold fs-6 mb-1">${esc(v.modelo)}</div>
+            <div class="text-muted small mb-2">${esc(v.marca)} · ${v.ano}</div>
+            ${v.descricao?`<p class="small text-muted mb-2" style="line-clamp:2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(v.descricao)}</p>`:''}
+            <span class="badge bg-secondary"><i class="bi bi-paperclip me-1"></i>${v.qtdArquivos} arquivo${v.qtdArquivos!==1?'s':''}</span>
+          </div>
+        </div>
+      </div>`).join('')}
+    </div>`).join('')}
+  `);
+}
+
+async function _bibFiltrar() {
+  const marca=document.getElementById('bib-f-marca')?.value||'';
+  const modelo=document.getElementById('bib-f-modelo')?.value||'';
+  const ano=document.getElementById('bib-f-ano')?.value||'';
+  const params=new URLSearchParams();
+  if(marca)params.set('marca',marca);
+  if(modelo)params.set('modelo',modelo);
+  if(ano)params.set('ano',ano);
+  try{
+    const veiculos=await Api.get('/api/biblioteca/veiculos?'+params.toString());
+    const marcas=await Api.get('/api/biblioteca/marcas');
+    _bibRenderLista(veiculos,marcas);
+    document.getElementById('bib-f-marca').value=marca;
+    document.getElementById('bib-f-modelo').value=modelo;
+    document.getElementById('bib-f-ano').value=ano;
+  }catch(e){toast(e.message,'danger');}
+}
+
+async function _bibLimparFiltros() {
+  const veiculos=await Api.get('/api/biblioteca/veiculos');
+  const marcas=await Api.get('/api/biblioteca/marcas');
+  _bibRenderLista(veiculos,marcas);
+}
+
+async function renderBibliotecaVeiculo(id) {
+  if(!pode.tecnica()){toast('Acesso negado.','danger');await go('dashboard');return;}
+  render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
+  const v=await Api.get(`/api/biblioteca/veiculos/${id}`);
+  _bibVeiculoAtual=v;
+  const titulo=`${esc(v.marca)} ${esc(v.modelo)} — ${v.ano}`;
+  setTitle(`<i class="bi bi-book-fill me-2"></i>${titulo}`,
+    `<div class="d-flex gap-2">
+      <button class="btn btn-outline-secondary btn-sm" onclick="App.go('biblioteca-tecnica')"><i class="bi bi-arrow-left me-1"></i>Voltar</button>
+      ${pode.tecnica()?`<button class="btn btn-outline-primary btn-sm" onclick="App.go('biblioteca-veiculo-form',${v.id})"><i class="bi bi-pencil me-1"></i>Editar</button>`:''}
+      ${pode.excluir()?`<button class="btn btn-outline-danger btn-sm" onclick="App._bibExcluirVeiculo(${v.id})"><i class="bi bi-trash me-1"></i>Excluir</button>`:''}
+    </div>`);
+  _bibRenderVeiculoDetalhe(v);
+}
+
+function _bibRenderVeiculoDetalhe(v) {
+  const pdfs   = v.arquivos.filter(a=>a.tipo==='pdf');
+  const imagens= v.arquivos.filter(a=>a.tipo==='imagem');
+  const videos  = v.arquivos.filter(a=>a.tipo==='video');
+
+  function secao(titulo,icone,lista,tipo) {
+    return `
+    <div class="mb-5">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h6 class="fw-bold mb-0"><i class="bi bi-${icone} me-2"></i>${titulo}</h6>
+        ${pode.tecnica()?`
+        <label class="btn btn-sm btn-outline-primary mb-0">
+          <i class="bi bi-upload me-1"></i>Enviar arquivo
+          <input type="file" class="d-none" accept="${_bibAccept(tipo)}"
+            onchange="App._bibUploadArquivo(${v.id},this,'${tipo}')">
+        </label>`:''}
+      </div>
+      ${lista.length===0?`<p class="text-muted small">Nenhum arquivo.</p>`:
+        tipo==='imagem'?_bibGaleriaImagens(lista,v.id):
+        `<div class="table-responsive"><table class="table table-sm align-middle">
+          <thead class="table-light"><tr><th>Nome</th><th>Descrição</th><th>Tamanho</th><th>Enviado em</th><th></th></tr></thead>
+          <tbody>${lista.map(a=>`
+          <tr>
+            <td class="text-break">${esc(a.nomeOriginal)}</td>
+            <td class="text-muted small">${a.descricao?esc(a.descricao):'-'}</td>
+            <td class="small">${a.tamanhoFmt}</td>
+            <td class="small">${a.enviadoEm.slice(0,10)}</td>
+            <td>
+              <div class="d-flex gap-1">
+                <a href="/api/biblioteca/arquivos/${a.id}" class="btn btn-sm btn-outline-primary" title="Baixar"><i class="bi bi-download"></i></a>
+                ${pode.tecnica()?`<button class="btn btn-sm btn-outline-danger" title="Excluir" onclick="App._bibExcluirArquivo(${a.id},${v.id})"><i class="bi bi-trash"></i></button>`:''}
+              </div>
+            </td>
+          </tr>`).join('')}</tbody>
+        </table></div>`}
+    </div>`;
+  }
+
+  render(`
+  ${v.descricao?`<p class="text-muted mb-4">${esc(v.descricao)}</p>`:''}
+  ${secao('Documentos PDF','file-earmark-pdf-fill',pdfs,'pdf')}
+  ${secao('Imagens','image-fill',imagens,'imagem')}
+  ${secao('Vídeos','camera-video-fill',videos,'video')}
+  `);
+}
+
+function _bibGaleriaImagens(lista,vid) {
+  return `<div class="row g-3">${lista.map(a=>`
+  <div class="col-6 col-md-4 col-lg-3">
+    <div class="card shadow-sm h-100">
+      <a href="/api/biblioteca/arquivos/${a.id}" target="_blank">
+        <img src="/api/biblioteca/arquivos/${a.id}" class="card-img-top" style="object-fit:cover;height:140px;border-radius:8px 8px 0 0"
+          onerror="this.style.display='none'" alt="${esc(a.nomeOriginal)}">
+      </a>
+      <div class="card-body p-2">
+        <div class="small text-truncate" title="${esc(a.nomeOriginal)}">${esc(a.nomeOriginal)}</div>
+        ${a.descricao?`<div class="small text-muted text-truncate">${esc(a.descricao)}</div>`:''}
+        <div class="d-flex gap-1 mt-2">
+          <a href="/api/biblioteca/arquivos/${a.id}" class="btn btn-sm btn-outline-primary" title="Baixar"><i class="bi bi-download"></i></a>
+          ${pode.tecnica()?`<button class="btn btn-sm btn-outline-danger" title="Excluir" onclick="App._bibExcluirArquivo(${a.id},${vid})"><i class="bi bi-trash"></i></button>`:''}
+        </div>
+      </div>
+    </div>
+  </div>`).join('')}</div>`;
+}
+
+function _bibAccept(tipo) {
+  if(tipo==='pdf') return '.pdf';
+  if(tipo==='imagem') return '.jpg,.jpeg,.png,.gif,.webp';
+  return '.mp4,.mov,.avi,.webm,.mkv';
+}
+
+async function _bibUploadArquivo(vid,input,tipo) {
+  const file=input.files[0]; if(!file)return;
+  const fd=new FormData(); fd.append('arquivo',file);
+  try{
+    const res=await fetch(`/api/biblioteca/veiculos/${vid}/arquivos`,{method:'POST',credentials:'same-origin',body:fd});
+    const data=await res.json();
+    if(!data.ok){toast(data.error||'Erro ao enviar arquivo.','danger');return;}
+    toast('Arquivo enviado com sucesso.');
+    input.value='';
+    const v=await Api.get(`/api/biblioteca/veiculos/${vid}`);
+    _bibVeiculoAtual=v;
+    _bibRenderVeiculoDetalhe(v);
+  }catch(e){toast(e.message,'danger');}
+}
+
+async function _bibExcluirArquivo(aid,vid) {
+  showConfirm('Excluir este arquivo permanentemente?',async()=>{
+    try{
+      await Api.del(`/api/biblioteca/arquivos/${aid}`);
+      toast('Arquivo excluído.');
+      const v=await Api.get(`/api/biblioteca/veiculos/${vid}`);
+      _bibVeiculoAtual=v;
+      _bibRenderVeiculoDetalhe(v);
+    }catch(e){toast(e.message,'danger');}
+  });
+}
+
+async function _bibExcluirVeiculo(id) {
+  showConfirm('Excluir este veículo e todos os seus arquivos? Esta ação não pode ser desfeita.',async()=>{
+    try{
+      await Api.del(`/api/biblioteca/veiculos/${id}`);
+      toast('Veículo excluído.');
+      await go('biblioteca-tecnica');
+    }catch(e){toast(e.message,'danger');}
+  });
+}
+
+async function renderBibliotecaVeiculoForm(id) {
+  if(!pode.tecnica()){toast('Acesso negado.','danger');await go('dashboard');return;}
+  const isEdit=!!id;
+  let v={marca:'',modelo:'',ano:'',descricao:''};
+  if(isEdit) v=await Api.get(`/api/biblioteca/veiculos/${id}`);
+  setTitle(
+    isEdit?`<i class="bi bi-book-fill me-2"></i>Editar Veículo`:`<i class="bi bi-book-fill me-2"></i>Novo Veículo`,
+    isEdit?`<button class="btn btn-outline-secondary btn-sm" onclick="App.go('biblioteca-veiculo',${id})"><i class="bi bi-arrow-left me-1"></i>Voltar</button>`:
+           `<button class="btn btn-outline-secondary btn-sm" onclick="App.go('biblioteca-tecnica')"><i class="bi bi-arrow-left me-1"></i>Voltar</button>`
+  );
+  render(`
+  <form onsubmit="event.preventDefault();App.saveBibliotecaVeiculo(${id||'null'})">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label">Marca *</label>
+        <input name="marca" class="form-control" required maxlength="100" value="${esc(v.marca||'')}">
+      </div>
+      <div class="col-md-5">
+        <label class="form-label">Modelo *</label>
+        <input name="modelo" class="form-control" required maxlength="150" value="${esc(v.modelo||'')}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Ano *</label>
+        <input name="ano" type="number" class="form-control" required min="1885" max="2099" value="${v.ano||''}">
+      </div>
+      <div class="col-12">
+        <label class="form-label">Descrição</label>
+        <textarea name="descricao" class="form-control" rows="3" maxlength="1000">${esc(v.descricao||'')}</textarea>
+      </div>
+    </div>
+    <div class="mt-4 d-flex gap-2">
+      <button type="submit" class="btn btn-primary">Salvar</button>
+      <button type="button" class="btn btn-outline-secondary" onclick="history.back()">Cancelar</button>
+    </div>
+  </form>`);
+}
+
+async function saveBibliotecaVeiculo(id) {
+  const f=document.querySelector('#app-content form');
+  const data=Object.fromEntries(new FormData(f));
+  const body={marca:data.marca,modelo:data.modelo,ano:parseInt(data.ano),descricao:data.descricao||null};
+  try{
+    if(id){
+      const v=await Api.put(`/api/biblioteca/veiculos/${id}`,body);
+      toast('Veículo atualizado.');
+      await go('biblioteca-veiculo',id);
+    }else{
+      const v=await Api.post('/api/biblioteca/veiculos',body);
+      toast('Veículo cadastrado. Agora você pode enviar os arquivos.');
+      await go('biblioteca-veiculo',v.id);
+    }
+  }catch(e){toast(e.message,'danger');}
+}
+
 // ── Init ───────────────────────────────────────
 async function init() {
   document.getElementById('l-senha').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
@@ -6297,6 +6580,10 @@ return{
   // Documentos FBVA
   renderDocsFBVA,renderDocsFBVAForm,saveDocFBVA,
   _docsFBVAFiltrar,_docsFBVAUpload,_docsFBVAExcluir,
+  // Biblioteca Técnica
+  renderBibliotecaTecnica,renderBibliotecaVeiculo,renderBibliotecaVeiculoForm,
+  saveBibliotecaVeiculo,_bibFiltrar,_bibLimparFiltros,
+  _bibUploadArquivo,_bibExcluirArquivo,_bibExcluirVeiculo,
   // Form dynamic sections
   _addMembro,_addEndereco,_onEstadoMudou,
   // Detail view actions

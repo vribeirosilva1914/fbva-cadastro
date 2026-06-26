@@ -21,6 +21,7 @@ class Usuario(UserMixin, db.Model):
         'admin':        'Administrador',
         'secretaria':   'Secretaria',
         'comunicacao':  'Comunicação',
+        'tecnico':      'Técnico',
         'operador':     'Operador',   # legado — mantido para compatibilidade
     }
 
@@ -39,6 +40,10 @@ class Usuario(UserMixin, db.Model):
     def pode_ver_restrito(self):
         """Acesso a financeiro (trimestralidades) e documentação: apenas admin e secretaria."""
         return self.perfil in ('admin', 'secretaria')
+
+    def pode_tecnica(self):
+        """Acesso à área Técnica: admin e técnico."""
+        return self.perfil in ('admin', 'tecnico')
 
 
 class Clube(db.Model):
@@ -594,6 +599,46 @@ class RelatorioFinanceiro(db.Model):
     atualizado_em = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     criado_por = db.relationship('Usuario', foreign_keys=[criado_por_id])
+
+
+class VeiculoBiblioteca(db.Model):
+    __tablename__ = 'biblioteca_veiculos'
+
+    id            = db.Column(db.Integer, primary_key=True)
+    marca         = db.Column(db.String(100), nullable=False)
+    modelo        = db.Column(db.String(150), nullable=False)
+    ano           = db.Column(db.Integer,     nullable=False)
+    descricao     = db.Column(db.Text,        nullable=True)
+    criado_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id', ondelete='SET NULL'), nullable=True)
+    criado_em     = db.Column(db.DateTime, default=datetime.utcnow)
+    atualizado_em = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    criado_por = db.relationship('Usuario', foreign_keys=[criado_por_id])
+    arquivos   = db.relationship('ArquivoBiblioteca', backref='veiculo',
+                                  cascade='all, delete-orphan',
+                                  order_by='ArquivoBiblioteca.enviado_em')
+
+
+class ArquivoBiblioteca(db.Model):
+    __tablename__ = 'biblioteca_arquivos'
+
+    TIPOS = [
+        ('pdf',    'PDF'),
+        ('imagem', 'Imagem'),
+        ('video',  'Vídeo'),
+    ]
+
+    id             = db.Column(db.Integer, primary_key=True)
+    veiculo_id     = db.Column(db.Integer, db.ForeignKey('biblioteca_veiculos.id', ondelete='CASCADE'), nullable=False)
+    tipo           = db.Column(db.String(10),  nullable=False)
+    filename       = db.Column(db.String(300), nullable=False)
+    nome_original  = db.Column(db.String(300), nullable=False)
+    tamanho        = db.Column(db.Integer,     nullable=True)
+    descricao      = db.Column(db.String(300), nullable=True)
+    enviado_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id', ondelete='SET NULL'), nullable=True)
+    enviado_em     = db.Column(db.DateTime, default=datetime.utcnow)
+
+    enviado_por = db.relationship('Usuario', foreign_keys=[enviado_por_id])
 
 
 @login_manager.user_loader
