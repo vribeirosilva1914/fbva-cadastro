@@ -6507,28 +6507,99 @@ async function renderBibliotecaVeiculoForm(id) {
         <textarea name="descricao" class="form-control" rows="3" maxlength="1000">${esc(v.descricao||'')}</textarea>
       </div>
     </div>
-    <div class="mt-4 d-flex gap-2">
-      <button type="submit" class="btn btn-primary">Salvar</button>
+
+    <hr class="my-4">
+    <h6 class="fw-semibold mb-3"><i class="bi bi-paperclip me-2"></i>Arquivos <span class="text-muted fw-normal">(opcional)</span></h6>
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label small"><i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i>PDFs</label>
+        <input type="file" id="bib-up-pdf" class="form-control form-control-sm" accept=".pdf" multiple
+          onchange="App._bibPreviewFiles(this,'bib-prev-pdf')">
+        <ul id="bib-prev-pdf" class="list-unstyled mt-2 mb-0 small text-muted ps-1"></ul>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small"><i class="bi bi-image-fill text-primary me-1"></i>Imagens</label>
+        <input type="file" id="bib-up-img" class="form-control form-control-sm" accept=".jpg,.jpeg,.png,.gif,.webp" multiple
+          onchange="App._bibPreviewFiles(this,'bib-prev-img')">
+        <ul id="bib-prev-img" class="list-unstyled mt-2 mb-0 small text-muted ps-1"></ul>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small"><i class="bi bi-camera-video-fill text-success me-1"></i>Vídeos</label>
+        <input type="file" id="bib-up-vid" class="form-control form-control-sm" accept=".mp4,.mov,.avi,.webm,.mkv" multiple
+          onchange="App._bibPreviewFiles(this,'bib-prev-vid')">
+        <ul id="bib-prev-vid" class="list-unstyled mt-2 mb-0 small text-muted ps-1"></ul>
+      </div>
+    </div>
+
+    <div class="mt-4 d-flex gap-2 align-items-center">
+      <button type="submit" class="btn btn-primary" id="bib-btn-salvar">
+        <i class="bi bi-check-lg me-1"></i>Salvar
+      </button>
       <button type="button" class="btn btn-outline-secondary" onclick="history.back()">Cancelar</button>
+      <span id="bib-upload-status" class="text-muted small ms-2"></span>
     </div>
   </form>`);
+}
+
+function _bibPreviewFiles(input, listId) {
+  const ul=document.getElementById(listId);
+  ul.innerHTML='';
+  Array.from(input.files).forEach(f=>{
+    const li=document.createElement('li');
+    li.innerHTML=`<i class="bi bi-file-earmark me-1"></i>${esc(f.name)} <span class="text-secondary">(${_fmtBytes(f.size)})</span>`;
+    ul.appendChild(li);
+  });
 }
 
 async function saveBibliotecaVeiculo(id) {
   const f=document.querySelector('#app-content form');
   const data=Object.fromEntries(new FormData(f));
   const body={marca:data.marca,modelo:data.modelo,ano:parseInt(data.ano),descricao:data.descricao||null};
+
+  const btn=document.getElementById('bib-btn-salvar');
+  const status=document.getElementById('bib-upload-status');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Salvando…';}
+
   try{
+    let vid=id;
     if(id){
-      const v=await Api.put(`/api/biblioteca/veiculos/${id}`,body);
-      toast('Veículo atualizado.');
-      await go('biblioteca-veiculo',id);
+      await Api.put(`/api/biblioteca/veiculos/${id}`,body);
     }else{
       const v=await Api.post('/api/biblioteca/veiculos',body);
-      toast('Veículo cadastrado. Agora você pode enviar os arquivos.');
-      await go('biblioteca-veiculo',v.id);
+      vid=v.id;
     }
-  }catch(e){toast(e.message,'danger');}
+
+    // Coletar arquivos selecionados
+    const inputs=[
+      {el:document.getElementById('bib-up-pdf'),  label:'PDF'},
+      {el:document.getElementById('bib-up-img'),  label:'imagem'},
+      {el:document.getElementById('bib-up-vid'),  label:'vídeo'},
+    ];
+    const todos=[];
+    inputs.forEach(({el})=>{if(el&&el.files.length)Array.from(el.files).forEach(file=>todos.push(file));});
+
+    if(todos.length){
+      let ok=0,erros=0;
+      for(let i=0;i<todos.length;i++){
+        if(status) status.textContent=`Enviando arquivo ${i+1} de ${todos.length}…`;
+        const fd=new FormData(); fd.append('arquivo',todos[i]);
+        try{
+          const res=await fetch(`/api/biblioteca/veiculos/${vid}/arquivos`,{method:'POST',credentials:'same-origin',body:fd});
+          const r=await res.json();
+          if(r.ok) ok++; else erros++;
+        }catch{erros++;}
+      }
+      if(erros) toast(`${ok} arquivo(s) enviado(s), ${erros} falha(s).`,'warning');
+      else toast(`Veículo ${id?'atualizado':'cadastrado'} com ${ok} arquivo(s).`);
+    }else{
+      toast(id?'Veículo atualizado.':'Veículo cadastrado.');
+    }
+
+    await go('biblioteca-veiculo',vid);
+  }catch(e){
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="bi bi-check-lg me-1"></i>Salvar';}
+    toast(e.message,'danger');
+  }
 }
 
 // ── Init ───────────────────────────────────────
@@ -6583,7 +6654,7 @@ return{
   // Biblioteca Técnica
   renderBibliotecaTecnica,renderBibliotecaVeiculo,renderBibliotecaVeiculoForm,
   saveBibliotecaVeiculo,_bibFiltrar,_bibLimparFiltros,
-  _bibUploadArquivo,_bibExcluirArquivo,_bibExcluirVeiculo,
+  _bibUploadArquivo,_bibExcluirArquivo,_bibExcluirVeiculo,_bibPreviewFiles,
   // Form dynamic sections
   _addMembro,_addEndereco,_onEstadoMudou,
   // Detail view actions
