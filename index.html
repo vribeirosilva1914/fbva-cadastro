@@ -4767,6 +4767,8 @@ async function _removeEventoImagem(id) {
 let _clData=null;
 let _clFiltro='todas';    // 'todas' | 'nao_lidas'
 let _clAba='noticias';    // aba ativa
+let _clTrendsData=null;   // cache Google Trends
+let _clTrendsTs=0;        // timestamp do cache
 
 const CL_ABAS=[
   {id:'noticias',   label:'Notícias',   icon:'bi-newspaper',           blocos:['radar','mercado','restauracao','gente']},
@@ -4879,6 +4881,7 @@ function _clRender(){
   <ul class="nav nav-tabs mb-3">
     ${tabsHtml}
   </ul>
+  ${_clAba==='trending'?_clTrendsWidget():''}
   ${conteudo}
   `);
 }
@@ -4918,7 +4921,83 @@ function _clCardHtml(n){
   </div>`;
 }
 
-function _clSetAba(aba){_clAba=aba;_clRender();}
+function _clTrendsWidget(){
+  const td=_clTrendsData;
+  if(!td){
+    return`<div class="card shadow-sm mb-3 border-0 bg-body-secondary">
+      <div class="card-body py-3 text-center text-muted small">
+        <span class="spinner-border spinner-border-sm me-2"></span>Carregando Google Trends...
+      </div>
+    </div>`;
+  }
+  if(td.error){
+    return`<div class="alert alert-warning py-2 small mb-3 d-flex align-items-center gap-2">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <span>Google Trends indisponível: ${esc(td.error)}</span>
+      <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="App._clLoadTrends()">Tentar novamente</button>
+    </div>`;
+  }
+  const trending=(td.trending||[]).slice(0,20);
+  const rising=(td.rising||[]).slice(0,8);
+  const interest=td.interest||{};
+  const bars=Object.entries(interest).map(([kw,vals])=>{
+    const last=vals.length?vals[vals.length-1].value:0;
+    return`<div class="d-flex align-items-center gap-2 mb-1">
+      <span class="text-muted" style="font-size:.72rem;min-width:145px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(kw)}</span>
+      <div class="flex-grow-1 rounded" style="height:7px;background:#e9ecef">
+        <div class="rounded" style="height:7px;width:${last}%;background:#0d6efd;transition:width .5s"></div>
+      </div>
+      <span class="text-muted" style="font-size:.7rem;min-width:22px;text-align:right">${last}</span>
+    </div>`;
+  }).join('');
+  return`<div class="card shadow-sm mb-3 border-0" style="background:linear-gradient(135deg,#f0f4ff 0%,#fff8f0 100%)">
+    <div class="card-header py-2 bg-transparent border-0 d-flex align-items-center gap-2">
+      <i class="bi bi-graph-up-arrow text-primary"></i>
+      <span class="fw-semibold small">Google Trends Brasil — últimos 7 dias</span>
+      <button class="btn btn-sm btn-outline-secondary ms-auto py-0 px-2" style="font-size:.72rem" onclick="App._clLoadTrends()">
+        <i class="bi bi-arrow-clockwise me-1"></i>Atualizar</button>
+    </div>
+    <div class="card-body pt-0 pb-2">
+      <div class="row g-2">
+        <div class="col-12 col-md-5">
+          <div class="small fw-semibold text-muted mb-2">Interesse por termo</div>
+          ${bars||'<span class="text-muted small">Sem dados</span>'}
+        </div>
+        <div class="col-12 col-md-7">
+          <div class="small fw-semibold text-muted mb-2">Buscas em alta no Brasil</div>
+          <div class="d-flex flex-wrap gap-1 mb-2">
+            ${trending.map((t,i)=>`<span class="badge" style="background:#e8eeff;color:#1d4ed8;font-size:.7rem">${i+1}. ${esc(t)}</span>`).join('')}
+            ${!trending.length?'<span class="text-muted small">Sem dados</span>':''}
+          </div>
+          ${rising.length?`<div class="small fw-semibold text-muted mb-1">Em ascensão</div>
+          <div class="d-flex flex-wrap gap-1">
+            ${rising.map(r=>`<span class="badge bg-success-subtle text-success-emphasis border border-success-subtle" style="font-size:.7rem"><i class="bi bi-arrow-up-short"></i>${esc(r.query)}</span>`).join('')}
+          </div>`:''}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function _clLoadTrends(){
+  const now=Date.now();
+  if(_clTrendsData&&!_clTrendsData.error&&(now-_clTrendsTs)<21600000){_clRender();return;}
+  _clTrendsData=null;
+  _clRender();
+  try{
+    _clTrendsData=await Api.get('/api/clipping/google-trends');
+    _clTrendsTs=Date.now();
+  }catch(e){
+    _clTrendsData={error:e.message};
+  }
+  _clRender();
+}
+
+function _clSetAba(aba){
+  _clAba=aba;
+  if(aba==='trending')_clLoadTrends();
+  else _clRender();
+}
 
 async function _clBuscar(){
   const btn=document.getElementById('cl-btn-buscar');
@@ -6739,7 +6818,7 @@ return{
   // Relatórios Financeiros
   _relFinNavAno,_relFinAbrirModal,_relFinPreviewArquivo,_relFinSalvar,_relFinUpload,_relFinExcluir,
   // Clipping
-  _clBuscar,_clFiltrar,_clSetAba,_clMarcarLida,_clMarcarTodasLidas,_clDeletar,_clLimpar,
+  _clBuscar,_clFiltrar,_clSetAba,_clLoadTrends,_clMarcarLida,_clMarcarTodasLidas,_clDeletar,_clLimpar,
   // Agenda de Conteúdo
   renderAgendaConteudo,renderAgendaConteudoForm,saveAgendaConteudo,confirmarExcluirAgenda,
   _agFiltrar,_agSetViz,_agNavMes,

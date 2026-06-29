@@ -1594,6 +1594,15 @@ CLIPPING_SOURCES = [
     {'type':'rss','url':'https://www.reddit.com/search.rss?q=carros+antigos&sort=new&limit=20', 'fonte':'Reddit · carros antigos',   'bloco':'trending','nivel':2},
     {'type':'rss','url':'https://www.reddit.com/search.rss?q=veiculos+classicos+brasil&sort=new&limit=15','fonte':'Reddit · brasil', 'bloco':'trending','nivel':2},
 
+    # ── Meta Graph API — Instagram hashtags (requer META_ACCESS_TOKEN + META_IG_BUSINESS_ID) ─
+    {'type':'meta_ig_hashtag','hashtag':'carrosantigos',   'bloco':'trending','nivel':1},
+    {'type':'meta_ig_hashtag','hashtag':'carrosclassicos', 'bloco':'trending','nivel':1},
+    {'type':'meta_ig_hashtag','hashtag':'carroantigo',     'bloco':'trending','nivel':1},
+    {'type':'meta_ig_hashtag','hashtag':'classiccar',      'bloco':'trending','nivel':1},
+    {'type':'meta_ig_hashtag','hashtag':'veiculosantigos', 'bloco':'trending','nivel':1},
+    # ── Meta Graph API — Facebook páginas públicas (requer META_ACCESS_TOKEN) ─
+    {'type':'meta_fb_page','page_id':'HagertyMedia',      'fonte':'Facebook Hagerty',   'bloco':'trending','nivel':2},
+    {'type':'meta_fb_page','page_id':'petrolicious',       'fonte':'Facebook Petrolicious','bloco':'trending','nivel':2},
 
     # ── RSS diretos - mídia especializada internacional (Nível 1) ────────────
     {'type':'rss','url':'https://www.hemmings.com/feed/',             'fonte':'Hemmings Daily',         'bloco':'mercado',     'nivel':1},
@@ -1749,6 +1758,60 @@ def _scrape_clipping():
                         bloco=src['bloco'],
                         nivel=src['nivel'],
                     )
+            elif src['type'] == 'meta_ig_hashtag':
+                token    = os.environ.get('META_ACCESS_TOKEN', '')
+                ig_uid   = os.environ.get('META_IG_BUSINESS_ID', '')
+                if not token or not ig_uid:
+                    continue
+                hashtag  = src['hashtag']
+                r1 = http.get('https://graph.facebook.com/v19.0/ig-hashtag-search',
+                              params={'user_id': ig_uid, 'q': hashtag, 'access_token': token},
+                              timeout=12)
+                ids = r1.json().get('data', [])
+                if not ids:
+                    continue
+                hashtag_id = ids[0]['id']
+                r2 = http.get(f'https://graph.facebook.com/v19.0/{hashtag_id}/top_media',
+                              params={
+                                  'user_id': ig_uid,
+                                  'fields': 'id,permalink,timestamp,like_count,comments_count,caption',
+                                  'access_token': token,
+                              }, timeout=12)
+                for item in r2.json().get('data', []):
+                    cap = (item.get('caption') or '').replace('\n', ' ')[:200]
+                    _save_item(
+                        titulo=(f'#{hashtag}: {cap[:90]}' if cap else f'#{hashtag}').strip(),
+                        link=item.get('permalink', ''),
+                        desc=cap,
+                        fonte=f'Instagram #{hashtag}',
+                        pub=item.get('timestamp', ''),
+                        bloco=src['bloco'],
+                        nivel=src['nivel'],
+                    )
+            elif src['type'] == 'meta_fb_page':
+                token = os.environ.get('META_ACCESS_TOKEN', '')
+                if not token:
+                    continue
+                page_id = src['page_id']
+                r = http.get(f'https://graph.facebook.com/v19.0/{page_id}/posts',
+                             params={
+                                 'fields': 'id,message,story,created_time,permalink_url,reactions.summary(true)',
+                                 'limit': 20,
+                                 'access_token': token,
+                             }, timeout=12)
+                for item in r.json().get('data', []):
+                    msg  = (item.get('message') or item.get('story') or '')[:200]
+                    reac = item.get('reactions', {}).get('summary', {}).get('total_count', 0)
+                    desc = f'{msg} ({reac} reações)' if reac else msg
+                    _save_item(
+                        titulo=(msg[:100] or 'Post Facebook').strip(),
+                        link=item.get('permalink_url', ''),
+                        desc=desc,
+                        fonte=src.get('fonte', f'Facebook {page_id}'),
+                        pub=item.get('created_time', ''),
+                        bloco=src['bloco'],
+                        nivel=src['nivel'],
+                    )
         except Exception:
             continue
 
@@ -1758,6 +1821,46 @@ def _scrape_clipping():
     db.session.merge(cfg)
     db.session.commit()
     return novos
+
+
+_TRENDS_CACHE: dict = {'data': None, 'ts': 0.0}
+
+@api_bp.route('/clipping/google-trends')
+@login_required
+def clipping_google_trends():
+    import time
+    now = time.time()
+    if _TRENDS_CACHE['data'] and (now - _TRENDS_CACHE['ts']) < 21600:  # 6 h
+        return ok(_TRENDS_CACHE['data'])
+    try:
+        from pytrends.request import TrendReq
+        pt = TrendReq(hl='pt-BR', tz=180, retries=2, backoff_factor=0.5)
+        kws = ['carros antigos', 'veículos clássicos', 'encontro carros antigos']
+        pt.build_payload(kws, timeframe='now 7-d', geo='BR')
+        iot = pt.interest_over_time()
+        rq  = pt.related_queries()
+        ts  = pt.trending_searches(pn='brazil')
+        interest = {}
+        if not iot.empty:
+            for kw in kws:
+                if kw in iot.columns:
+                    interest[kw] = [
+                        {'date': str(d.date()), 'value': int(v)}
+                        for d, v in zip(iot.index, iot[kw])
+                    ]
+        rising = []
+        for kw in kws:
+            df = rq.get(kw, {}).get('rising')
+            if df is not None and not df.empty:
+                for _, row in df.head(5).iterrows():
+                    rising.append({'query': str(row['query']), 'value': int(row['value'])})
+        trending = ts.iloc[:, 0].tolist()[:25] if not ts.empty else []
+        data = {'interest': interest, 'rising': rising, 'trending': trending}
+        _TRENDS_CACHE['data'] = data
+        _TRENDS_CACHE['ts']   = now
+        return ok(data)
+    except Exception as e:
+        return ok({'error': str(e), 'interest': {}, 'rising': [], 'trending': []})
 
 
 @api_bp.route('/clipping')
