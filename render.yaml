@@ -1,5 +1,12 @@
 services:
   - type: web
+    name: fbva-rss-bridge
+    env: docker
+    plan: free
+    rootDir: rss-bridge
+    autoDeploy: true
+
+  - type: web
     name: fbva-cadastro
     env: python
     plan: free

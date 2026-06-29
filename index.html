@@ -4888,8 +4888,11 @@ function _clCardHtml(n){
   const bInfo=CL_BLOCOS.find(b=>b.id===n.bloco)||CL_BLOCOS[0];
   const isYT=n.url&&n.url.includes('youtube.com');
   const isReddit=n.url&&n.url.includes('reddit.com');
-  const srcColor=isYT?'#c00':isReddit?'#FF4500':'#6c757d';
-  const srcIcon=isYT?'youtube':isReddit?'reddit':'journal';
+  const isIG=n.url&&n.url.includes('instagram.com');
+  const isTT=n.url&&n.url.includes('tiktok.com');
+  const isFB=n.url&&n.url.includes('facebook.com');
+  const srcColor=isYT?'#c00':isReddit?'#FF4500':isIG?'#E1306C':isTT?'#FF0050':isFB?'#1877F2':'#6c757d';
+  const srcIcon=isYT?'youtube':isReddit?'reddit':isIG?'instagram':isTT?'tiktok':isFB?'facebook':'journal';
   return `
   <div class="card mb-2 border-0 shadow-sm${n.lida?' opacity-60':''}" id="cl-card-${n.id}">
     <div class="card-body py-2 px-3" style="border-left:3px solid var(--bs-${bInfo.color}-border-subtle,#dee2e6)">

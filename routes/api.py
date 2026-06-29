@@ -1594,6 +1594,19 @@ CLIPPING_SOURCES = [
     {'type':'rss','url':'https://www.reddit.com/search.rss?q=carros+antigos&sort=new&limit=20', 'fonte':'Reddit · carros antigos',   'bloco':'trending','nivel':2},
     {'type':'rss','url':'https://www.reddit.com/search.rss?q=veiculos+classicos+brasil&sort=new&limit=15','fonte':'Reddit · brasil', 'bloco':'trending','nivel':2},
 
+    # ── RSS-Bridge — Instagram, TikTok e Facebook (contas e hashtags públicas) ─
+    # INSTAGRAM — contas de referência do segmento
+    {'type':'rss','url':'https://fbva-rss-bridge.onrender.com/?action=display&bridge=Instagram&context=Username&username=hagerty&format=Rss',           'fonte':'Instagram @hagerty',        'bloco':'trending','nivel':2},
+    {'type':'rss','url':'https://fbva-rss-bridge.onrender.com/?action=display&bridge=Instagram&context=Username&username=petrolicious&format=Rss',       'fonte':'Instagram @petrolicious',   'bloco':'trending','nivel':2},
+    {'type':'rss','url':'https://fbva-rss-bridge.onrender.com/?action=display&bridge=Instagram&context=Username&username=bringatrailer&format=Rss',      'fonte':'Instagram @bringatrailer',  'bloco':'trending','nivel':2},
+    # TIKTOK — contas de criadores de clássicos
+    {'type':'rss','url':'https://fbva-rss-bridge.onrender.com/?action=display&bridge=TikTok&context=By+Username&username=classiccarsofig&format=Rss',    'fonte':'TikTok @classiccarsofig',   'bloco':'trending','nivel':2},
+    # TIKTOK — hashtags (suportado nativamente no RSS-Bridge)
+    {'type':'rss','url':'https://fbva-rss-bridge.onrender.com/?action=display&bridge=TikTok&context=By+Hashtag&hashtag=carroantigo&format=Rss',          'fonte':'TikTok #carroantigo',       'bloco':'trending','nivel':2},
+    {'type':'rss','url':'https://fbva-rss-bridge.onrender.com/?action=display&bridge=TikTok&context=By+Hashtag&hashtag=classiccar&format=Rss',           'fonte':'TikTok #classiccar',        'bloco':'trending','nivel':2},
+    # FACEBOOK — páginas públicas
+    {'type':'rss','url':'https://fbva-rss-bridge.onrender.com/?action=display&bridge=Facebook&context=Page&page=Hagerty&format=Rss',                     'fonte':'Facebook Hagerty',          'bloco':'trending','nivel':2},
+
     # ── RSS diretos - mídia especializada internacional (Nível 1) ────────────
     {'type':'rss','url':'https://www.hemmings.com/feed/',             'fonte':'Hemmings Daily',         'bloco':'mercado',     'nivel':1},
     {'type':'rss','url':'https://www.hagerty.com/media/feed/',        'fonte':'Hagerty Media',          'bloco':'mercado',     'nivel':1},
