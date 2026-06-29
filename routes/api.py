@@ -1594,18 +1594,6 @@ CLIPPING_SOURCES = [
     {'type':'rss','url':'https://www.reddit.com/search.rss?q=carros+antigos&sort=new&limit=20', 'fonte':'Reddit · carros antigos',   'bloco':'trending','nivel':2},
     {'type':'rss','url':'https://www.reddit.com/search.rss?q=veiculos+classicos+brasil&sort=new&limit=15','fonte':'Reddit · brasil', 'bloco':'trending','nivel':2},
 
-    # ── RSS-Bridge — Instagram, TikTok e Facebook (contas e hashtags públicas) ─
-    # INSTAGRAM — contas de referência do segmento
-    {'type':'rss','url':'https://fbva-rss-bridge.onrender.com/?action=display&bridge=Instagram&context=Username&username=hagerty&format=Rss',           'fonte':'Instagram @hagerty',        'bloco':'trending','nivel':2},
-    {'type':'rss','url':'https://fbva-rss-bridge.onrender.com/?action=display&bridge=Instagram&context=Username&username=petrolicious&format=Rss',       'fonte':'Instagram @petrolicious',   'bloco':'trending','nivel':2},
-    {'type':'rss','url':'https://fbva-rss-bridge.onrender.com/?action=display&bridge=Instagram&context=Username&username=bringatrailer&format=Rss',      'fonte':'Instagram @bringatrailer',  'bloco':'trending','nivel':2},
-    # TIKTOK — contas de criadores de clássicos
-    {'type':'rss','url':'https://fbva-rss-bridge.onrender.com/?action=display&bridge=TikTok&context=By+Username&username=classiccarsofig&format=Rss',    'fonte':'TikTok @classiccarsofig',   'bloco':'trending','nivel':2},
-    # TIKTOK — hashtags (suportado nativamente no RSS-Bridge)
-    {'type':'rss','url':'https://fbva-rss-bridge.onrender.com/?action=display&bridge=TikTok&context=By+Hashtag&hashtag=carroantigo&format=Rss',          'fonte':'TikTok #carroantigo',       'bloco':'trending','nivel':2},
-    {'type':'rss','url':'https://fbva-rss-bridge.onrender.com/?action=display&bridge=TikTok&context=By+Hashtag&hashtag=classiccar&format=Rss',           'fonte':'TikTok #classiccar',        'bloco':'trending','nivel':2},
-    # FACEBOOK — páginas públicas
-    {'type':'rss','url':'https://fbva-rss-bridge.onrender.com/?action=display&bridge=Facebook&context=Page&page=Hagerty&format=Rss',                     'fonte':'Facebook Hagerty',          'bloco':'trending','nivel':2},
 
     # ── RSS diretos - mídia especializada internacional (Nível 1) ────────────
     {'type':'rss','url':'https://www.hemmings.com/feed/',             'fonte':'Hemmings Daily',         'bloco':'mercado',     'nivel':1},
@@ -1690,15 +1678,28 @@ def _scrape_clipping():
             elif src['type'] == 'rss':
                 r = http.get(src['url'], timeout=12, headers=headers)
                 root = ET.fromstring(r.content)
-                for item in root.findall('.//item'):
+                # Suporta RSS 2.0 (<item>) e Atom 1.0 (<entry>)
+                _AN = 'http://www.w3.org/2005/Atom'
+                items = root.findall('.//item')
+                is_atom = not items
+                if is_atom:
+                    items = root.findall(f'.//{{{_AN}}}entry') or root.findall('.//entry')
+                for item in items:
+                    if is_atom:
+                        link_el = item.find(f'{{{_AN}}}link') or item.find('link')
+                        link = (link_el.get('href','') if link_el is not None else '').strip()
+                        titulo = (item.findtext(f'{{{_AN}}}title') or item.findtext('title') or '').strip()
+                        desc   = (item.findtext(f'{{{_AN}}}summary') or item.findtext(f'{{{_AN}}}content') or '').strip()
+                        pub    = (item.findtext(f'{{{_AN}}}published') or item.findtext(f'{{{_AN}}}updated') or '').strip()
+                    else:
+                        link   = (item.findtext('link') or '').strip()
+                        titulo = (item.findtext('title') or '').strip()
+                        desc   = (item.findtext('description') or '').strip()
+                        pub    = (item.findtext('pubDate') or '').strip()
                     _save_item(
-                        titulo=(item.findtext('title') or '').strip(),
-                        link=(item.findtext('link') or '').strip(),
-                        desc=(item.findtext('description') or '').strip(),
-                        fonte=src['fonte'],
-                        pub=(item.findtext('pubDate') or '').strip(),
-                        bloco=src['bloco'],
-                        nivel=src['nivel'],
+                        titulo=titulo, link=link, desc=desc,
+                        fonte=src['fonte'], pub=pub,
+                        bloco=src['bloco'], nivel=src['nivel'],
                     )
             elif src['type'] == 'yt_channel':
                 # YouTube Atom feed - sem API key, canal específico
