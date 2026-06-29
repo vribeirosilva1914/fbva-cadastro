@@ -4765,9 +4765,15 @@ async function _removeEventoImagem(id) {
 
 // ═════════ CLIPPING DE NOTÍCIAS ══════════════════════
 let _clData=null;
-let _clFiltro='todas';   // 'todas' | 'nao_lidas'
-let _clViz='blocos';     // 'lista' | 'blocos'
+let _clFiltro='todas';    // 'todas' | 'nao_lidas'
+let _clAba='noticias';    // aba ativa
 
+const CL_ABAS=[
+  {id:'noticias',   label:'Notícias',   icon:'bi-newspaper',           blocos:['radar','mercado','restauracao','gente']},
+  {id:'legislacao', label:'Legislação', icon:'bi-shield-check',        blocos:['juridico']},
+  {id:'eventos',    label:'Eventos',    icon:'bi-calendar-event-fill', blocos:['eventos']},
+  {id:'trending',   label:'Trending',   icon:'bi-fire',                blocos:['trending']},
+];
 const CL_BLOCOS=[
   {id:'radar',       label:'Radar',             icon:'bi-broadcast-pin',        color:'danger'},
   {id:'mercado',     label:'Mercado & Leilões',  icon:'bi-graph-up-arrow',       color:'success'},
@@ -4775,6 +4781,7 @@ const CL_BLOCOS=[
   {id:'restauracao', label:'Restauração',        icon:'bi-tools',                color:'warning'},
   {id:'gente',       label:'Gente & Cultura',    icon:'bi-person-heart',         color:'info'},
   {id:'juridico',    label:'Jurídico',           icon:'bi-shield-check',         color:'secondary'},
+  {id:'trending',    label:'Trending Social',    icon:'bi-fire',                 color:'dark'},
 ];
 const CL_NIVEL={1:'Especializada',2:'Geral',3:'Técnica'};
 
@@ -4792,26 +4799,68 @@ async function renderClipping(){
 
 function _clRender(){
   if(!_clData)return;
-  if(_clViz==='blocos') _clRenderBlocos();
-  else _clRenderLista();
-}
-
-function _clToolbar(){
-  const {noticias,ultimaBusca,naoLidas}=_clData;
+  const {noticias,ultimaBusca}=_clData;
+  const aba=CL_ABAS.find(a=>a.id===_clAba)||CL_ABAS[0];
+  const naoLidasTotal=noticias.filter(n=>!n.lida).length;
   const fmtBusca=s=>{if(!s)return'nunca';const d=new Date(s);return d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});};
-  return `
+
+  let lista=noticias.filter(n=>aba.blocos.includes(n.bloco||'radar'));
+  if(_clFiltro==='nao_lidas') lista=lista.filter(n=>!n.lida);
+
+  // conteúdo da aba
+  let conteudo;
+  if(!lista.length){
+    conteudo=`<div class="text-center py-5 text-muted">
+      <i class="bi bi-newspaper display-4 d-block mb-3 opacity-25"></i>
+      <p class="mb-0">${_clFiltro==='nao_lidas'?'Nenhuma notícia não lida nesta aba.':'Nenhuma notícia. Clique em <strong>Buscar novas</strong>.'}</p>
+    </div>`;
+  } else if(aba.blocos.length>1){
+    // aba com múltiplos blocos: sub-seções por bloco
+    const byBloco={};
+    CL_BLOCOS.filter(b=>aba.blocos.includes(b.id)).forEach(b=>byBloco[b.id]=[]);
+    lista.forEach(n=>{const b=n.bloco||'radar';if(byBloco[b])byBloco[b].push(n);});
+    conteudo=CL_BLOCOS.filter(b=>aba.blocos.includes(b.id)).map(b=>{
+      const items=byBloco[b.id]||[];
+      if(!items.length)return'';
+      const nl=items.filter(n=>!n.lida).length;
+      return`<div class="card shadow-sm mb-3">
+        <div class="card-header py-2 d-flex align-items-center gap-2"
+             style="border-left:4px solid var(--bs-${b.color}-border-subtle,#6c757d)">
+          <i class="bi ${b.icon} text-${b.color}"></i>
+          <span class="fw-semibold small">${b.label}</span>
+          <span class="badge bg-${b.color}-subtle text-${b.color} border ms-1" style="font-size:.65rem">${items.length}</span>
+          ${nl>0?`<span class="badge bg-danger" style="font-size:.6rem">${nl} nova${nl!==1?'s':''}</span>`:''}
+        </div>
+        <div class="card-body p-2">${items.map(_clCardHtml).join('')}</div>
+      </div>`;
+    }).join('');
+  } else {
+    // aba de bloco único: lista plana
+    conteudo=`<div>${lista.map(_clCardHtml).join('')}</div>`;
+  }
+
+  // abas com contadores
+  const tabsHtml=CL_ABAS.map(a=>{
+    const cnt=noticias.filter(n=>a.blocos.includes(n.bloco||'radar')).length;
+    const unread=noticias.filter(n=>a.blocos.includes(n.bloco||'radar')&&!n.lida).length;
+    const active=a.id===_clAba;
+    return`<li class="nav-item">
+      <button class="nav-link px-3 py-2${active?' active':''}${cnt===0?' text-muted':''}"
+              onclick="App._clSetAba('${a.id}')">
+        <i class="bi ${a.icon} me-1"></i>${a.label}
+        ${cnt>0?`<span class="badge ${active?'bg-primary text-white':'bg-secondary-subtle text-secondary'} ms-1" style="font-size:.6rem">${cnt}</span>`:''}
+        ${unread>0?`<span class="badge bg-danger ms-1" style="font-size:.6rem">${unread}</span>`:''}
+      </button>
+    </li>`;
+  }).join('');
+
+  render(`
   <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
     <div class="btn-group btn-group-sm">
       <button class="btn btn-outline-secondary${_clFiltro==='todas'?' active':''}" onclick="App._clFiltrar('todas')">
         Todas <span class="badge bg-secondary ms-1">${noticias.length}</span></button>
       <button class="btn btn-outline-secondary${_clFiltro==='nao_lidas'?' active':''}" onclick="App._clFiltrar('nao_lidas')">
-        Não lidas${naoLidas>0?` <span class="badge bg-danger ms-1">${naoLidas}</span>`:''}</button>
-    </div>
-    <div class="btn-group btn-group-sm" title="Modo de visualização">
-      <button class="btn btn-outline-secondary${_clViz==='lista'?' active':''}" onclick="App._clSetViz('lista')" title="Lista">
-        <i class="bi bi-list-ul"></i></button>
-      <button class="btn btn-outline-secondary${_clViz==='blocos'?' active':''}" onclick="App._clSetViz('blocos')" title="Blocos">
-        <i class="bi bi-grid-3x2-gap"></i></button>
+        Não lidas${naoLidasTotal>0?` <span class="badge bg-danger ms-1">${naoLidasTotal}</span>`:''}</button>
     </div>
     <button class="btn btn-primary btn-sm ms-auto" id="cl-btn-buscar" onclick="App._clBuscar()">
       <i class="bi bi-arrow-clockwise me-1"></i>Buscar novas</button>
@@ -4821,12 +4870,17 @@ function _clToolbar(){
       <i class="bi bi-clock me-1"></i>Atualizado: <strong>${fmtBusca(ultimaBusca)}</strong>
     </span>
     <div class="d-flex gap-2 flex-wrap">
-      ${naoLidas>0?`<button class="btn btn-sm btn-outline-secondary" onclick="App._clMarcarTodasLidas()">
+      ${naoLidasTotal>0?`<button class="btn btn-sm btn-outline-secondary" onclick="App._clMarcarTodasLidas()">
         <i class="bi bi-check2-all me-1"></i><span class="d-none d-sm-inline">Marcar todas </span>lidas</button>`:''}
       <button class="btn btn-sm btn-outline-danger" onclick="App._clLimpar()">
         <i class="bi bi-trash me-1"></i><span class="d-none d-sm-inline">Limpar</span></button>
     </div>
-  </div>`;
+  </div>
+  <ul class="nav nav-tabs mb-3">
+    ${tabsHtml}
+  </ul>
+  ${conteudo}
+  `);
 }
 
 function _clCardHtml(n){
@@ -4858,66 +4912,7 @@ function _clCardHtml(n){
   </div>`;
 }
 
-function _clRenderLista(){
-  const {noticias}=_clData;
-  const lista=_clFiltro==='nao_lidas'?noticias.filter(n=>!n.lida):noticias;
-  render(`${_clToolbar()}
-  ${!lista.length?`
-  <div class="text-center py-5 text-muted">
-    <i class="bi bi-newspaper display-4 d-block mb-3 opacity-25"></i>
-    <p class="mb-0">${_clFiltro==='nao_lidas'?'Nenhuma notícia não lida.':'Nenhuma notícia. Clique em <strong>Buscar novas</strong>.'}</p>
-  </div>`:`<div>${lista.map(_clCardHtml).join('')}</div>`}
-  `);
-}
-
-function _clRenderBlocos(){
-  const {noticias}=_clData;
-  const lista=_clFiltro==='nao_lidas'?noticias.filter(n=>!n.lida):noticias;
-
-  // agrupa por bloco
-  const byBloco={};
-  CL_BLOCOS.forEach(b=>byBloco[b.id]=[]);
-  lista.forEach(n=>{const b=n.bloco||'radar';(byBloco[b]||byBloco['radar']).push(n);});
-
-  const blocoHtml=b=>{
-    const items=byBloco[b.id]||[];
-    const naoLidasBloco=items.filter(n=>!n.lida).length;
-    return `
-    <div class="card shadow-sm mb-3">
-      <div class="card-header py-2 d-flex align-items-center gap-2"
-           style="border-left:4px solid;border-left-color:var(--cl-${b.id}-color,#6c757d)">
-        <i class="bi ${b.icon} text-${b.color}"></i>
-        <span class="fw-semibold small">${b.label}</span>
-        <span class="badge bg-${b.color}-subtle text-${b.color} border ms-1" style="font-size:.65rem">${items.length}</span>
-        ${naoLidasBloco>0?`<span class="badge bg-danger" style="font-size:.6rem">${naoLidasBloco} nova${naoLidasBloco!==1?'s':''}</span>`:''}
-      </div>
-      <div class="card-body p-2">
-        ${!items.length
-          ?`<p class="text-muted text-center small mb-0 py-2"><i class="bi bi-inbox me-1"></i>Sem notícias neste bloco.</p>`
-          :items.map(_clCardHtml).join('')}
-      </div>
-    </div>`;
-  };
-
-  const totalItens=lista.length;
-  render(`${_clToolbar()}
-  ${!totalItens?`
-  <div class="text-center py-5 text-muted">
-    <i class="bi bi-newspaper display-4 d-block mb-3 opacity-25"></i>
-    <p class="mb-0">${_clFiltro==='nao_lidas'?'Nenhuma notícia não lida.':'Nenhuma notícia. Clique em <strong>Buscar novas</strong>.'}</p>
-  </div>`:`
-  <style>
-    :root{--cl-radar-color:#dc3545;--cl-mercado-color:#198754;--cl-eventos-color:#0d6efd;
-          --cl-restauracao-color:#ffc107;--cl-gente-color:#0dcaf0;--cl-juridico-color:#6c757d}
-  </style>
-  ${CL_BLOCOS.map(blocoHtml).join('')}`}
-  `);
-}
-
-function _clSetViz(viz){
-  _clViz=viz;
-  _clRender();
-}
+function _clSetAba(aba){_clAba=aba;_clRender();}
 
 async function _clBuscar(){
   const btn=document.getElementById('cl-btn-buscar');
@@ -4927,7 +4922,7 @@ async function _clBuscar(){
     toast(`Busca concluída - ${r.novos} nova${r.novos!==1?'s':''} notícia${r.novos!==1?'s':''} encontrada${r.novos!==1?'s':''}.`);
     const res=await Api.get('/api/clipping');
     _clData=res;
-    _clRender(); // re-render cria novo botão já habilitado
+    _clRender();
   } catch(e){
     toast(e.message,'danger');
     const b=document.getElementById('cl-btn-buscar');
@@ -4935,10 +4930,7 @@ async function _clBuscar(){
   }
 }
 
-function _clFiltrar(f){
-  _clFiltro=f;
-  _clRender();
-}
+function _clFiltrar(f){_clFiltro=f;_clRender();}
 
 async function _clMarcarLida(id,lida){
   try{
