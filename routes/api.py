@@ -1577,13 +1577,22 @@ CLIPPING_SOURCES = [
     {'type':'gnews','query':'"Diário Oficial" carro clássico OR veículo histórico',             'bloco':'juridico',    'nivel':3},
 
     # ── Bloco TRENDING (redes sociais e conteúdo viral) ──────────────────────
-    {'type':'gnews','query':'carros antigos viral Instagram OR TikTok OR YouTube Brasil',       'bloco':'trending',    'nivel':2},
-    {'type':'gnews','query':'"carros clássicos" hashtag OR tendência redes sociais',            'bloco':'trending',    'nivel':2},
-    {'type':'gnews','query':'classic car viral video trending social media',                    'bloco':'trending',    'nivel':2},
-    {'type':'gnews','query':'carros antigos influencer OR creator OR "canal YouTube"',          'bloco':'trending',    'nivel':2},
-    {'type':'gnews','query':'"veículos antigos" OR "carros clássicos" TikTok OR Instagram 2025','bloco':'trending',   'nivel':2},
-    {'type':'yt_search','query':'carros antigos viral trending brasil',                         'bloco':'trending',    'nivel':2},
-    {'type':'yt_search','query':'classic car viral trending social media 2025',                 'bloco':'trending',    'nivel':2},
+    # Google News — captura menções a redes sociais
+    {'type':'gnews','query':'carros antigos viral Instagram OR TikTok OR YouTube Brasil',        'bloco':'trending',   'nivel':2},
+    {'type':'gnews','query':'"carros clássicos" hashtag OR tendência redes sociais',             'bloco':'trending',   'nivel':2},
+    {'type':'gnews','query':'classic car viral video trending social media',                     'bloco':'trending',   'nivel':2},
+    {'type':'gnews','query':'carros antigos influencer OR creator OR "canal YouTube"',           'bloco':'trending',   'nivel':2},
+    {'type':'gnews','query':'"veículos antigos" OR "carros clássicos" TikTok OR Instagram 2025', 'bloco':'trending',  'nivel':2},
+    # YouTube (requer YOUTUBE_API_KEY)
+    {'type':'yt_search','query':'carros antigos viral trending brasil',                          'bloco':'trending',   'nivel':2},
+    {'type':'yt_search','query':'classic car viral trending social media 2025',                  'bloco':'trending',   'nivel':2},
+    # Reddit — comunidade internacional com RSS público
+    {'type':'rss','url':'https://www.reddit.com/r/classiccars/.rss?limit=25',                   'fonte':'Reddit · r/classiccars',    'bloco':'trending','nivel':2},
+    {'type':'rss','url':'https://www.reddit.com/r/vintagecar/.rss?limit=25',                    'fonte':'Reddit · r/vintagecar',     'bloco':'trending','nivel':2},
+    {'type':'rss','url':'https://www.reddit.com/r/projectcar/.rss?limit=25',                    'fonte':'Reddit · r/projectcar',     'bloco':'trending','nivel':2},
+    {'type':'rss','url':'https://www.reddit.com/r/restauracion/.rss?limit=20',                  'fonte':'Reddit · r/restauracion',   'bloco':'trending','nivel':2},
+    {'type':'rss','url':'https://www.reddit.com/search.rss?q=carros+antigos&sort=new&limit=20', 'fonte':'Reddit · carros antigos',   'bloco':'trending','nivel':2},
+    {'type':'rss','url':'https://www.reddit.com/search.rss?q=veiculos+classicos+brasil&sort=new&limit=15','fonte':'Reddit · brasil', 'bloco':'trending','nivel':2},
 
     # ── RSS diretos - mídia especializada internacional (Nível 1) ────────────
     {'type':'rss','url':'https://www.hemmings.com/feed/',             'fonte':'Hemmings Daily',         'bloco':'mercado',     'nivel':1},

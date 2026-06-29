@@ -4887,11 +4887,14 @@ function _clCardHtml(n){
   const fmtDt=s=>{if(!s)return'-';return new Date(s).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});};
   const bInfo=CL_BLOCOS.find(b=>b.id===n.bloco)||CL_BLOCOS[0];
   const isYT=n.url&&n.url.includes('youtube.com');
+  const isReddit=n.url&&n.url.includes('reddit.com');
+  const srcColor=isYT?'#c00':isReddit?'#FF4500':'#6c757d';
+  const srcIcon=isYT?'youtube':isReddit?'reddit':'journal';
   return `
   <div class="card mb-2 border-0 shadow-sm${n.lida?' opacity-60':''}" id="cl-card-${n.id}">
     <div class="card-body py-2 px-3" style="border-left:3px solid var(--bs-${bInfo.color}-border-subtle,#dee2e6)">
       <div class="d-flex align-items-center gap-2 mb-1">
-        ${n.fonte?`<span class="text-truncate" style="font-size:.7rem;max-width:60%;color:${isYT?'#c00':'#6c757d'}"><i class="bi bi-${isYT?'youtube':'journal'} me-1"></i>${esc(n.fonte)}</span>`:''}
+        ${n.fonte?`<span class="text-truncate" style="font-size:.7rem;max-width:60%;color:${srcColor}"><i class="bi bi-${srcIcon} me-1"></i>${esc(n.fonte)}</span>`:''}
         <span class="ms-auto text-muted" style="font-size:.7rem;white-space:nowrap">${fmtDt(n.publicadoEm)}</span>
         <span class="badge rounded-pill" style="font-size:.6rem;background:#f0f0f0;color:#666">${CL_NIVEL[n.nivel]||'Esp.'}</span>
       </div>
