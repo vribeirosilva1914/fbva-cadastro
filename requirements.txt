@@ -7,3 +7,4 @@ gunicorn>=21.0
 requests>=2.31
 psycopg2-binary>=2.9
 pytrends>=4.9
+openpyxl>=3.1

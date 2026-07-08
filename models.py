@@ -45,6 +45,10 @@ class Usuario(UserMixin, db.Model):
         """Acesso à área Técnica: admin e técnico."""
         return self.perfil in ('admin', 'tecnico')
 
+    def pode_cvcol(self):
+        """Acesso ao Controle de CVCOL: apenas admin e secretaria."""
+        return self.perfil in ('admin', 'secretaria')
+
 
 class Clube(db.Model):
     __tablename__ = 'clubes'
@@ -639,6 +643,51 @@ class ArquivoBiblioteca(db.Model):
     enviado_em     = db.Column(db.DateTime, default=datetime.utcnow)
 
     enviado_por = db.relationship('Usuario', foreign_keys=[enviado_por_id])
+
+
+class ProcessoCVCOL(db.Model):
+    __tablename__ = 'processos_cvcol'
+
+    TIPOS_VEICULO = {
+        'automovel':   'Automóvel',
+        'motocicleta': 'Motocicleta',
+    }
+
+    STATUS = {
+        'pendente':     'Pendente',
+        'em_andamento': 'Em andamento',
+        'concluido':    'Concluído',
+        'cancelado':    'Cancelado',
+    }
+
+    PAGAMENTO_STATUS = {
+        'pago':     'Pago',
+        'pendente': 'Pendente',
+    }
+
+    id                    = db.Column(db.Integer, primary_key=True)
+    numero                = db.Column(db.String(30), unique=True, nullable=False)
+    tipo_veiculo          = db.Column(db.String(12), nullable=False)   # automovel | motocicleta
+    placa                 = db.Column(db.String(10), nullable=False)
+    marca                 = db.Column(db.String(100), nullable=False)
+    modelo                = db.Column(db.String(150), nullable=False)
+    ano                   = db.Column(db.Integer, nullable=True)
+    clube_id              = db.Column(db.Integer, db.ForeignKey('clubes.id', ondelete='CASCADE'), nullable=False)
+    data_entrada          = db.Column(db.Date, nullable=False)
+    valor                 = db.Column(db.Numeric(10, 2), nullable=True)
+    pagamento_status      = db.Column(db.String(20), default='pendente', nullable=False)
+    data_pagamento        = db.Column(db.Date, nullable=True)
+    comprovante_filename  = db.Column(db.String(300), nullable=True)
+    diretor_id            = db.Column(db.Integer, db.ForeignKey('diretores_fbva.id', ondelete='SET NULL'), nullable=True)
+    status                = db.Column(db.String(20), default='pendente', nullable=False)
+    observacoes           = db.Column(db.Text, nullable=True)
+    criado_por_id         = db.Column(db.Integer, db.ForeignKey('usuarios.id', ondelete='SET NULL'), nullable=True)
+    criado_em             = db.Column(db.DateTime, default=datetime.utcnow)
+    atualizado_em         = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    clube      = db.relationship('Clube', foreign_keys=[clube_id])
+    diretor    = db.relationship('DiretorFBVA', foreign_keys=[diretor_id])
+    criado_por = db.relationship('Usuario', foreign_keys=[criado_por_id])
 
 
 @login_manager.user_loader

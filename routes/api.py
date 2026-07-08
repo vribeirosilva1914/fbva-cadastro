@@ -3,7 +3,7 @@ import uuid
 import secrets
 import requests as http
 from datetime import datetime, timedelta
-from flask import Blueprint, jsonify, request, current_app, send_from_directory
+from flask import Blueprint, jsonify, request, current_app, send_from_directory, send_file
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -15,7 +15,8 @@ from models import (Usuario, Clube, WaLog, EmailLog, Config, FinanceiroClube,
                     ContatoWA, ConversacaoWA, MensagemWA, Evento,
                     AgendaConteudo, RecorrenciaConteudo, DiretorFBVA,
                     TicketOuvidoria, TicketResposta, DocumentoFBVA,
-                    RelatorioFinanceiro, VeiculoBiblioteca, ArquivoBiblioteca)
+                    RelatorioFinanceiro, VeiculoBiblioteca, ArquivoBiblioteca,
+                    ProcessoCVCOL)
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -3305,3 +3306,319 @@ def biblioteca_arquivo_excluir(aid):
     db.session.delete(a)
     db.session.commit()
     return ok()
+
+
+# ── Controle de CVCOL ─────────────────────────────────────────────────────────
+
+def _cvcol_dict(p):
+    return {
+        'id':              p.id,
+        'numero':          p.numero,
+        'tipoVeiculo':     p.tipo_veiculo,
+        'placa':           p.placa,
+        'marca':           p.marca,
+        'modelo':          p.modelo,
+        'ano':             p.ano,
+        'clubeId':         p.clube_id,
+        'clubeNome':       p.clube.nome_clube if p.clube else None,
+        'dataEntrada':     p.data_entrada.isoformat() if p.data_entrada else None,
+        'valor':           str(p.valor) if p.valor is not None else None,
+        'pagamentoStatus': p.pagamento_status,
+        'dataPagamento':   p.data_pagamento.isoformat() if p.data_pagamento else None,
+        'comprovanteUrl':  f'/api/cvcol/{p.id}/comprovante' if p.comprovante_filename else None,
+        'diretorId':       p.diretor_id,
+        'diretorNome':     p.diretor.nome if p.diretor else None,
+        'status':          p.status,
+        'observacoes':     p.observacoes,
+        'criadoPor':       p.criado_por.nome if p.criado_por else None,
+        'criadoEm':        p.criado_em.isoformat() if p.criado_em else None,
+        'atualizadoEm':    p.atualizado_em.isoformat() if p.atualizado_em else None,
+    }
+
+
+def _cvcol_query_filtrada():
+    q = ProcessoCVCOL.query
+    clube_id  = request.args.get('clubeId', '').strip()
+    status    = request.args.get('status', '').strip()
+    pagamento = request.args.get('pagamentoStatus', '').strip()
+    tipo      = request.args.get('tipoVeiculo', '').strip()
+    texto     = request.args.get('q', '').strip()
+    if clube_id:
+        try:
+            q = q.filter(ProcessoCVCOL.clube_id == int(clube_id))
+        except ValueError:
+            pass
+    if status:
+        q = q.filter(ProcessoCVCOL.status == status)
+    if pagamento:
+        q = q.filter(ProcessoCVCOL.pagamento_status == pagamento)
+    if tipo:
+        q = q.filter(ProcessoCVCOL.tipo_veiculo == tipo)
+    if texto:
+        like = f'%{texto}%'
+        q = q.filter(db.or_(
+            ProcessoCVCOL.numero.ilike(like),
+            ProcessoCVCOL.placa.ilike(like),
+            ProcessoCVCOL.marca.ilike(like),
+            ProcessoCVCOL.modelo.ilike(like),
+        ))
+    return q.order_by(ProcessoCVCOL.data_entrada.desc(), ProcessoCVCOL.id.desc())
+
+
+@api_bp.route('/cvcol', methods=['GET'])
+@login_required
+def cvcol_list():
+    if not current_user.pode_cvcol():
+        return err('Sem permissão.', 403)
+    processos = _cvcol_query_filtrada().all()
+    return ok([_cvcol_dict(p) for p in processos])
+
+
+@api_bp.route('/cvcol', methods=['POST'])
+@login_required
+def cvcol_criar():
+    if not current_user.pode_cvcol():
+        return err('Sem permissão.', 403)
+    j = request.json or {}
+    numero       = (j.get('numero') or '').strip()
+    tipo_veiculo = (j.get('tipoVeiculo') or '').strip()
+    placa        = (j.get('placa') or '').strip().upper()
+    marca        = (j.get('marca') or '').strip()
+    modelo       = (j.get('modelo') or '').strip()
+    clube_id     = j.get('clubeId')
+    data_entrada = parse_date(j.get('dataEntrada'))
+    if not numero:
+        return err('O número do processo é obrigatório.')
+    if ProcessoCVCOL.query.filter_by(numero=numero).first():
+        return err('Já existe um processo com esse número.')
+    if tipo_veiculo not in ProcessoCVCOL.TIPOS_VEICULO:
+        return err('Tipo de veículo inválido.')
+    if not placa or not marca or not modelo:
+        return err('Placa, marca e modelo são obrigatórios.')
+    if not clube_id or not db.session.get(Clube, clube_id):
+        return err('Clube emissor não encontrado.', 404)
+    if not data_entrada:
+        return err('A data de entrada é obrigatória.')
+    diretor_id = j.get('diretorId') or None
+    if diretor_id and not db.session.get(DiretorFBVA, diretor_id):
+        return err('Diretor não encontrado.', 404)
+    status = (j.get('status') or 'pendente').strip()
+    if status not in ProcessoCVCOL.STATUS:
+        return err('Status inválido.')
+    pagamento_status = (j.get('pagamentoStatus') or 'pendente').strip()
+    if pagamento_status not in ProcessoCVCOL.PAGAMENTO_STATUS:
+        return err('Status de pagamento inválido.')
+    p = ProcessoCVCOL(
+        numero=numero,
+        tipo_veiculo=tipo_veiculo,
+        placa=placa,
+        marca=marca,
+        modelo=modelo,
+        ano=int(j['ano']) if j.get('ano') else None,
+        clube_id=int(clube_id),
+        data_entrada=data_entrada,
+        valor=j.get('valor') or None,
+        pagamento_status=pagamento_status,
+        data_pagamento=parse_date(j.get('dataPagamento')),
+        diretor_id=int(diretor_id) if diretor_id else None,
+        status=status,
+        observacoes=(j.get('observacoes') or '').strip() or None,
+        criado_por_id=current_user.id,
+    )
+    db.session.add(p)
+    db.session.commit()
+    return ok(_cvcol_dict(p), 201)
+
+
+@api_bp.route('/cvcol/<int:pid>', methods=['GET'])
+@login_required
+def cvcol_get(pid):
+    if not current_user.pode_cvcol():
+        return err('Sem permissão.', 403)
+    p = db.session.get(ProcessoCVCOL, pid)
+    if not p:
+        return err('Processo não encontrado.', 404)
+    return ok(_cvcol_dict(p))
+
+
+@api_bp.route('/cvcol/<int:pid>', methods=['PUT'])
+@login_required
+def cvcol_editar(pid):
+    if not current_user.pode_cvcol():
+        return err('Sem permissão.', 403)
+    p = db.session.get(ProcessoCVCOL, pid)
+    if not p:
+        return err('Processo não encontrado.', 404)
+    j = request.json or {}
+    if 'numero' in j:
+        numero = (j['numero'] or '').strip()
+        if not numero:
+            return err('O número do processo é obrigatório.')
+        dup = ProcessoCVCOL.query.filter(ProcessoCVCOL.numero == numero, ProcessoCVCOL.id != pid).first()
+        if dup:
+            return err('Já existe um processo com esse número.')
+        p.numero = numero
+    if 'tipoVeiculo' in j:
+        if j['tipoVeiculo'] not in ProcessoCVCOL.TIPOS_VEICULO:
+            return err('Tipo de veículo inválido.')
+        p.tipo_veiculo = j['tipoVeiculo']
+    if 'placa'  in j: p.placa  = (j['placa']  or '').strip().upper()
+    if 'marca'  in j: p.marca  = (j['marca']  or '').strip()
+    if 'modelo' in j: p.modelo = (j['modelo'] or '').strip()
+    if 'ano'    in j: p.ano    = int(j['ano']) if j['ano'] else None
+    if 'clubeId' in j:
+        if not db.session.get(Clube, j['clubeId']):
+            return err('Clube não encontrado.', 404)
+        p.clube_id = int(j['clubeId'])
+    if 'dataEntrada' in j:
+        data_entrada = parse_date(j['dataEntrada'])
+        if not data_entrada:
+            return err('Data de entrada inválida.')
+        p.data_entrada = data_entrada
+    if 'valor' in j: p.valor = j['valor'] or None
+    if 'pagamentoStatus' in j:
+        if j['pagamentoStatus'] not in ProcessoCVCOL.PAGAMENTO_STATUS:
+            return err('Status de pagamento inválido.')
+        p.pagamento_status = j['pagamentoStatus']
+    if 'dataPagamento' in j: p.data_pagamento = parse_date(j['dataPagamento'])
+    if 'diretorId' in j:
+        diretor_id = j['diretorId'] or None
+        if diretor_id and not db.session.get(DiretorFBVA, diretor_id):
+            return err('Diretor não encontrado.', 404)
+        p.diretor_id = int(diretor_id) if diretor_id else None
+    if 'status' in j:
+        if j['status'] not in ProcessoCVCOL.STATUS:
+            return err('Status inválido.')
+        p.status = j['status']
+    if 'observacoes' in j: p.observacoes = (j['observacoes'] or '').strip() or None
+    p.atualizado_em = datetime.utcnow()
+    db.session.commit()
+    return ok(_cvcol_dict(p))
+
+
+@api_bp.route('/cvcol/<int:pid>', methods=['DELETE'])
+@login_required
+def cvcol_excluir(pid):
+    if not current_user.pode_cvcol():
+        return err('Sem permissão.', 403)
+    p = db.session.get(ProcessoCVCOL, pid)
+    if not p:
+        return err('Processo não encontrado.', 404)
+    if p.comprovante_filename:
+        try:
+            os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], p.comprovante_filename))
+        except OSError:
+            pass
+    db.session.delete(p)
+    db.session.commit()
+    return ok()
+
+
+@api_bp.route('/cvcol/<int:pid>/comprovante', methods=['GET'])
+@login_required
+def cvcol_comprovante_get(pid):
+    if not current_user.pode_cvcol():
+        return err('Sem permissão.', 403)
+    p = db.session.get(ProcessoCVCOL, pid)
+    if not p or not p.comprovante_filename:
+        return err('Comprovante não encontrado.', 404)
+    force_download = request.args.get('download') == '1'
+    return send_from_directory(
+        current_app.config['UPLOAD_FOLDER'], p.comprovante_filename,
+        as_attachment=force_download,
+    )
+
+
+@api_bp.route('/cvcol/<int:pid>/comprovante', methods=['POST'])
+@login_required
+def cvcol_comprovante_upload(pid):
+    if not current_user.pode_cvcol():
+        return err('Sem permissão.', 403)
+    p = db.session.get(ProcessoCVCOL, pid)
+    if not p:
+        return err('Processo não encontrado.', 404)
+    f = request.files.get('arquivo')
+    if not f or not f.filename:
+        return err('Nenhum arquivo enviado.')
+    ext = os.path.splitext(secure_filename(f.filename))[1].lower()
+    if ext not in {'.pdf', '.jpg', '.jpeg', '.png'}:
+        return err('Apenas PDF ou imagem (JPG/PNG) são aceitos.')
+    if p.comprovante_filename:
+        try:
+            os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], p.comprovante_filename))
+        except OSError:
+            pass
+    unique = f'cvcol_comprovante_{pid}_{uuid.uuid4().hex[:8]}{ext}'
+    f.save(os.path.join(current_app.config['UPLOAD_FOLDER'], unique))
+    p.comprovante_filename = unique
+    db.session.commit()
+    return ok({'comprovanteUrl': f'/api/cvcol/{pid}/comprovante'})
+
+
+@api_bp.route('/cvcol/<int:pid>/comprovante', methods=['DELETE'])
+@login_required
+def cvcol_comprovante_excluir(pid):
+    if not current_user.pode_cvcol():
+        return err('Sem permissão.', 403)
+    p = db.session.get(ProcessoCVCOL, pid)
+    if not p or not p.comprovante_filename:
+        return err('Comprovante não encontrado.', 404)
+    try:
+        os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], p.comprovante_filename))
+    except OSError:
+        pass
+    p.comprovante_filename = None
+    db.session.commit()
+    return ok()
+
+
+@api_bp.route('/cvcol/exportar', methods=['GET'])
+@login_required
+def cvcol_exportar():
+    if not current_user.pode_cvcol():
+        return err('Sem permissão.', 403)
+    from io import BytesIO
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+
+    processos = _cvcol_query_filtrada().all()
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Processos CVCOL'
+    cabecalho = ['Número', 'Tipo de Veículo', 'Placa', 'Marca', 'Modelo', 'Ano',
+                 'Clube Emissor', 'Data de Entrada', 'Valor', 'Pagamento',
+                 'Data de Pagamento', 'Diretor Encaminhado', 'Status', 'Observações']
+    ws.append(cabecalho)
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+    for p in processos:
+        ws.append([
+            p.numero,
+            ProcessoCVCOL.TIPOS_VEICULO.get(p.tipo_veiculo, p.tipo_veiculo),
+            p.placa,
+            p.marca,
+            p.modelo,
+            p.ano,
+            p.clube.nome_clube if p.clube else '',
+            p.data_entrada.strftime('%d/%m/%Y') if p.data_entrada else '',
+            float(p.valor) if p.valor is not None else None,
+            ProcessoCVCOL.PAGAMENTO_STATUS.get(p.pagamento_status, p.pagamento_status),
+            p.data_pagamento.strftime('%d/%m/%Y') if p.data_pagamento else '',
+            p.diretor.nome if p.diretor else '',
+            ProcessoCVCOL.STATUS.get(p.status, p.status),
+            p.observacoes or '',
+        ])
+    for col in ws.columns:
+        largura = max((len(str(c.value)) for c in col if c.value is not None), default=10)
+        ws.column_dimensions[col[0].column_letter].width = min(largura + 2, 50)
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    nome_arquivo = f'cvcol_processos_{datetime.utcnow().strftime("%Y%m%d_%H%M")}.xlsx'
+    return send_file(
+        buf,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=nome_arquivo,
+    )

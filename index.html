@@ -302,6 +302,7 @@ body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;font-size:
       <button class="nl" id="nav-agenda" onclick="App.go('agenda')"><i class="bi bi-calendar2-week-fill"></i><span>Agenda de Conteúdo</span></button>
       <div class="nav-sec mt-2" id="nav-sec-tecnica">Técnica</div>
       <button class="nl" id="nav-biblioteca" onclick="App.go('biblioteca-tecnica')"><i class="bi bi-book-fill"></i><span>Biblioteca Técnica</span></button>
+      <button class="nl" id="nav-cvcol" onclick="App.go('cvcol')"><i class="bi bi-file-earmark-medical-fill"></i><span>Controle de CVCOL</span></button>
       <div class="nav-sec mt-2" id="nav-adm-label">Administração</div>
       <button class="nl" id="nav-usuarios" onclick="App.go('usuarios')"><i class="bi bi-people-fill"></i><span>Usuários</span></button>
       <button class="nl" id="nav-novo-usuario" onclick="App.go('usuario-form')"><i class="bi bi-person-plus-fill"></i><span>Novo Usuário</span></button>
@@ -821,6 +822,7 @@ const pode={
   financeiro:()=>['admin','secretaria'].includes(state.user?.perfil),
   documentos:()=>['admin','secretaria'].includes(state.user?.perfil),
   tecnica:()=>['admin','tecnico'].includes(state.user?.perfil),
+  cvcol:()=>['admin','secretaria'].includes(state.user?.perfil),
   excluir:()=>state.user?.perfil==='admin',
   usuarios:()=>state.user?.perfil==='admin',
   diretoria:()=>state.user?.perfil!=='comunicacao'&&['admin','secretaria','comunicacao','operador'].includes(state.user?.perfil),
@@ -842,10 +844,9 @@ function showApp() {
     const el=document.getElementById(id);
     if(el) el.style.display=pode.comunicacao()?'':'none';
   });
-  ['nav-sec-tecnica','nav-biblioteca'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.style.display=pode.tecnica()?'':'none';
-  });
+  document.getElementById('nav-biblioteca').style.display=pode.tecnica()?'':'none';
+  document.getElementById('nav-cvcol').style.display=pode.cvcol()?'':'none';
+  document.getElementById('nav-sec-tecnica').style.display=(pode.tecnica()||pode.cvcol())?'':'none';
   ['nav-adm-label','nav-usuarios','nav-novo-usuario'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.style.display=pode.usuarios()?'':'none';
@@ -867,7 +868,8 @@ function activateNav(v) {
     eventos:'[onclick*="eventos"]','evento-form':'[onclick*="eventos"]',
     'biblioteca-tecnica':'[onclick*="biblioteca-tecnica"]',
     'biblioteca-veiculo':'[onclick*="biblioteca-tecnica"]',
-    'biblioteca-veiculo-form':'[onclick*="biblioteca-tecnica"]'};
+    'biblioteca-veiculo-form':'[onclick*="biblioteca-tecnica"]',
+    'cvcol':'[onclick*="\'cvcol\'"]','cvcol-form':'[onclick*="\'cvcol\'"]'};
   const sel=map[v];
   if(sel) document.querySelector(`.sb-nav ${sel}`)?.classList.add('active');
 }
@@ -1162,6 +1164,8 @@ async function go(view,id=null) {
     else if(view==='biblioteca-tecnica')      await renderBibliotecaTecnica();
     else if(view==='biblioteca-veiculo')      await renderBibliotecaVeiculo(id);
     else if(view==='biblioteca-veiculo-form') await renderBibliotecaVeiculoForm(id);
+    else if(view==='cvcol')                   await renderCvcol();
+    else if(view==='cvcol-form')              await renderCvcolForm(id);
   } catch(e) { toast(e.message,'danger'); }
   window.scrollTo(0,0);
 }
@@ -2149,7 +2153,7 @@ async function renderUsuarioForm(id=null) {
           <div class="mb-3">
             <label class="form-label req">Perfil de acesso</label>
             <select name="perfil" class="form-select" required>
-              <option value="secretaria"${!v.perfil||v.perfil==='secretaria'?' selected':''}>Secretaria - Cadastro, financeiro e documentos</option>
+              <option value="secretaria"${!v.perfil||v.perfil==='secretaria'?' selected':''}>Secretaria - Cadastro, financeiro, documentos e CVCOL</option>
               <option value="comunicacao"${v.perfil==='comunicacao'?' selected':''}>Comunicação - Cadastro e mensageiros</option>
               <option value="tecnico"${v.perfil==='tecnico'?' selected':''}>Técnico - Biblioteca técnica de veículos</option>
               <option value="admin"${v.perfil==='admin'?' selected':''}>Administrador - Acesso total</option>
@@ -6783,6 +6787,298 @@ async function saveBibliotecaVeiculo(id) {
   }
 }
 
+// ═════════ Controle de CVCOL ═════════════════════
+const CVCOL_TIPOS=[['automovel','Automóvel'],['motocicleta','Motocicleta']];
+const CVCOL_STATUS=[['pendente','Pendente'],['em_andamento','Em andamento'],['concluido','Concluído'],['cancelado','Cancelado']];
+const CVCOL_PAGAMENTO=[['pendente','Pendente'],['pago','Pago']];
+
+let _cvcolAll=[], _cvcolFiltros={clubeId:'',status:'',pagamentoStatus:'',tipoVeiculo:'',q:''};
+
+function _cvcolStatusBadge(s){
+  const map={pendente:'secondary',em_andamento:'warning text-dark',concluido:'success',cancelado:'danger'};
+  const lbl=CVCOL_STATUS.find(x=>x[0]===s)?.[1]||s;
+  return `<span class="badge bg-${map[s]||'secondary'}">${lbl}</span>`;
+}
+function _cvcolPagamentoBadge(s){
+  return s==='pago'?'<span class="badge bg-success">Pago</span>':'<span class="badge bg-warning text-dark">Pendente</span>';
+}
+const fmtMoeda=v=>(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+
+async function renderCvcol(){
+  if(!pode.cvcol()){toast('Acesso negado.','danger');await go('dashboard');return;}
+  setTitle('<i class="bi bi-file-earmark-medical-fill me-2"></i>Controle de CVCOL',
+    `<button class="btn btn-outline-secondary btn-sm me-2" onclick="App._cvcolExportar()">
+      <i class="bi bi-file-earmark-excel me-1"></i>Exportar XLS</button>
+    <button class="btn btn-primary btn-sm" onclick="App.go('cvcol-form')">
+      <i class="bi bi-plus-lg me-1"></i>Novo Processo</button>`);
+  render('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
+  const [processos,clubes]=await Promise.all([Api.get('/api/cvcol'),Api.get('/api/clubes?status=todos')]);
+  _cvcolAll=processos; state.cvcolClubes=clubes;
+  _cvcolRenderLista();
+}
+
+function _cvcolStats(lista){
+  const pendentes=lista.filter(p=>p.status==='pendente').length;
+  const andamento=lista.filter(p=>p.status==='em_andamento').length;
+  const concluidos=lista.filter(p=>p.status==='concluido').length;
+  const pagamentoPendente=lista.filter(p=>p.pagamentoStatus==='pendente').length;
+  return {total:lista.length,pendentes,andamento,concluidos,pagamentoPendente};
+}
+
+function _cvcolRenderLista(){
+  const f=_cvcolFiltros;
+  const lista=_cvcolAll.filter(p=>{
+    if(f.clubeId&&String(p.clubeId)!==String(f.clubeId))return false;
+    if(f.status&&p.status!==f.status)return false;
+    if(f.pagamentoStatus&&p.pagamentoStatus!==f.pagamentoStatus)return false;
+    if(f.tipoVeiculo&&p.tipoVeiculo!==f.tipoVeiculo)return false;
+    if(f.q){
+      const q=f.q.toLowerCase();
+      if(!p.numero.toLowerCase().includes(q)&&!p.placa.toLowerCase().includes(q)
+        &&!p.marca.toLowerCase().includes(q)&&!p.modelo.toLowerCase().includes(q))return false;
+    }
+    return true;
+  });
+  const st=_cvcolStats(_cvcolAll);
+  render(`
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-xl-3"><div class="stat-card sc-green">
+      <div class="sc-icon"><i class="bi bi-folder2-open"></i></div>
+      <div class="sc-val">${st.total}</div><div class="sc-lbl">Total de Processos</div>
+    </div></div>
+    <div class="col-6 col-xl-3"><div class="stat-card sc-yellow">
+      <div class="sc-icon"><i class="bi bi-hourglass-split"></i></div>
+      <div class="sc-val">${st.pendentes+st.andamento}</div><div class="sc-lbl">Em tramitação</div>
+    </div></div>
+    <div class="col-6 col-xl-3"><div class="stat-card sc-purple">
+      <div class="sc-icon"><i class="bi bi-cash-coin"></i></div>
+      <div class="sc-val">${st.pagamentoPendente}</div><div class="sc-lbl">Pagamentos Pendentes</div>
+    </div></div>
+    <div class="col-6 col-xl-3"><div class="stat-card sc-teal">
+      <div class="sc-icon"><i class="bi bi-check-circle-fill"></i></div>
+      <div class="sc-val">${st.concluidos}</div><div class="sc-lbl">Concluídos</div>
+    </div></div>
+  </div>
+  <div class="row g-2 mb-3">
+    <div class="col-md-3">
+      <select class="form-select form-select-sm" onchange="App._cvcolSetFiltro('clubeId',this.value)">
+        <option value="">Todos os clubes</option>
+        ${(state.cvcolClubes||[]).map(c=>`<option value="${c.id}"${String(f.clubeId)===String(c.id)?' selected':''}>${esc(c.nomeClube)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select class="form-select form-select-sm" onchange="App._cvcolSetFiltro('status',this.value)">
+        <option value="">Todos os status</option>
+        ${CVCOL_STATUS.map(([v,l])=>`<option value="${v}"${f.status===v?' selected':''}>${l}</option>`).join('')}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select class="form-select form-select-sm" onchange="App._cvcolSetFiltro('pagamentoStatus',this.value)">
+        <option value="">Pagamento (todos)</option>
+        ${CVCOL_PAGAMENTO.map(([v,l])=>`<option value="${v}"${f.pagamentoStatus===v?' selected':''}>${l}</option>`).join('')}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select class="form-select form-select-sm" onchange="App._cvcolSetFiltro('tipoVeiculo',this.value)">
+        <option value="">Automóvel/Moto</option>
+        ${CVCOL_TIPOS.map(([v,l])=>`<option value="${v}"${f.tipoVeiculo===v?' selected':''}>${l}</option>`).join('')}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <input class="form-control form-control-sm" placeholder="Buscar nº, placa, marca ou modelo..." value="${esc(f.q)}"
+        oninput="App._cvcolSetFiltro('q',this.value)">
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead><tr>
+        <th>Nº Processo</th><th>Veículo</th><th>Placa</th><th>Clube Emissor</th>
+        <th>Entrada</th><th>Diretor</th><th>Pagamento</th><th>Status</th><th></th>
+      </tr></thead>
+      <tbody>
+      ${lista.length?lista.map(p=>`
+        <tr style="cursor:pointer" onclick="App.go('cvcol-form',${p.id})">
+          <td><code>${esc(p.numero)}</code></td>
+          <td>${esc(p.marca)} ${esc(p.modelo)}${p.ano?` (${p.ano})`:''}
+            <div class="text-muted" style="font-size:.71rem">${CVCOL_TIPOS.find(x=>x[0]===p.tipoVeiculo)?.[1]||''}</div></td>
+          <td>${esc(p.placa)}</td>
+          <td>${esc(p.clubeNome||'-')}</td>
+          <td>${fmtDate(p.dataEntrada)}</td>
+          <td>${esc(p.diretorNome||'-')}</td>
+          <td>${_cvcolPagamentoBadge(p.pagamentoStatus)}</td>
+          <td>${_cvcolStatusBadge(p.status)}</td>
+          <td onclick="event.stopPropagation()">
+            <button class="btn btn-sm btn-outline-danger" title="Excluir" onclick="App._cvcolExcluir(${p.id})"><i class="bi bi-trash"></i></button>
+          </td>
+        </tr>`).join(''):`<tr><td colspan="9" class="text-center text-muted py-4">Nenhum processo encontrado.</td></tr>`}
+      </tbody>
+    </table>
+  </div>`);
+}
+
+function _cvcolSetFiltro(campo,valor){_cvcolFiltros[campo]=valor;_cvcolRenderLista();}
+
+async function _cvcolExcluir(id){
+  if(!confirm('Excluir este processo de CVCOL? Esta ação não pode ser desfeita.'))return;
+  try{
+    await Api.del(`/api/cvcol/${id}`);
+    _cvcolAll=_cvcolAll.filter(p=>p.id!==id);
+    _cvcolRenderLista();
+    toast('Processo excluído.');
+  }catch(e){toast(e.message,'danger');}
+}
+
+function _cvcolExportar(){
+  const f=_cvcolFiltros;
+  const params=new URLSearchParams();
+  if(f.clubeId) params.set('clubeId',f.clubeId);
+  if(f.status) params.set('status',f.status);
+  if(f.pagamentoStatus) params.set('pagamentoStatus',f.pagamentoStatus);
+  if(f.tipoVeiculo) params.set('tipoVeiculo',f.tipoVeiculo);
+  if(f.q) params.set('q',f.q);
+  window.open('/api/cvcol/exportar?'+params.toString(),'_blank');
+}
+
+async function renderCvcolForm(id){
+  if(!pode.cvcol()){toast('Acesso negado.','danger');await go('dashboard');return;}
+  const isEdit=!!id;
+  let v={tipoVeiculo:'automovel',status:'pendente',pagamentoStatus:'pendente'};
+  if(isEdit) v=await Api.get(`/api/cvcol/${id}`);
+  const [clubes,diretores]=await Promise.all([
+    Api.get('/api/clubes?status=todos'),
+    Api.get('/api/diretoria-fbva?status=ativos'),
+  ]);
+  setTitle(isEdit?'<i class="bi bi-file-earmark-medical-fill me-2"></i>Editar Processo CVCOL'
+                 :'<i class="bi bi-file-earmark-medical-fill me-2"></i>Novo Processo CVCOL');
+  render(`
+  <form onsubmit="event.preventDefault();App.saveCvcol(${id||'null'})">
+    <div class="card shadow-sm mb-3"><div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label">Número do Processo *</label>
+          <input name="numero" class="form-control" required value="${esc(v.numero||'')}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Tipo de Veículo *</label>
+          <select name="tipoVeiculo" class="form-select" required>
+            ${CVCOL_TIPOS.map(([val,lbl])=>`<option value="${val}"${v.tipoVeiculo===val?' selected':''}>${lbl}</option>`).join('')}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Placa *</label>
+          <input name="placa" class="form-control text-uppercase" required maxlength="8" value="${esc(v.placa||'')}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Ano</label>
+          <input name="ano" type="number" class="form-control" min="1900" max="2100" value="${v.ano||''}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Marca *</label>
+          <input name="marca" class="form-control" required value="${esc(v.marca||'')}">
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Modelo *</label>
+          <input name="modelo" class="form-control" required value="${esc(v.modelo||'')}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Data de Entrada *</label>
+          <input name="dataEntrada" type="date" class="form-control" required value="${v.dataEntrada||''}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Clube Emissor *</label>
+          <select name="clubeId" class="form-select" required>
+            <option value="">Selecione...</option>
+            ${clubes.map(c=>`<option value="${c.id}"${v.clubeId===c.id?' selected':''}>${esc(c.nomeClube)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Diretor Encaminhado</label>
+          <select name="diretorId" class="form-select">
+            <option value="">Nenhum</option>
+            ${diretores.map(d=>`<option value="${d.id}"${v.diretorId===d.id?' selected':''}>${esc(d.nome)} — ${esc(d.cargo)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Status do Processo</label>
+          <select name="status" class="form-select">
+            ${CVCOL_STATUS.map(([val,lbl])=>`<option value="${val}"${v.status===val?' selected':''}>${lbl}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-header"><i class="bi bi-cash-coin me-2"></i>Pagamento</div>
+      <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label">Valor (R$)</label>
+          <input name="valor" type="number" step="0.01" min="0" class="form-control" value="${v.valor||''}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Status do Pagamento</label>
+          <select name="pagamentoStatus" class="form-select">
+            ${CVCOL_PAGAMENTO.map(([val,lbl])=>`<option value="${val}"${v.pagamentoStatus===val?' selected':''}>${lbl}</option>`).join('')}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Data de Pagamento</label>
+          <input name="dataPagamento" type="date" class="form-control" value="${v.dataPagamento||''}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Comprovante</label>
+          <input type="file" id="cvcol-comprovante-inp" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+          ${v.comprovanteUrl?`<div class="mt-1"><a href="${v.comprovanteUrl}?download=1" target="_blank" class="small"><i class="bi bi-paperclip me-1"></i>Ver comprovante atual</a></div>`:''}
+        </div>
+      </div>
+    </div></div>
+
+    <div class="card shadow-sm mb-3"><div class="card-body">
+      <label class="form-label">Observações</label>
+      <textarea name="observacoes" class="form-control" rows="3">${esc(v.observacoes||'')}</textarea>
+    </div></div>
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary">Salvar</button>
+      <button type="button" class="btn btn-outline-secondary" onclick="App.go('cvcol')">Cancelar</button>
+    </div>
+  </form>`);
+}
+
+async function saveCvcol(id){
+  const f=document.querySelector('#app-content form');
+  const data=Object.fromEntries(new FormData(f));
+  const body={
+    numero:(data.numero||'').trim(),
+    tipoVeiculo:data.tipoVeiculo,
+    placa:(data.placa||'').trim().toUpperCase(),
+    marca:(data.marca||'').trim(),
+    modelo:(data.modelo||'').trim(),
+    ano:data.ano?parseInt(data.ano):null,
+    clubeId:data.clubeId?parseInt(data.clubeId):null,
+    dataEntrada:data.dataEntrada,
+    diretorId:data.diretorId?parseInt(data.diretorId):null,
+    status:data.status,
+    valor:data.valor?parseFloat(data.valor):null,
+    pagamentoStatus:data.pagamentoStatus,
+    dataPagamento:data.dataPagamento||null,
+    observacoes:data.observacoes||null,
+  };
+  try{
+    const processo=id?await Api.put(`/api/cvcol/${id}`,body):await Api.post('/api/cvcol',body);
+    const fileInp=document.getElementById('cvcol-comprovante-inp');
+    if(fileInp&&fileInp.files[0]){
+      const fd=new FormData();
+      fd.append('arquivo',fileInp.files[0]);
+      const res=await fetch(`/api/cvcol/${processo.id}/comprovante`,{method:'POST',credentials:'same-origin',body:fd});
+      const j=await res.json();
+      if(!j.ok) throw new Error(j.error||'Falha ao enviar comprovante.');
+    }
+    toast(id?'Processo atualizado.':'Processo criado.');
+    await go('cvcol');
+  }catch(e){toast(e.message,'danger');}
+}
+
 // ── Init ───────────────────────────────────────
 async function init() {
   document.getElementById('l-senha').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
@@ -6837,6 +7133,9 @@ return{
   saveBibliotecaVeiculo,_bibFiltrar,_bibLimparFiltros,
   _bibUploadArquivo,_bibExcluirArquivo,_bibExcluirVeiculo,_bibPreviewFiles,
   _bibAbrirViewer,_bibAbrirEditarArquivo,_bibSalvarEdicaoArquivo,
+  // Controle de CVCOL
+  renderCvcol,renderCvcolForm,saveCvcol,
+  _cvcolSetFiltro,_cvcolExcluir,_cvcolExportar,
   // Form dynamic sections
   _addMembro,_addEndereco,_onEstadoMudou,
   // Detail view actions
