@@ -651,8 +651,6 @@ class ProcessoCVCOL(db.Model):
     TIPOS_VEICULO = {
         'automovel':   'Automóvel',
         'motocicleta': 'Motocicleta',
-        'utilitario':  'Utilitário',
-        'caminhao':    'Caminhão',
         'outros':      'Outros',
     }
 
