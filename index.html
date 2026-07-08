@@ -6788,7 +6788,7 @@ async function saveBibliotecaVeiculo(id) {
 }
 
 // ═════════ Controle de CVCOL ═════════════════════
-const CVCOL_TIPOS=[['automovel','Automóvel'],['motocicleta','Motocicleta']];
+const CVCOL_TIPOS=[['automovel','Automóvel'],['motocicleta','Motocicleta'],['utilitario','Utilitário'],['caminhao','Caminhão'],['outros','Outros']];
 const CVCOL_STATUS=[['pendente','Pendente'],['em_andamento','Em andamento'],['concluido','Concluído'],['cancelado','Cancelado']];
 const CVCOL_PAGAMENTO=[['pendente','Pendente'],['pago','Pago']];
 
@@ -6880,7 +6880,7 @@ function _cvcolRenderLista(){
     </div>
     <div class="col-md-2">
       <select class="form-select form-select-sm" onchange="App._cvcolSetFiltro('tipoVeiculo',this.value)">
-        <option value="">Automóvel/Moto</option>
+        <option value="">Tipo (todos)</option>
         ${CVCOL_TIPOS.map(([v,l])=>`<option value="${v}"${f.tipoVeiculo===v?' selected':''}>${l}</option>`).join('')}
       </select>
     </div>
