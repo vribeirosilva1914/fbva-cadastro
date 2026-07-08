@@ -37,9 +37,3 @@ services:
         sync: false
       - key: META_IG_BUSINESS_ID
         sync: false
-
-databases:
-  - name: fbva-db
-    plan: free
-    databaseName: fbva
-    user: fbva_user
